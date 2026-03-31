@@ -38,6 +38,12 @@ try:
 except ImportError:
     _lineage_emit = None
 
+# OverseerMonitor — shared module (registo em pipeline_runs em modo standalone)
+try:
+    from overseer_monitor import OverseerMonitor
+except ImportError:
+    OverseerMonitor = None  # type: ignore[misc,assignment]
+
 # ---------------------------------------------------------------------------
 # Local pipeline modules
 # ---------------------------------------------------------------------------
@@ -55,6 +61,8 @@ DEFAULT_LIST_URL = DEFAULT_BASE_URL + "listagem.aspx"
 MAX_ERROR_MESSAGE_LENGTH = int(os.getenv("PERF_ERROR_MAX_LEN", "65000"))
 
 PIPELINE_ID = "webapp_medidata"
+PIPELINE_OWNER = "eferreira"
+PIPELINE_CRITICALITY = "medium"
 
 
 class ScrapeOrchestrator:
@@ -292,11 +300,21 @@ class ScrapeOrchestrator:
         log_manager = get_log_manager()
         operation_log = log_manager.create_operation_log("scrape")
 
+        # -- OverseerMonitor: só em modo standalone (sem orchestrator) --
+        monitor = None
+        if not runtime_ctx.orchestrator_managed and OverseerMonitor is not None:
+            monitor = OverseerMonitor(
+                script_name=PIPELINE_ID,
+                table_name="Overseer.pipeline_runs",
+                db_params=None,  # será preenchido após load_config
+            )
+
         self.logger.info("=" * 80)
         self.logger.info("INÍCIO DO SCRAPING WEBAPP MEDIDATA")
         self.logger.info("=" * 80)
         self.logger.info(f"Timestamp: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         self.logger.info(f"Run ID: {run_id}")
+        self.logger.info(f"Managed by orchestrator: {runtime_ctx.orchestrator_managed}")
         self.logger.info(f"RuntimeContext: {runtime_ctx.summary()}")
         self.logger.info(f"Log desta operação: {operation_log}")
         self.emit_module_log_heartbeat("startup")
@@ -329,6 +347,20 @@ class ScrapeOrchestrator:
                 )
                 emit.emit_end("ssh_tunnel", status="OK", message=tunnel_msg)
                 emit.emit_end("db_connection", status="OK", message="Database connected + tables ensured")
+
+            # OverseerMonitor: fornecer db_params e arrancar registo
+            if monitor is not None:
+                db_conf = self.db_config["database"]
+                _mon_host = "127.0.0.1" if self.ssh_tunnel else db_conf.get("host", "localhost")
+                _mon_port = self.ssh_tunnel.get_local_port() if self.ssh_tunnel else int(db_conf.get("port", 3306))
+                monitor.set_db_params({
+                    "host": _mon_host,
+                    "port": _mon_port,
+                    "user": db_conf["user"],
+                    "password": db_conf["password"],
+                    "database": db_conf.get("database", "Overseer"),
+                })
+                monitor.start()
 
             # ── 3. Inicializar scraper ───────────────────────────────
             if emit:
@@ -561,6 +593,18 @@ class ScrapeOrchestrator:
                 )
             if emit:
                 emit.emit_end("slack_notification", status="OK", message="Slack notified")
+
+            # OverseerMonitor: finalizar registo standalone
+            if monitor is not None:
+                try:
+                    monitor.finish(status, error_message, context={
+                        "pipeline_id": PIPELINE_ID,
+                        "trigger_type": os.environ.get("OVERSEER_TRIGGER_TYPE", "manual"),
+                        "owner": PIPELINE_OWNER,
+                        "criticality": PIPELINE_CRITICALITY,
+                    })
+                except Exception as mon_exc:
+                    self.logger.warning(f"OverseerMonitor finish falhou: {mon_exc}")
 
             # Release resources
             if self.db_manager:

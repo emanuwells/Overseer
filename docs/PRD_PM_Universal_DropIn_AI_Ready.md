@@ -79,6 +79,7 @@ Campos obrigatórios:
 - `timeout_sec` (default 3600)
 - `retries` (default 2)
 - `entrypoint` ou `steps`
+- `entrypoint_windows` (mesmo comando, garante portabilidade Windows)
 
 Campos opcionais:
 - `schedule`
@@ -90,7 +91,7 @@ Regras `runner_host`:
 - `<hostname>`: fixo nessa máquina.
 
 ## 6. Contratos de dados DB
-Tabela `logs` (mínimo):
+Tabela `pipeline_runs` (canónica):
 - `id`, `scriptName`, `startDate`, `endDate`, `execTime`, `usageCPU`, `usageMemoria`, `status`, `errorMessage`, `logMessage`, `hostname`, `osName`, `osRelease`, `osPlatform`, `pipelineId`, `runId`, `attemptId`, `triggerType`, `owner`, `criticality`, `regDate`.
 
 Tabela `pipeline_module_events`:
@@ -159,16 +160,20 @@ Cron mínimo:
 
 ## 10. Onboarding drop-in de um novo pipeline
 1. Copiar `pipelines/_template` para `pipelines/<novo_id>`.
-2. Ajustar `pipeline.yaml` (IDs, owner, entrypoint, runner_host).
-3. Implementar scripts em `pipelines/<novo_id>/src`.
+2. Ajustar `pipeline.yaml` (IDs, owner, entrypoint, entrypoint_windows, runner_host).
+3. Implementar scripts em `pipelines/<novo_id>/src` seguindo o padrão canónico:
+   - `RuntimeContext.detect()` para portabilidade multi-máquina.
+   - `OverseerMonitor` só quando `not runtime_ctx.orchestrator_managed`.
+   - `LineageEmitter` para eventos de módulo (sempre).
+   - `SlackNotifier` obrigatório.
 4. Preencher `pipelines/<novo_id>/secrets` localmente (não versionar).
 5. Executar `python orchestrator.py run <novo_id>` (DB + export frontend).
-6. Validar frontend em `frontend/PM.html`.
+6. Validar frontend na app Overseer do MAIATRON.
 7. Configurar cron no runner.
 
 ## 11. Critérios de aceitação
 1. Pipeline novo executa sem alterar core do monitor.
-2. Run aparece em `logs` com `hostname`.
+2. Run aparece em `pipeline_runs` com `hostname`.
 3. Eventos de módulo aparecem em `pipeline_module_events`.
 4. Export produz JSON válido em `frontend/`.
 5. UI mostra runs com ordenacao por cabecalho (asc/desc) e lineage no proximo ciclo.

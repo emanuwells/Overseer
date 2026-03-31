@@ -2,7 +2,8 @@
   "pipeline_id": "example_pipeline",
   "owner": "data.team",
   "criticality": "medium",
-  "runs_table": "logs",
+  "logs_table": "Overseer.pipeline_runs",
+  "script_name": "example_pipeline",
   "frontend_base_url": "https://monitor.seu-dominio.pt/apps/overseer/PM.html",
   "runner_host": "auto",
   "secrets_path": "secrets"

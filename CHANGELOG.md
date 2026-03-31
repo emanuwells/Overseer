@@ -1,4 +1,26 @@
 # Changelog
+## [2.4.0] - 2025-07-16
+
+### Changed
+- **Pipeline standardization**: all pipelines now follow the same canonical pattern — `OverseerMonitor` (standalone), `LineageEmitter` (orchestrator), `SlackNotifier` (mandatory), `RuntimeContext` (portability).
+- **Template rewrite**: `pipelines/_template/src/main.py` rewritten with `PipelineOrchestrator` class pattern, full documentation in `pipelines/_template/README.md`.
+- **forms_2_datalake migration**: removed local `overseer_monitor.py` and `overseer_frontend.py`; pipeline now imports shared `OverseerMonitor` from `overseer_monitor/` package.
+- **webapp_medidata**: added `OverseerMonitor` standalone tracking so runs outside orchestrator are properly recorded in `pipeline_runs`.
+- **example_pipeline**: rewritten from stub (`print("ok")`) to full canonical pattern with monitor, lineage, and Slack.
+- **entrypoint_windows**: added to all `pipeline.yaml` files for cross-platform portability.
+- **monitoring.json.example**: updated to canonical field names (`logs_table`, `script_name`).
+
+### Removed
+- `pipelines/microsoft_forms_2_datalake/src/overseer_monitor.py` (local copy, replaced by shared module)
+- `pipelines/microsoft_forms_2_datalake/src/overseer_frontend.py` (legacy HTTP server, replaced by MAIATRON api.php)
+
+### AI Context Delta
+- All pipelines use the shared `overseer_monitor.OverseerMonitor` — no local copies.
+- `OverseerMonitor.finish()` takes `context` dict (`pipeline_id`, `trigger_type`, `owner`, `criticality`), not `db_manager`.
+- `monitor.start()` is called only when `not runtime_ctx.orchestrator_managed`.
+- Pipeline constants: `PIPELINE_ID`, `PIPELINE_OWNER`, `PIPELINE_CRITICALITY` must match `pipeline.yaml`.
+- `entrypoint_windows` added to YAML contract for Windows portability.
+
 ## [2.3.6] - 2026-03-31
 
 ### Fixed

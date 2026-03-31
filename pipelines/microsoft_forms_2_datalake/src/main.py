@@ -41,7 +41,12 @@ from db_manager import DatabaseManager
 from excel_reader import ExcelReader
 from forms_reader import FormsReader
 from validator import RowValidator
-from overseer_monitor import OverseerMonitor
+
+# OverseerMonitor — shared module (registo em pipeline_runs em modo standalone)
+try:
+    from overseer_monitor import OverseerMonitor
+except ImportError:
+    OverseerMonitor = None  # type: ignore[misc,assignment]
 
 
 DEFAULT_FRONTEND_URL = (
@@ -721,8 +726,9 @@ class SyncOrchestrator:
             script_name=runtime_monitoring["script_name"],
             table_name=runtime_monitoring["logs_table"],
             frontend_base_url=runtime_monitoring.get("frontend_base_url"),
-        )
-        self.overseer_monitor.start()
+        ) if OverseerMonitor is not None else None
+        if self.overseer_monitor:
+            self.overseer_monitor.start()
 
         self.logger.info("="*80)
         self.logger.info("🚀 INÍCIO DA SINCRONIZAÇÃO")
@@ -741,7 +747,7 @@ class SyncOrchestrator:
             self.load_config()
             monitoring_cfg = self.monitoring_config or {}
             if self.overseer_monitor:
-                self.overseer_monitor.set_table_name(
+                self.overseer_monitor.table_name = (
                     monitoring_cfg.get("logs_table", runtime_monitoring["logs_table"])
                 )
                 self.overseer_monitor.script_name = monitoring_cfg.get(
@@ -757,18 +763,15 @@ class SyncOrchestrator:
             # 2. Estabelece infraestrutura (SSH + BD)
             if emit:
                 emit.emit_start("ssh_tunnel", critical=True)
-            if self.overseer_monitor:
-                self.overseer_monitor.mark_stage_start("dbconn")
             self.setup_infrastructure()
             if emit:
                 emit.emit_end("ssh_tunnel", status="OK", message="Infrastructure ready")
 
-            # 3. Marca conexão BD nos metadados
+            # 3. Atualiza DB params do monitor (para modo standalone)
             if emit:
                 emit.emit_start("db_connection", critical=True)
             if self.overseer_monitor:
                 db_config = self.db_config["database"]
-                self.overseer_monitor.mark_stage_end("dbconn")
                 db_host = 'localhost' if self.ssh_tunnel else db_config.get('host', '127.0.0.1')
                 db_port = self.ssh_tunnel.get_local_port() if self.ssh_tunnel else int(db_config.get('port', 3306))
                 self.overseer_monitor.set_db_params(
@@ -817,9 +820,6 @@ class SyncOrchestrator:
                 emit.emit_end("file_discovery", status="OK",
                               message=f"Found {len(all_files)} files (Excel={len(excel_files_to_process)}, Forms={len(forms_files_to_process)})")
 
-            if self.overseer_monitor:
-                self.overseer_monitor.mark_stage_start("loading")
-
             self.logger.info(f"📁 Total de ficheiros a processar: {len(all_files)} "
                            f"(Excel: {len(excel_files_to_process)}, Forms: {len(forms_files_to_process)})")
 
@@ -853,9 +853,6 @@ class SyncOrchestrator:
                 emit.emit_end("forms_processing",
                               status="NOK" if self.stats.get("forms_failed", 0) > 0 else "OK",
                               message=f"Forms processed: {self.stats.get('forms_processed', 0)}, failed: {self.stats.get('forms_failed', 0)}")
-
-            if self.overseer_monitor:
-                self.overseer_monitor.mark_stage_end("loading")
 
             # 8. Resumo final
             if emit:
@@ -905,7 +902,12 @@ class SyncOrchestrator:
                 overseer_log_entry = self.overseer_monitor.finish(
                     status=status,
                     error_message=log_error_blob,
-                    db_manager=self.db_manager,
+                    context={
+                        "pipeline_id": "microsoft_forms_2_datalake",
+                        "trigger_type": os.getenv("P_TRIGGER_TYPE", "manual"),
+                        "owner": (self.monitoring_config or {}).get("owner", "eferreira"),
+                        "criticality": (self.monitoring_config or {}).get("criticality", "medium"),
+                    },
                 )
                 if overseer_log_entry:
                     run_id = overseer_log_entry.get("id")

@@ -7,7 +7,7 @@ schedule: "manual"
 timeout_sec: 3600
 retries: 2
 entrypoint: "python src/main.py"
-entrypoint_windows: "python src\\main.py"
+entrypoint_windows: "python src/main.py"
 
 # Steps alternative (instead of entrypoint). Each step can have:
 #   id:       unique step identifier

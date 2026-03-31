@@ -7,4 +7,5 @@ schedule: paused
 timeout_sec: 1800
 retries: 2
 entrypoint: python src/run_example.py
+entrypoint_windows: python src/run_example.py
 prev_schedule: '*/15 * * * *'
