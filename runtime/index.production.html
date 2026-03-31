@@ -1,0 +1,642 @@
+﻿<!doctype html>
+<html lang="pt">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="googlebot" content="noindex, nofollow" />
+  <title>MAIATRON | OVERSEER</title>
+  <link rel="icon" type="image/png" href="../../assets/MAIATRON_LOGO_NOBG.png?v=20260225-v4" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="overseer.css?v=20260225-v4" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <div class="bg-animation" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <div id="loginScreen" class="login-screen">
+    <button id="loginThemeToggle" class="theme-btn login-theme-btn" aria-label="Alternar tema" title="Alternar tema">
+      <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5" />
+        <path
+          d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+      </svg>
+      <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+      </svg>
+    </button>
+    <div class="login-container">
+      <div class="login-glow"></div>
+      <div class="login-card">
+        <div class="login-logo">
+          <div class="logo-icon">
+            <img class="logo-img" src="../../assets/MAIATRON_LOGO_NOBG.png?v=20260225-v4"
+              alt="MAIATRON logo" />
+            <div class="logo-ring"></div>
+          </div>
+        </div>
+        <h1 class="login-title">MAIATRON</h1>
+        <p class="login-subtitle">OVERSEER</p>
+
+        <form id="loginForm" class="login-form">
+          <div class="input-group">
+            <div class="input-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <input type="text" id="username" placeholder="Utilizador" autocomplete="username" required />
+            <div class="input-line"></div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password" required />
+            <div class="input-line"></div>
+          </div>
+
+          <div class="login-options">
+            <label class="login-option">
+              <input type="checkbox" id="rememberUsername">
+              <span>Lembrar utilizador</span>
+            </label>
+            <label class="login-option">
+              <input type="checkbox" id="rememberSession" checked>
+              <span>Manter sessão</span>
+            </label>
+          </div>
+
+          <button type="button" id="forgotPasswordBtn" class="login-link-btn">Esqueci-me da password</button>
+
+          <div id="loginError" class="login-error"></div>
+
+          <button type="submit" class="login-btn" aria-label="Entrar na aplicação">
+            <span class="btn-text">ENTRAR</span>
+            <span class="btn-loader"></span>
+            <div class="btn-glow"></div>
+          </button>
+        </form>
+
+        <div class="login-footer">
+          <span>Acesso restrito</span>
+          <div class="pulse-dot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainApp" class="main-app hidden">
+    <header class="header header--analytics">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-logo">
+            <img class="brand-img" src="../../assets/MAIATRON_LOGO_NOBG.png?v=20260225-v4"
+              alt="MAIATRON logo" />
+            <div class="brand-ring"></div>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">OVERSEER</span>
+            <span class="brand-tag">Monitorização operacional</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-center header-center--analytics">
+        <div class="search-cluster">
+          <div class="search-container">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input id="q" type="search" aria-label="Pesquisar" placeholder="Pesquisar por ID, script, host ou erro..."
+              autocomplete="off" />
+            <span class="search-counter" id="searchCounter"></span>
+            <kbd class="search-kbd">Ctrl+K</kbd>
+          </div>
+          <select id="quickFilter" class="quick-filter" title="Filtro rápido" aria-label="Filtro rápido">
+            <option value="">Todos</option>
+            <option value="nok_24h">NOK 24h</option>
+            <option value="nok_7d">NOK 7 dias</option>
+            <option value="high_cpu">CPU &gt; 80%</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="header-actions">
+          <a class="theme-btn home-btn" href="../../index.html" aria-label="Voltar ao MAIATRON HUB"
+            title="Voltar ao MAIATRON HUB">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 11.5L12 4l9 7.5"></path>
+              <path d="M5 10.5V20h14v-9.5"></path>
+            </svg>
+            <span>Home</span>
+          </a>
+          <button id="refreshBtn" class="theme-btn" title="Atualizar agora" aria-label="Atualizar agora">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </button>
+
+          <div class="auto-refresh header-aux">
+            <span class="refresh-indicator"></span>
+            <span id="refreshCountdown">30s</span>
+          </div>
+
+          <div class="header-update header-aux">
+            <span class="header-update-label">Última atualização:</span>
+            <span id="headerUpdateTime">-</span>
+          </div>
+
+          <button id="metricsHelpHeaderBtn" class="theme-btn" title="Como interpretar as métricas" aria-label="Como interpretar as métricas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+          <a class="theme-btn maiatron-ops-link-btn" href="../../ops-center.html" target="_blank"
+            rel="noopener noreferrer" title="Abrir Ops Center" aria-label="Abrir Ops Center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            <span class="maiatron-ops-link-label">Ops Center</span>
+          </a>
+          <button id="themeToggle" class="theme-btn" title="Alternar tema" aria-label="Alternar tema">
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5" />
+              <path
+                d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="user-menu">
+          <button class="user-btn" aria-label="Menu de utilizador" aria-expanded="false" id="userMenuBtn">
+            <div class="user-avatar" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <span id="userName">user</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="user-dropdown" role="menu" id="userDropdown">
+            <button id="logoutBtn" class="dropdown-item" role="menuitem">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>Terminar sessão</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content container">
+      <nav class="nav-tabs" aria-label="Navegação principal">
+        <button class="nav-tab active" data-view="dashboardView" data-i18n="navDashboard">Dashboard</button>
+        <button class="nav-tab" data-view="pipelinesView" data-i18n="navPipelines">Pipelines</button>
+        <button class="nav-tab" data-view="orchestratorView" data-i18n="navOrchestrator">Orquestração</button>
+        <button class="nav-tab" data-view="insightsView" data-i18n="navInsights">Insights</button>
+        <button class="nav-tab" data-view="runsView" data-i18n="navRuns">Runs</button>
+        <button class="nav-tab" data-view="lineageView" data-i18n="navLineage">Lineage</button>
+      </nav>
+
+      <div id="lastUpdateBanner" style="display:none">
+        <span id="lastUpdateTime"></span><span id="lastUpdateRuns"></span>
+      </div>
+
+      <section id="dashboardView" class="view active">
+        <!-- Health banner -->
+        <section id="healthHighlight" class="health-highlight dash-area-health">
+          <svg class="health-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          <p id="healthTitle" class="health-title">A aguardar dados...</p>
+          <p id="healthMessage" class="health-text">A carregar...</p>
+        </section>
+
+        <!-- Left: Pipeline cards + Quality -->
+        <div class="dash-col-left">
+          <section class="pipeline-assets" id="pipelineAssetCards"></section>
+          <section class="quality-section dash-quality" id="qualitySection"></section>
+        </div>
+
+        <!-- Right: Signals + Charts -->
+        <div class="dash-col-right">
+
+          <section class="signals-section">
+            <article class="signal-card" data-signal="atRisk">
+              <div class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg></div>
+              <span class="label" data-i18n="labelAtRisk">Pipelines com atenção</span>
+              <strong id="signalAtRisk">0</strong>
+              <span class="hint" id="signalAtRiskHint" data-i18n="hintAtRiskShort">Sem risco detetado</span>
+            </article>
+            <article class="signal-card" data-signal="stale">
+              <div class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg></div>
+              <span class="label" data-i18n="labelStale">Pipelines sem runs (24h)</span>
+              <strong id="signalStale">0</strong>
+              <span class="hint" id="signalStaleHint" data-i18n="hintStaleShort">Cobertura atualizada</span>
+            </article>
+            <article class="signal-card" data-signal="regressions">
+              <div class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg></div>
+              <span class="label" data-i18n="labelRegressions">Regressões ativas</span>
+              <strong id="signalRegressions">0</strong>
+              <span class="hint" id="signalRegressionsHint" data-i18n="hintRegressionsShort">Sem regressões
+                relevantes</span>
+            </article>
+            <article class="signal-card" data-signal="volume">
+              <div class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg></div>
+              <span class="label" data-i18n="labelVolume">Anomalia de volume</span>
+              <strong id="signalVolume">N/A</strong>
+              <span class="hint" id="signalVolumeHint" data-i18n="hintVolumeShort">Volume dentro do padrão</span>
+            </article>
+          </section>
+
+          <!-- Charts -->
+          <section class="charts-section charts-section--duo">
+            <article class="chart-card">
+              <header class="chart-header">
+                <h3 data-i18n="chartHistory">Histórico de Runs</h3><select id="historyGranularity"
+                  class="chart-granularity" aria-label="Granularidade">
+                  <option value="hour" data-i18n="granHour">Hora</option>
+                  <option value="day" selected data-i18n="granDay">Dia</option>
+                  <option value="week" data-i18n="granWeek">Semana</option>
+                  <option value="month" data-i18n="granMonth">Mês</option>
+                </select>
+              </header>
+              <div class="chart-wrap"><canvas id="runsHistoryChart"></canvas></div>
+            </article>
+            <article class="chart-card">
+              <header class="chart-header">
+                <h3 data-i18n="chartHealth">Saúde dos Pipelines</h3>
+              </header>
+              <div class="chart-wrap chart-wrap--donut"><canvas id="successRateChart"></canvas>
+                <div class="donut-center" id="donutCenter"><span class="donut-pct" id="donutPct">—</span><span
+                    class="donut-label" data-i18n="healthLabel">saúde</span></div>
+              </div>
+            </article>
+          </section>
+        </div><!-- /dash-col-right -->
+      </section>
+
+      <section id="pipelinesView" class="view">
+        <article class="lineage-card">
+          <header class="chart-header">
+            <h3>Pipelines (prioridade operacional)</h3>
+            <div class="table-actions"><select id="pipelineRiskFilter" aria-label="Filtrar por risco">
+                <option value="">Todos os riscos</option>
+                <option value="critical">Crítico</option>
+                <option value="high">Alto</option>
+                <option value="medium">Médio</option>
+                <option value="low">Baixo</option>
+              </select></div>
+          </header>
+          <div class="table-wrap">
+            <table id="pipelinesTable">
+              <thead id="pipelinesTableHead"></thead>
+              <tbody id="pipelinesTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pager"><button id="pipelinesPrevPage">Anterior</button><span id="pipelinesPageInfo"></span><button
+              id="pipelinesNextPage">Seguinte</button></div>
+        </article>
+      </section>
+
+      <section id="insightsView" class="view">
+        <section class="priority-section">
+          <article class="priority-card">
+            <header class="priority-head">
+              <h3>Alertas recentes (NOK)</h3>
+            </header>
+            <div id="recentFailuresList" class="priority-list"></div>
+          </article>
+          <article class="priority-card">
+            <header class="priority-head">
+              <h3>Pipelines com mais falhas (7 dias)</h3>
+            </header>
+            <div id="failingPipelinesList" class="priority-list"></div>
+          </article>
+        </section>
+
+        <section class="advanced-summary">
+          <article class="priority-card">
+            <header class="priority-head">
+              <h3>Incidents timeline</h3>
+            </header>
+            <div id="incidentsTimelineList" class="priority-list"></div>
+          </article>
+          <article class="priority-card">
+            <header class="priority-head">
+              <h3>Top regressions</h3>
+            </header>
+            <div id="topRegressionsList" class="priority-list"></div>
+          </article>
+          <article class="priority-card">
+            <header class="priority-head">
+              <h3>Quick actions</h3>
+            </header>
+            <div class="quick-actions"><button id="qaShowNok" class="btn-quick">Ver NOK (7d)</button><button
+                id="qaOpenLatestNok" class="btn-quick">Abrir último NOK</button><button id="qaResetOverview"
+                class="btn-quick btn-secondary">Reset overview</button></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="runsView" class="view">
+        <section class="controls-panel">
+          <div class="filters">
+            <div id="filters"></div>
+            <div class="filter filter--time"><label for="timeFilter">Período de runs</label><select id="timeFilter">
+                <option value="24h">Últimas 24 horas</option>
+                <option value="7d">Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
+                <option value="all" selected>Todos</option>
+              </select></div>
+          </div>
+        </section>
+
+        <section id="stats" class="stats"></section>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="pager"><button id="prevPage">Anterior</button><span id="pageInfo"></span><button
+            id="nextPage">Seguinte</button><label for="pageSize">Linhas</label><select id="pageSize">
+            <option>10</option>
+            <option selected>25</option>
+            <option>50</option>
+            <option>100</option>
+          </select></div>
+      </section>
+
+      <section id="lineageView" class="view">
+        <article class="lineage-card">
+          <header class="chart-header">
+            <h3>Lineage / Pipelines (dados atuais)</h3>
+          </header>
+          <div id="lineageGrid" class="lineage-grid"></div>
+        </article>
+      </section>
+
+      <section id="orchestratorView" class="view">
+        <article class="lineage-card">
+          <header class="chart-header">
+            <h3>Orquestração de Pipelines</h3>
+            <div class="table-actions">
+              <button id="orchRefreshBtn" class="btn-quick">Atualizar</button>
+            </div>
+          </header>
+          <p class="muted">Modo sem API — use "Run now" para disparar execução imediata, ou edite o schedule para
+            alterar o agendamento. Permissões baseadas no seu perfil de utilizador.</p>
+          <div class="table-wrap">
+            <table id="orchPipelinesTable">
+              <thead id="orchPipelinesHead"></thead>
+              <tbody id="orchPipelinesBody"></tbody>
+            </table>
+          </div>
+        </article>
+        <article class="lineage-card">
+          <header class="chart-header">
+            <h3>Runs de Orquestração</h3>
+          </header>
+          <div class="table-wrap">
+            <table id="orchRunsTable">
+              <thead id="orchRunsHead"></thead>
+              <tbody id="orchRunsBody"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button id="orchPrevPage">Anterior</button>
+            <span id="orchPageInfo"></span>
+            <button id="orchNextPage">Seguinte</button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>OVERSEER <span id="currentYear">2026</span></p>
+    </footer>
+  </div>
+
+  <div class="modal" id="runDetailModal" aria-hidden="true">
+    <div class="modal-overlay" id="runDetailOverlay"></div>
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalRunTitle">
+      <div class="modal-header">
+        <h2 id="modalRunTitle">Detalhe da Run <span id="modalRunId">#-</span></h2><button class="modal-close"
+          id="modalCloseBtn" aria-label="Fechar detalhe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="run-status-banner" id="modalStatusBanner"><span class="status-pill status-ok"
+            id="modalStatusText">OK</span></div>
+        <div class="metrics-grid" id="modalMetricsGrid"></div>
+        <div class="error-section" id="modalErrorSection">
+          <h4>Log completo</h4>
+          <pre class="error-log" id="modalErrorLog"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Metrics documentation drawer -->
+  <div class="metrics-drawer-overlay" id="metricsDrawerOverlay"></div>
+  <aside class="metrics-drawer" id="metricsDrawer" aria-label="Documentação de métricas" aria-hidden="true">
+    <div class="drawer-header">
+      <h2>Glossário de métricas</h2>
+      <button class="modal-close" id="metricsDrawerClose" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-body">
+      <details class="drawer-item" open>
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg></span> Pipelines com atenção (At Risk)</summary>
+        <div class="drawer-item-body">
+          <p>Numero de pipelines que precisam de intervenção. O cálculo considera três fatores:</p>
+          <ol>
+            <li>A última execução falhou (NOK)</li>
+            <li>O pipeline não executa há mais de 24 horas quando deveria</li>
+            <li>A taxa de falhas dos últimos 7 dias subiu acima de 20%</li>
+          </ol>
+          <p>Basta <strong>um</strong> destes fatores para o pipeline entrar nesta contagem.</p>
+          <div class="drawer-formula"><code>atRisk = lastRun == NOK || staleHours > 24 || nokRate7d > 0.20</code></div>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg></span> Pipelines sem runs — Stale (24h)</summary>
+        <div class="drawer-item-body">
+          <p>Pipelines que não tiveram nenhuma execução nas últimas 24 horas. Se um pipeline tem agendamento diário e
+            <strong>não</strong> aparece aqui, esta tudo normal.</p>
+          <p>Se aparece, pode significar que o scheduler parou, o servidor esta inacessível ou houve um erro silencioso.
+          </p>
+          <div class="drawer-formula"><code>stale = (now - lastRunDate) > 24h</code></div>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+              <polyline points="17 6 23 6 23 12" />
+            </svg></span> Regressões ativas</summary>
+        <div class="drawer-item-body">
+          <p>Pipelines onde a taxa de falhas esta a piorar. Compara a percentagem de execuções NOK dos últimos 7 dias
+            com os 7 dias anteriores.</p>
+          <p>Se a taxa subiu mais de <strong>20 pontos percentuais</strong>, conta como regressão.</p>
+          <div class="drawer-formula"><code>regression = nokRate7d - nokRatePrev7d > 0.20</code></div>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg></span> Anomalia de volume</summary>
+        <div class="drawer-item-body">
+          <p>Compara o número de execuções das últimas 24 horas com a média diaria da semana anterior.</p>
+          <p>Valores muito <strong>abaixo</strong> podem indicar que pipelines não estão a ser disparados; valores muito
+            <strong>acima</strong> podem significar execuções duplicadas ou loops.</p>
+          <div class="drawer-formula"><code>volume = runs24h / avgDaily7d * 100%</code></div>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg></span> Freshness SLA</summary>
+        <div class="drawer-item-body">
+          <p>Indica há quanto tempo cada pipeline teve a sua última execução. Os thresholds sao:</p>
+          <ul>
+            <li><span class="freshness-dot freshness-fresh"></span> <strong>Fresh</strong> — última run há menos de 1
+              hora</li>
+            <li><span class="freshness-dot freshness-ok"></span> <strong>OK</strong> — última run entre 1h e 6h</li>
+            <li><span class="freshness-dot freshness-stale"></span> <strong>Stale</strong> — última run entre 6h e 24h
+            </li>
+            <li><span class="freshness-dot freshness-critical"></span> <strong>Critical</strong> — sem run há mais de
+              24h</li>
+          </ul>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg></span> Quality Gates</summary>
+        <div class="drawer-item-body">
+          <p>Percentagem de execuções com sucesso nos últimos 7 dias. Os thresholds sao:</p>
+          <ul>
+            <li><span class="qg-dot qg-pass"></span> <strong>Pass</strong> — success rate >= 95%</li>
+            <li><span class="qg-dot qg-warn"></span> <strong>Warning</strong> — success rate entre 80% e 95%</li>
+            <li><span class="qg-dot qg-fail"></span> <strong>Fail</strong> — success rate < 80%</li>
+          </ul>
+          <div class="drawer-formula"><code>qualityGate = okRuns7d / totalRuns7d * 100</code></div>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg></span> Risk Score (0–100)</summary>
+        <div class="drawer-item-body">
+          <p>Score composto de risco por pipeline. Formula:</p>
+          <div class="drawer-formula">
+            <code>riskScore = (lastRun NOK ? +45) + (stale >24h ? +25) + (nokRate7d >20% ? +20)</code></div>
+          <ul>
+            <li><strong>Critical</strong> — riskScore >= 80</li>
+            <li><strong>High</strong> — riskScore >= 55</li>
+            <li><strong>Medium</strong> — riskScore >= 30</li>
+            <li><strong>Low</strong> — riskScore < 30</li>
+          </ul>
+        </div>
+      </details>
+      <details class="drawer-item">
+        <summary><span class="drawer-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="9" y1="21" x2="9" y2="9" />
+            </svg></span> Execution efficiency (P95)</summary>
+        <div class="drawer-item-body">
+          <p>Compara o tempo médio de execução com o percentil 95. Um P95 muito acima da média indica execuções
+            ocasionais com lentidão atípica.</p>
+          <div class="drawer-formula"><code>efficiency = avgExecTime vs p95ExecTime</code></div>
+          <p>Se p95 > 3x a média, pode indicar problemas de desempenho intermitentes.</p>
+        </div>
+      </details>
+    </div>
+  </aside>
+
+  <script>
+    window.OVERSEER_ASSETS = {
+      payloadUrl: "overseer_payload.json",
+      detailsUrl: "overseer_details.json"
+    };
+  </script>
+  <script src="../../shared/auth.js?v=20260225-v4"></script>
+  <script src="../../shared/auth-admin-ui.js?v=20260227-v7"></script>
+  <script src="overseer.js?v=20260225-v4" defer></script>
+</body>
+
+</html>

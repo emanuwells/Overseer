@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual env
+.venv/
+venv/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Runtime artifacts
+logs/
+pipelines/**/logs/
+*.log
+orch_log.txt
+run_log.txt
+runtime/logs/*.log
+runtime/*.json
+runtime/*_status.json
+runtime/scheduler_state.json
+runtime/run_now_channel/**/*.json
+runtime/triggers/schedule/**/*.json
+!runtime/.gitkeep
+!runtime/logs/.gitkeep
+!runtime/triggers/.gitkeep
+
+# Frontend generated payload
+frontend/pm_payload.json
+frontend/pm_details.json
+
+# Environment local
+.env
+
+# Secrets (keep only examples/tracked placeholders)
+secrets/*
+!secrets/*.example
+!secrets/*.example.json
+!secrets/.gitkeep
+!secrets/README.md
+secrets/ssh_key*
+
+# Pipeline secrets (keep only examples/placeholders)
+pipelines/**/secrets/*
+!pipelines/**/secrets/.gitkeep
+!pipelines/**/secrets/*.example
+!pipelines/**/secrets/*.example.json
+pipelines/**/secrets/ssh_key*

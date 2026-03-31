@@ -1,0 +1,10 @@
+pipeline_id: webapp_medidata
+name: Webapp Medidata Pipeline
+owner: eferreira
+criticality: medium
+runner_host: PTLTP024
+schedule: 0 8 * * *
+timeout_sec: 1800
+retries: 1
+entrypoint: python src/main.py
+entrypoint_windows: python src/main.py

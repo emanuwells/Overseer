@@ -1,0 +1,80 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}{\f1 Courier New;}}
+\fs24
+\b Guia Step-by-Step: Overseer em Produ\u231?\u227?o\b0\par
+\par
+\b 1) Arquitetura (desenho)\b0\par
+\f1
++-----------------------+        +-------------------------------+\par
+| Browser               | ---->  | frontend/pm_payload.json      |\par
+| /apps/overseer/PM.html     |        | frontend/pm_details.json      |\par
++-----------+-----------+        +---------------+---------------+\par
+            |                                     ^\par
+            v                                     | export (15 min)\par
++----------------------+                  +-------+----------------+\par
+| Nginx                |                  | scripts/export_payload |\par
++----------------------+                  +-------+----------------+\par
+                                                   |\par
+                                                   v\par
+                                            +------+------+\par
+                                            | MySQL/Maria |\par
+                                            | logs + ...  |\par
+                                            +------+------+\par
+                                                   ^\par
+                                 +-----------------+-----------------+\par
+                                 |                                   |\par
+                         +-------+--------+                   +------+--------+\par
+                         | Runner A       |                   | Runner B      |\par
+                         | orchestrator   |                   | orchestrator  |\par
+                         +----------------+                   +---------------+\par
+\f0
+\par
+\b 2) Estrutura obrigat\u243?ria\b0\par
+\f1
+pipelines/<pipeline_id>/\par
+  pipeline.yaml\par
+  src/main.py\par
+  config/\par
+  secrets/\par
+\f0
+\par
+\b 3) runner_host\b0\par
+- auto ou vazio = hostname local\par
+- any = qualquer runner\par
+- host-a = runner fixo\par
+\par
+\b 4) Comandos essenciais\b0\par
+\f1
+python orchestrator.py list\par
+python orchestrator.py run <pipeline_id>\par
+python scripts/export_payload_from_db.py\par
+python orchestrator.py trigger enqueue <pipeline_id> --by <user>\par
+python orchestrator.py trigger consume --runner $(hostname -s) --max 20\par
+\f0
+\par
+\b 5) Cron de produ\u231?\u227?o\b0\par
+\f1
+*/15 * * * * cd /opt/overseer && .venv/bin/python scripts/export_payload_from_db.py >> runtime/logs/export.log 2>&1\par
+10 2 * * * cd /opt/overseer && .venv/bin/python scripts/archive_logs.py --days 30 >> runtime/logs/archive.log 2>&1\par
+* * * * * cd /opt/overseer && .venv/bin/python orchestrator.py trigger consume --runner $(hostname -s) --max 20 >> runtime/logs/trigger_consume.log 2>&1\par
+\f0
+\par
+\b 6) Nginx (URL final)\b0\par
+Servir o path: \f1/apps/overseer/PM.html\f0\par
+Root recomendado: \f1/opt/overseer\f0\par
+\par
+\b 7) Checklist final\b0\par
+1. logs recebe runs novas\par
+2. frontend/pm_payload.json atualiza\par
+3. frontend/PM.html mostra dados\par
+4. lineage e run_id_pipeline vis\u237?veis\par
+\par
+\b 8) Docs para enviar a outra IA\b0\par
+- docs/PRD_PM_Universal_DropIn_AI_Ready.md\par
+- docs/AI_HANDOFF_CHECKLIST.md\par
+- AGENTS.md\par
+- README.md\par
+- pipelines/_template/\par
+}
+
+

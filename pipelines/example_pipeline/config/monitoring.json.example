@@ -1,0 +1,10 @@
+{
+  "pipeline_id": "example_pipeline",
+  "owner": "data.team",
+  "criticality": "medium",
+  "runs_table": "logs",
+  "frontend_base_url": "https://monitor.seu-dominio.pt/apps/overseer/PM.html",
+  "runner_host": "auto",
+  "secrets_path": "secrets"
+}
+

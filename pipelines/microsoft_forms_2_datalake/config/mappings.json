@@ -1,0 +1,34 @@
+{
+  "series_config": {
+    "VstEspAtvCul2": {
+      "id_ind": "Ind097",
+      "descricao": "N.º de visitantes dos espaços/atividades da Cultura",
+      "value_column": [
+        "N.º de visitantes dos espaços/atividades da Cultura"
+      ],
+      "forms_enabled": true
+    }
+  },
+  "_comments": {
+    "info": "Configuração de mapeamentos para Microsoft Forms Pipeline",
+    "series_config": "Configuração de cada série. Chave = nome_curto da série",
+    "fields": {
+      "id_ind": "(Obrigatório) ID do indicador (ex: Ind097)",
+      "descricao": "(Obrigatório) Descrição completa da série (vai para Descri e DescriPlus)",
+      "value_column": "(Obrigatório) Lista de colunas do Excel/Forms que contêm valores (suporta múltiplas)",
+      "forms_enabled": "(Opcional) Define que a série deve ser tratada pelo FormsReader. Só necessário para ficheiros Forms.",
+      "is_baze21ra": "(Opcional) Definir como 'true' APENAS se a série for anual e pertencer à tabela baze21RA. Por defeito, todas as séries vão para a tabela 'Indicadores'."
+    },
+    "example_add_new": {
+      "NomeCurtoSerie": {
+        "id_ind": "Ind001",
+        "descricao": "Descrição da série",
+        "value_column": [
+          "Coluna1",
+          "Coluna2"
+        ],
+        "forms_enabled": true
+      }
+    }
+  }
+}

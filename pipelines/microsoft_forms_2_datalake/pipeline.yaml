@@ -1,0 +1,10 @@
+pipeline_id: microsoft_forms_2_datalake
+name: Microsoft Forms to Datalake
+owner: eferreira
+criticality: medium
+runner_host: auto
+schedule: paused
+timeout_sec: 7200
+retries: 1
+entrypoint: python src/main.py
+prev_schedule: 0 8 * * *

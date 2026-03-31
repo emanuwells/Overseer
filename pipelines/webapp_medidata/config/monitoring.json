@@ -1,0 +1,10 @@
+{
+  "pipeline_id": "webapp_medidata",
+  "owner": "eferreira",
+  "criticality": "medium",
+  "runs_table": "medidata_scrape_runs",
+  "logs_table": "Overseer.pipeline_runs",
+  "script_name": "Webapp_Medidata_Scraper",
+  "frontend_base_url": "http://baze2.cm-maia.pt/MAIATRON/apps/overseer/"
+}
+

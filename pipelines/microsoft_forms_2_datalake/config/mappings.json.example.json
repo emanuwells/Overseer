@@ -1,0 +1,84 @@
+{
+  "global_rules": {
+    "date_columns": [
+      "data",
+      "Data",
+      "DATA",
+      "date",
+      "Date",
+      "Ano",
+      "ano",
+      "Mês",
+      "mes",
+      "Trimestre",
+      "trimestre",
+      "Semestre",
+      "semestre"
+    ],
+    "value_columns": [
+      "valor",
+      "Valor",
+      "VALUE",
+      "value",
+      "Quantidade",
+      "quantidade",
+      "Total",
+      "total"
+    ],
+    "description_patterns": [
+      "descrição",
+      "descricao",
+      "Descrição",
+      "description",
+      "Description",
+      "Indicador",
+      "indicador"
+    ]
+  },
+  "series_config": {
+    "nhabit": {
+      "id_ind": "Ind004",
+      "descricao": "População residente por local de residência",
+      "value_column": [
+        "Valor"
+      ],
+      "validation": {
+        "value_type": "integer",
+        "value_min": 0
+      }
+    },
+    "emprego": {
+      "id_ind": "Ind010",
+      "descricao": "Taxa de emprego",
+      "value_column": [
+        "Valor"
+      ],
+      "is_baze21ra": true,
+      "validation": {
+        "value_type": "float",
+        "value_min": 0,
+        "value_max": 100
+      }
+    },
+    "VstEspAtvCul2": {
+      "id_ind": "Ind097",
+      "descricao": "N.º de visitantes dos espaços/atividades da Cultura",
+      "value_column": [
+        "N.º de visitantes dos espaços/atividades da Cultura"
+      ],
+      "forms_enabled": true
+    }
+  },
+  "_comments": {
+    "info": "Configuração de mapeamentos para o sistema de sincronização Excel → MariaDB",
+    "series_config": "Adiciona uma entrada por série. A chave é o nome curto usado na BD.",
+    "fields": {
+      "id_ind": "ID oficial do indicador (IndXXX) utilizado para casar ficheiros.",
+      "descricao": "Descrição completa usada para metadados.",
+      "value_column": "Lista de cabeçalhos que contêm valores numéricos. Para Forms usa o texto exacto da coluna.",
+      "forms_enabled": "Define que a série é lida pelo FormsReader. Se omitido, considera-se apenas para Excel.",
+      "is_baze21ra": "Quando true, força inserções na tabela baze21RA (séries anuais).",
+      "validation": "Regras opcionais aplicadas pelo Validator (value_type, value_min, value_max)."
+    }
+  }
+}

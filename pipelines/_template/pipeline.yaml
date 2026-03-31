@@ -1,0 +1,29 @@
+﻿pipeline_id: template_pipeline
+name: Template Pipeline
+owner: data.team
+criticality: medium
+runner_host: auto
+schedule: "manual"
+timeout_sec: 3600
+retries: 2
+entrypoint: "python src/main.py"
+entrypoint_windows: "python src\\main.py"
+
+# Steps alternative (instead of entrypoint). Each step can have:
+#   id:       unique step identifier
+#   run:      shell command to execute
+#   needs:    list of step ids this depends on (DAG)
+#   critical: true|false — if false, failure produces WARNING not NOK
+#
+# steps:
+#   - id: setup
+#     run: "python src/setup.py"
+#     critical: true
+#   - id: process
+#     run: "python src/process.py"
+#     needs: [setup]
+#     critical: true
+#   - id: report
+#     run: "python src/report.py"
+#     needs: [process]
+#     critical: false  # non-critical — failure only triggers WARNING
