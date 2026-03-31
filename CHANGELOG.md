@@ -1,4 +1,17 @@
 # Changelog
+
+## [2.4.1] - 2026-03-31
+
+### Changed
+- **Runtime sync from MAIATRON**: `index.production.html`, `overseer.production.js`, `overseer.live.js`, `overseer.css` synced from canonical `MAIATRON/apps/overseer/*` source.
+- **Frontend overhaul (via MAIATRON)**: dead v1 JS code removed (6 duplicate functions), ~400 lines dead CSS removed (kiosk, header v2.1/v2.4, catalog, duplicates), design gaps fixed (severity pills light theme, lineage tile border, schedule input).
+- **New frontend features (via MAIATRON)**: CSV export for runs, advanced filters (date range, owner, criticality), retry run with RBAC, real-time toast on status change, pipeline health check grid in dashboard.
+
+### AI Context Delta
+- Runtime files are now in sync with MAIATRON v6.1.2 Overseer frontend; all dead code from v1/v2 function shadowing is resolved.
+- `ov_ensure_governance_schema()` removed from per-request API path; run `php backend/apps/overseer/migrate.php` at deploy time instead.
+- New deploy artifact: `backend/apps/overseer/migrate.php` — idempotent CLI-only schema migration.
+
 ## [2.4.0] - 2025-07-16
 
 ### Changed

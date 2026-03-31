@@ -1,5 +1,13 @@
-﻿<!doctype html>
-<html lang="pt">
+<!doctype html>
+<!--
+  Ficheiro: frontend-src/apps/overseer/index.html
+  Finalidade: Shell HTML can?nica da app Overseer.
+  Depende de: CSS/JS da mesma superf?cie e IDs est?veis consumidos pelo frontend.
+  Entradas/Sa?das principais: Define a estrutura, slots, IDs e pontos de montagem usados por CSS e JavaScript.
+  Efeitos laterais: Sem efeitos laterais por si; serve de contrato estrutural para scripts e estilos.
+  Rela??o can?nica: Source can?nico em frontend-src; o runtime p?blico correspondente ? publicado como copia real sincronizada.
+-->
+<html lang="pt" class="maiatron-auth-pending">
 
 <head>
   <meta charset="UTF-8" />
@@ -16,8 +24,10 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="overseer.css?v=20260225-v4" />
+  <link rel="stylesheet" href="../../shared/maiatron-ui-primitives.css?v=20260326-v1" />
+  <link rel="stylesheet" href="overseer.css?v=20260324-v44" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 </head>
 
 <body>
@@ -27,6 +37,18 @@
     <div class="orb orb-3"></div>
     <div class="grid-overlay"></div>
   </div>
+
+  <div id="authGateSplash" class="auth-gate-splash" role="status" aria-live="polite">
+    <div class="auth-gate-card">
+      <span class="auth-gate-spinner" aria-hidden="true"></span>
+      <p>A validar sessão...</p>
+    </div>
+  </div>
+  <script>
+    window.__maiatronAuthGateFallback = window.setTimeout(function () {
+      document.documentElement.classList.remove('maiatron-auth-pending');
+    }, 8000);
+  </script>
 
   <div id="loginScreen" class="login-screen">
     <button id="loginThemeToggle" class="theme-btn login-theme-btn" aria-label="Alternar tema" title="Alternar tema">
@@ -38,6 +60,11 @@
       <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
       </svg>
+            <svg class="auto-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" opacity="0.3"/>
+                <path d="M12 6v6l4 2"/>
+            </svg>
     </button>
     <div class="login-container">
       <div class="login-glow"></div>
@@ -105,6 +132,30 @@
     </div>
   </div>
 
+  <div id="accessDeniedScreen" class="access-denied-screen hidden" role="alert" aria-live="assertive">
+    <div class="access-denied-card">
+      <div class="access-denied-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h2>Sem permissão no Overseer</h2>
+      <p id="accessDeniedReason">A tua sessão está ativa, mas sem acesso a esta app.</p>
+      <div class="access-denied-actions">
+        <a class="theme-btn home-btn" href="../../index.html" aria-label="Voltar ao MAIATRON HUB">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 11.5L12 4l9 7.5"></path>
+            <path d="M5 10.5V20h14v-9.5"></path>
+          </svg>
+          <span>Voltar ao HUB</span>
+        </a>
+        <button id="deniedLogoutBtn" class="theme-btn" type="button">Terminar sessão</button>
+      </div>
+    </div>
+  </div>
+
   <div id="mainApp" class="main-app hidden">
     <header class="header header--analytics">
       <div class="header-left">
@@ -116,14 +167,14 @@
           </div>
           <div class="brand-text">
             <span class="brand-name">OVERSEER</span>
-            <span class="brand-tag">Monitorização operacional</span>
+            <span class="brand-tag">Monitorização e orquestração de pipelines</span>
           </div>
         </div>
       </div>
 
       <div class="header-center header-center--analytics">
         <div class="search-cluster">
-          <div class="search-container">
+          <div class="search-container has-inline-filter">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
@@ -131,15 +182,14 @@
             </svg>
             <input id="q" type="search" aria-label="Pesquisar" placeholder="Pesquisar por ID, script, host ou erro..."
               autocomplete="off" />
-            <span class="search-counter" id="searchCounter"></span>
-            <kbd class="search-kbd">Ctrl+K</kbd>
+            <select id="quickFilter" class="quick-filter quick-filter-inline" title="Filtro rápido" aria-label="Filtro rápido">
+              <option value="">Todos</option>
+              <option value="nok_24h">FAILED 24h</option>
+              <option value="nok_7d">FAILED 7 dias</option>
+              <option value="high_cpu">CPU &gt; 80%</option>
+            </select>
           </div>
-          <select id="quickFilter" class="quick-filter" title="Filtro rápido" aria-label="Filtro rápido">
-            <option value="">Todos</option>
-            <option value="nok_24h">NOK 24h</option>
-            <option value="nok_7d">NOK 7 dias</option>
-            <option value="high_cpu">CPU &gt; 80%</option>
-          </select>
+          <span class="search-counter" id="searchCounter"></span>
         </div>
       </div>
 
@@ -165,11 +215,10 @@
             <span id="refreshCountdown">30s</span>
           </div>
 
-          <div class="header-update header-aux">
-            <span class="header-update-label">Última atualização:</span>
-            <span id="headerUpdateTime">-</span>
+          <div class="header-update header-aux data-refresh" aria-live="polite">
+            <span class="header-update-label aux-label">Última atualização</span>
+            <span id="headerUpdateTime" class="aux-value">-</span>
           </div>
-
           <button id="metricsHelpHeaderBtn" class="theme-btn" title="Como interpretar as métricas" aria-label="Como interpretar as métricas">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10" />
@@ -192,6 +241,11 @@
             </svg>
             <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg class="auto-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" opacity="0.3"/>
+                <path d="M12 6v6l4 2"/>
             </svg>
           </button>
         </div>
@@ -224,6 +278,9 @@
       </div>
     </header>
 
+    <!-- Breadcrumbs -->
+    <div id="appBreadcrumbs"></div>
+
     <main class="main-content container">
       <nav class="nav-tabs" aria-label="Navegação principal">
         <button class="nav-tab active" data-view="dashboardView" data-i18n="navDashboard">Dashboard</button>
@@ -246,6 +303,12 @@
           </svg>
           <p id="healthTitle" class="health-title">A aguardar dados...</p>
           <p id="healthMessage" class="health-text">A carregar...</p>
+        </section>
+
+        <!-- Pipeline Health Checks -->
+        <section id="healthCheckPanel" class="health-check-panel" style="display:none">
+          <header class="chart-header"><h3>Health Check das Pipelines</h3><button type="button" class="btn-quick btn-secondary" id="healthCheckRefreshBtn">Atualizar</button></header>
+          <div id="healthCheckGrid" class="health-check-grid"></div>
         </section>
 
         <!-- Left: Pipeline cards + Quality -->
@@ -349,7 +412,7 @@
         <section class="priority-section">
           <article class="priority-card">
             <header class="priority-head">
-              <h3>Alertas recentes (NOK)</h3>
+              <h3>Alertas recentes (FAILED)</h3>
             </header>
             <div id="recentFailuresList" class="priority-list"></div>
           </article>
@@ -378,8 +441,8 @@
             <header class="priority-head">
               <h3>Quick actions</h3>
             </header>
-            <div class="quick-actions"><button id="qaShowNok" class="btn-quick">Ver NOK (7d)</button><button
-                id="qaOpenLatestNok" class="btn-quick">Abrir último NOK</button><button id="qaResetOverview"
+            <div class="quick-actions"><button id="qaShowNok" class="btn-quick">Ver FAILED (7d)</button><button
+                id="qaOpenLatestNok" class="btn-quick">Abrir último FAILED</button><button id="qaResetOverview"
                 class="btn-quick btn-secondary">Reset overview</button></div>
           </article>
         </section>
@@ -395,6 +458,13 @@
                 <option value="30d">Últimos 30 dias</option>
                 <option value="all" selected>Todos</option>
               </select></div>
+            <div class="filter filter--daterange"><label>Intervalo personalizado</label><div class="daterange-inputs"><input type="date" id="filterDateFrom" title="Data início"><span>—</span><input type="date" id="filterDateTo" title="Data fim"></div></div>
+            <div class="filter filter--owner"><label for="filterOwner">Owner</label><select id="filterOwner"><option value="">Todos</option></select></div>
+            <div class="filter filter--criticality"><label for="filterCriticality">Criticidade</label><select id="filterCriticality"><option value="">Todas</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          </div>
+          <div class="toolbar-actions">
+            <button type="button" class="btn-quick" id="btnCsvExport" title="Exportar CSV">⬇ CSV</button>
+            <button type="button" class="btn-quick btn-secondary" id="btnClearFilters" title="Limpar filtros">Limpar</button>
           </div>
         </section>
 
@@ -468,21 +538,53 @@
     <div class="modal-overlay" id="runDetailOverlay"></div>
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalRunTitle">
       <div class="modal-header">
-        <h2 id="modalRunTitle">Detalhe da Run <span id="modalRunId">#-</span></h2><button class="modal-close"
+        <h2 id="modalRunTitle">Detalhe da Run <span id="modalRunId">#-</span></h2>
+        <div class="modal-header-actions">
+          <button type="button" class="btn-quick btn-retry" id="modalRetryRunBtn" title="Re-executar pipeline">↻ Retry</button>
+          <button class="modal-close"
           id="modalCloseBtn" aria-label="Fechar detalhe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg></button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="run-status-banner" id="modalStatusBanner"><span class="status-pill status-ok"
             id="modalStatusText">OK</span></div>
         <div class="metrics-grid" id="modalMetricsGrid"></div>
+        <div class="run-steps-section" id="modalStepsSection">
+          <div class="run-log-toolbar">
+            <h4>Etapas da execução</h4>
+          </div>
+          <div id="modalStepsList" class="run-steps-list"></div>
+        </div>
         <div class="error-section" id="modalErrorSection">
-          <h4>Log completo</h4>
+          <div class="run-log-toolbar">
+            <h4>Log completo</h4>
+            <div class="run-log-toolbar-actions">
+              <input id="modalLogSearch" type="search" placeholder="Pesquisar no log..." aria-label="Pesquisar no log" autocomplete="off" />
+              <button class="btn-detail" id="modalLogCopyBtn" type="button">Copiar</button>
+              <button class="btn-detail" id="modalLogDownloadBtn" type="button">Download</button>
+            </div>
+          </div>
+          <div class="run-log-meta" id="modalLogMeta">Fonte: -</div>
           <pre class="error-log" id="modalErrorLog"></pre>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="chartExpandModal" class="chart-expand-modal" role="dialog" aria-modal="true" aria-hidden="true"
+    aria-labelledby="chartExpandTitle">
+    <div class="chart-expand-dialog">
+      <div class="chart-expand-header">
+        <h3 id="chartExpandTitle">Gráfico</h3>
+        <button type="button" class="theme-btn chart-expand-close" id="chartExpandCloseBtn"
+          aria-label="Fechar gráfico ampliado">✕</button>
+      </div>
+      <div class="chart-expand-body">
+        <canvas id="chartExpandCanvas"></canvas>
       </div>
     </div>
   </div>
@@ -510,12 +612,12 @@
         <div class="drawer-item-body">
           <p>Numero de pipelines que precisam de intervenção. O cálculo considera três fatores:</p>
           <ol>
-            <li>A última execução falhou (NOK)</li>
+            <li>A última execução falhou (FAILED)</li>
             <li>O pipeline não executa há mais de 24 horas quando deveria</li>
             <li>A taxa de falhas dos últimos 7 dias subiu acima de 20%</li>
           </ol>
           <p>Basta <strong>um</strong> destes fatores para o pipeline entrar nesta contagem.</p>
-          <div class="drawer-formula"><code>atRisk = lastRun == NOK || staleHours > 24 || nokRate7d > 0.20</code></div>
+          <div class="drawer-formula"><code>atRisk = lastRun == FAILED || staleHours > 24 || failedRate7d > 0.20</code></div>
         </div>
       </details>
       <details class="drawer-item">
@@ -539,7 +641,7 @@
               <polyline points="17 6 23 6 23 12" />
             </svg></span> Regressões ativas</summary>
         <div class="drawer-item-body">
-          <p>Pipelines onde a taxa de falhas esta a piorar. Compara a percentagem de execuções NOK dos últimos 7 dias
+          <p>Pipelines onde a taxa de falhas esta a piorar. Compara a percentagem de execuções FAILED dos últimos 7 dias
             com os 7 dias anteriores.</p>
           <p>Se a taxa subiu mais de <strong>20 pontos percentuais</strong>, conta como regressão.</p>
           <div class="drawer-formula"><code>regression = nokRate7d - nokRatePrev7d > 0.20</code></div>
@@ -602,7 +704,7 @@
         <div class="drawer-item-body">
           <p>Score composto de risco por pipeline. Formula:</p>
           <div class="drawer-formula">
-            <code>riskScore = (lastRun NOK ? +45) + (stale >24h ? +25) + (nokRate7d >20% ? +20)</code></div>
+            <code>riskScore = (lastRun FAILED ? +45) + (stale >24h ? +25) + (failedRate7d >20% ? +20)</code></div>
           <ul>
             <li><strong>Critical</strong> — riskScore >= 80</li>
             <li><strong>High</strong> — riskScore >= 55</li>
@@ -630,13 +732,15 @@
 
   <script>
     window.OVERSEER_ASSETS = {
-      payloadUrl: "overseer_payload.json",
-      detailsUrl: "overseer_details.json"
+      apiBaseUrl: "api.php"
     };
   </script>
-  <script src="../../shared/auth.js?v=20260225-v4"></script>
-  <script src="../../shared/auth-admin-ui.js?v=20260227-v7"></script>
-  <script src="overseer.js?v=20260225-v4" defer></script>
+  <script src="../../shared/auth.js?v=20260312-authv550"></script>
+  <script src="../../shared/auth-admin-ui.js?v=20260312-authv550"></script>
+  <script src="../../shared/maiatron-motion.js?v=20260325-authv560"></script>
+  <script src="../../shared/maiatron-ui-primitives.js?v=20260326-v1"></script>
+  <script src="overseer.js?v=20260324-v57" defer></script>
 </body>
 
 </html>
+
