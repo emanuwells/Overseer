@@ -14,6 +14,7 @@ Contrato obrigatório:
   3. Notificar Slack no finally (obrigatório)
   4. Libertar SSH tunnel e DB no finally
   5. Usar logs_table = "Overseer.pipeline_runs" (canónico)
+  6. Validar telemetria via Overseer API (GET /v1/monitoring/full) — não depender de JSON exportado
 """
 
 from __future__ import annotations

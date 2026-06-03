@@ -260,6 +260,7 @@ def cmd_archive(days: int) -> int:
 
 
 def cmd_export() -> int:
+    safe_print("[export] DEPRECATED — use Overseer API GET /v1/monitoring/full or `uvicorn src.overseer_api.main:app`")
     script = ROOT / "scripts" / "export_payload_from_db.py"
     return subprocess.run([sys.executable, str(script)], check=False).returncode
 
@@ -428,14 +429,6 @@ def execute_pipeline(cfg: PipelineCfg, requested_by: str, trigger_source: str) -
         safe_print(f"run_id={run_id} status=failed error={exc}")
         run_exit_code = 1
 
-    export_rc = cmd_export()
-    if export_rc == 0:
-        safe_print(f"run_id={run_id} export=ok")
-    else:
-        safe_print(f"run_id={run_id} export=failed code={export_rc}")
-
-    if run_exit_code == 0 and export_rc != 0:
-        return 1
     return run_exit_code
 
 
@@ -1682,11 +1675,7 @@ def cmd_scheduler(args: argparse.Namespace) -> int:
                 except Exception as exc:
                     safe_print(f"[scheduler] Error checking schedule for {cfg.pipeline_id}: {exc}")
 
-            # --- 2) Export payload every 15 min ---
-            if now_ts - last_export >= 900:
-                safe_print("[scheduler] Running export...")
-                pool.submit(_safe_run_script, "export_payload_from_db.py")
-                last_export = now_ts
+            # --- 2) Export removed — monitoring via Overseer API (GET /v1/monitoring/full) ---
 
             # --- 3) Archive logs daily at 02:10 ---
             today_str = now.strftime("%Y-%m-%d")
@@ -1730,9 +1719,7 @@ def cmd_scheduler(args: argparse.Namespace) -> int:
             try:
                 sched_processed = consume_schedule_triggers()
                 if sched_processed > 0:
-                    safe_print("[scheduler] Schedule changed — forcing immediate export")
-                    pool.submit(_safe_run_script, "export_payload_from_db.py")
-                    last_export = time.time()
+                    safe_print("[scheduler] Schedule changed — pipelines YAML updated (no JSON export)")
             except Exception as exc:
                 safe_print(f"[scheduler] Schedule trigger consume error: {exc}")
 

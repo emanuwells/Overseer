@@ -117,24 +117,19 @@ def _sweep_stale_runs(*, threshold_minutes: int = 60) -> int:
     return updated
 
 
-def main() -> int:
-    started_at = time.time()
-    
-    try:
-        # --- housekeeping: expire any stuck "running" runs before building payload ---
+def build_monitoring_payload(*, sweep_stale: bool = True) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build full monitoring payload and details dict (API + legacy export)."""
+    if sweep_stale:
         _sweep_stale_runs()
 
-        repo = MonitorRepository()
-        service = MonitorService(repo=repo)
-        runs = repo.load_runs()
-    except Exception as exc:
-        # DB connection failed - log to fallback and exit gracefully
-        error_msg = f"DB unavailable: {str(exc)[:100]}"
-        print(f"[WARNING] {error_msg} — logs saved to {LOGS_FALLBACK_DIR}")
-        _log_fallback(f"EXPORT_FAILED: {error_msg}", "export_process")
-        return 1
-    
-    runs_sorted = sorted(runs, key=lambda r: r.start_date or datetime(1970, 1, 1, tzinfo=timezone.utc), reverse=True)
+    repo = MonitorRepository()
+    service = MonitorService(repo=repo)
+    runs = repo.load_runs()
+    runs_sorted = sorted(
+        runs,
+        key=lambda r: r.start_date or datetime(1970, 1, 1, tzinfo=timezone.utc),
+        reverse=True,
+    )
 
     run_items: list[dict[str, Any]] = []
     details: dict[str, Any] = {}
@@ -192,7 +187,7 @@ def main() -> int:
             details[rid]["trigger_info"] = run_trigger_info.get(rid)
 
     payload = {
-        "schema_version": "3.1.0-noapi",
+        "schema_version": "3.2.0-api",
         "generated_at": overview.get("generatedAt"),
         "generated_at_label": fmt_pt(overview.get("generatedAt")),
         "first_run_label": first_run_label(run_items),
@@ -209,25 +204,101 @@ def main() -> int:
         "pipeline_scripts": pipeline_scripts,
         "lineage": {
             "nodes": [
-                {"pipelineId": p.get("pipelineId"), "name": p.get("name"), "status": p.get("lastStatus", "UNKNOWN")}
+                {
+                    "pipelineId": p.get("pipelineId"),
+                    "name": p.get("name"),
+                    "status": p.get("lastStatus", "UNKNOWN"),
+                }
                 for p in pipelines
             ],
             "edges": [],
         },
+        "dataFreshness": {
+            "source": "api",
+            "generated_at": overview.get("generatedAt"),
+        },
+    }
+    return payload, details
+
+
+def build_ops_fast(payload: dict[str, Any]) -> dict[str, Any]:
+    summary = payload.get("summary") or {}
+    return {
+        "generated_at": payload.get("generated_at"),
+        "summary": {
+            "totalRuns": summary.get("total_runs", summary.get("totalRuns", 0)),
+            "ok": summary.get("ok_runs", summary.get("ok", 0)),
+            "failed": summary.get("nok_runs", summary.get("failed", 0)),
+            "warning": summary.get("warning", 0),
+        },
+        "overview": payload.get("overview") or {},
     }
 
+
+def build_ops_heavy(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "generated_at": payload.get("generated_at"),
+        "overview": payload.get("overview") or {},
+        "pipelines": payload.get("pipelines") or [],
+        "orchestrator_runs": payload.get("orchestrator_runs") or [],
+        "orchestrator_triggers": payload.get("orchestrator_triggers") or [],
+        "fields": payload.get("fields") or [],
+        "rows": payload.get("rows") or [],
+    }
+
+
+def build_health_status(*, duration_ms: int = 0, rows: int = 0) -> dict[str, Any]:
+    db_reachable = True
+    db_error: str | None = None
+    db_now_utc: str | None = None
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            row = conn.execute(text("SELECT UTC_TIMESTAMP() AS now_utc")).mappings().first()
+            if row:
+                db_now_utc = str(row.get("now_utc") or "")
+    except Exception as exc:
+        db_reachable = False
+        db_error = str(exc)[:500]
+
+    return {
+        "ok": db_reachable,
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "duration_ms": duration_ms,
+        "rows": rows,
+        "db_connectivity": {
+            "overseer": {
+                "mode": "api",
+                "requested_mode": "api",
+                "reachable": db_reachable,
+                "error": db_error,
+            }
+        },
+        "db_now_utc": db_now_utc,
+        "dataFreshness": {"source": "api", "export_window_minutes": None},
+    }
+
+
+def main() -> int:
+    started_at = time.time()
+
+    try:
+        payload, details = build_monitoring_payload(sweep_stale=True)
+    except Exception as exc:
+        error_msg = f"DB unavailable: {str(exc)[:100]}"
+        print(f"[WARNING] {error_msg} — logs saved to {LOGS_FALLBACK_DIR}")
+        _log_fallback(f"EXPORT_FAILED: {error_msg}", "export_process")
+        return 1
+
+    rows = payload.get("rows") or []
     write_json_atomic(PAYLOAD_PATH, payload)
     write_json_atomic(DETAILS_PATH, details)
     publish_frontend_payloads(PAYLOAD_PATH, DETAILS_PATH)
 
     elapsed_ms = int((time.time() - started_at) * 1000)
-    status = {
-        "ok": True,
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "duration_ms": elapsed_ms,
-        "rows": len(rows),
-    }
+    status = build_health_status(duration_ms=elapsed_ms, rows=len(rows))
     write_json_atomic(STATUS_PATH, status)
+    print("[export] DEPRECATED: prefer Overseer API GET /v1/monitoring/full")
     return 0
 
 

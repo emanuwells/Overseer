@@ -1,0 +1,49 @@
+services:
+  overseer-api:
+    build: .
+    ports:
+      - "${OVERSEER_API_PORT:-8090}:8090"
+    env_file:
+      - .env
+    environment:
+      OVERSEER_API_HOST: 0.0.0.0
+      OVERSEER_API_PORT: 8090
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ./pipelines:/app/pipelines:ro
+    restart: unless-stopped
+
+  overseer-scheduler:
+    build: .
+    command: ["python", "orchestrator.py", "scheduler"]
+    env_file:
+      - .env
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ./pipelines:/app/pipelines
+      - ./runtime:/app/runtime
+    depends_on:
+      - overseer-api
+    restart: unless-stopped
+
+  mysql:
+    image: mariadb:10.11
+    profiles: ["local"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-overseer}
+      MYSQL_DATABASE: Overseer
+      MYSQL_USER: overseer
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-overseer}
+    ports:
+      - "3307:3306"
+    volumes:
+      - overseer_mysql_data:/var/lib/mysql
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  overseer_mysql_data:

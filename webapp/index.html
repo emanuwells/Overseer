@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-PT" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overseer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="bar">
+    <h1>Overseer</h1>
+    <p class="tag">Orquestração e monitorização de pipelines</p>
+    <button type="button" id="btnRefresh">Atualizar</button>
+  </header>
+  <main>
+    <section id="health" class="card"></section>
+    <section id="summary" class="card"></section>
+    <section id="pipelines" class="card">
+      <h2>Pipelines</h2>
+      <div id="pipelineList"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

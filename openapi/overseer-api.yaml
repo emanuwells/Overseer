@@ -1,0 +1,34 @@
+openapi: 3.0.3
+info:
+  title: Overseer API
+  version: 3.2.0
+paths:
+  /v1/health:
+    get:
+      summary: Health and DB connectivity
+  /v1/monitoring/full:
+    get:
+      summary: Full monitoring payload
+  /v1/monitoring/details:
+    get:
+      summary: Run details and logs
+  /v1/monitoring/ops/fast:
+    get:
+      summary: Ops Center fast snapshot
+  /v1/monitoring/ops/heavy:
+    get:
+      summary: Ops Center heavy snapshot
+  /v1/triggers:
+    get:
+      summary: List triggers
+    post:
+      summary: Enqueue run-now trigger
+  /v1/pipelines:
+    get:
+      summary: Pipeline catalog from YAML
+  /v1/runners:
+    get:
+      summary: Registered runners
+  /v1/runners/heartbeat:
+    post:
+      summary: Agent heartbeat

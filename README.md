@@ -154,14 +154,28 @@ python -m compileall orchestrator.py overseer_monitor overseer_sdk scripts src p
 
 Validacao nesta sessao: `python orchestrator.py --help` falhou porque o ambiente Python activo nao tinha `PyYAML` instalado. Executar a instalacao antes de validar CLI, testes ou scheduler.
 
+## API HTTP (canonica)
+
+```powershell
+uvicorn src.overseer_api.main:app --host 0.0.0.0 --port 8090
+```
+
+Endpoints principais: `GET /v1/monitoring/full`, `GET /v1/health`, `POST /v1/triggers`, UI em `/ui/`.
+
+MAIATRON-HUB consome via BFF (`OVERSEER_API_URL` + `OVERSEER_API_TOKEN`).
+
 ## Docker / Deploy
 
-Docker: N/A nesta revisao — nao existe `Dockerfile`, `compose.yml` ou alvo de deploy confirmado no repositorio. Docker pode fazer sentido no futuro para runtime reprodutivel com MySQL, scheduler e secrets locais, mas nao foi implementado sem requisitos de ambiente.
+```powershell
+docker compose --profile local up -d
+```
 
-Deploy operacional confirmado pela documentacao existente:
+Servicos: `overseer-api`, `overseer-scheduler`, `mysql` (profile `local`).
 
-- export DB -> JSON;
-- frontend MAIATRON externo consome os JSON;
+Deploy operacional:
+
+- telemetria via API HTTP (sem export JSON obrigatorio);
+- frontend MAIATRON externo via BFF `api.php`;
 - `deploy-frontend` esta bloqueado por politica.
 
 ## Troubleshooting
