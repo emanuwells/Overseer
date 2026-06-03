@@ -1,5 +1,55 @@
 # Changelog
 
+## [2.4.2] - 2026-06-03T12:46:28+01:00
+
+### Atualização De Documentação Operacional E Segurança
+
+**Motivo:**
+Aplicar as regras de `AGENTS.md` ao repositório, criar contexto específico do projeto e corrigir exposição de credencial em documentação.
+
+**Impacto:**
+Melhora a continuidade operacional para agentes e humanos, documenta arquitetura/estrutura real, clarifica ausência de MCP/Docker configurados e remove do README uma credencial com aparência real. Se essa credencial for válida ou reutilizada, continua a ser necessária rotação no sistema de origem.
+
+**Alterações:**
+- `README.md`: reescrito com badges, arquitetura Mermaid, estrutura real, instalação, comandos principais, segurança, Docker avaliado, troubleshooting e referências operacionais.
+- `PROJECT_CONTEXT.md`: criado com contexto confirmado do projeto, stack, fluxos, MCP, Skills, Git, Docker, riscos e comandos principais.
+- `tasks/todo.md`: atualizado com plano, validação e revisão final da tarefa.
+- `HANDOFF.md`: atualizado com estado final, bloqueios, validações, Skills/MCP, Git e risco de segurança.
+- `CHANGELOG.md`: adicionada esta entrada.
+
+**Dependências:**
+- N/A — `requirements.txt` foi validado, mas não alterado.
+
+**Ferramentas, MCP E Skills:**
+- MCP servers: N/A — não foram encontradas configurações `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json`.
+- Skills usadas: `repo-onboarding`, `skill-selector`, `safe-git-operator`, `security-secrets-audit`, `prompt-injection-guard`, `dependency-manager`, `file-pruner`, `documentation-keeper`, `handoff-maintainer`, `changelog-semver`, `definition-of-done`, `stop-the-slop`.
+- Fallbacks: executor PowerShell em sandbox falhou; comandos necessários foram executados com escalamento aprovado.
+
+**SSH / Servidores:**
+- N/A — nenhum servidor ou SSH foi acedido.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- Removidos: diretórios `__pycache__` gerados por `compileall` nesta sessão.
+- Candidatos: `docs/Guia_Producao_Step_by_Step.rtf` pode ser duplicado do guia Markdown, mas foi mantido por poder ter valor histórico.
+
+**Testes:**
+- `python -m compileall orchestrator.py overseer_monitor overseer_sdk scripts src pipelines` — passou.
+- `python orchestrator.py --help` — falhou por `ModuleNotFoundError: No module named 'yaml'`; instalar `requirements.txt` antes de validar CLI completo.
+
+**Validação:**
+- Estado Git verificado.
+- Skills e MCP verificados.
+- `README.md` verificado para confirmar remoção da credencial documentada.
+- Documentação revista para evitar tecnologia, deploy, licença, CI/CD ou testes não confirmados.
+
+**Refs:**
+- Pedido do utilizador: "Lê o AGENTS.md e atualiza tudo e segue todas as instruções neste repo".
+
+**Diff:**
+Documentação operacional criada/atualizada, README endurecido contra exposição de segredos e handoff/changelog alinhados com a política do repositório.
+
+---
+
 ## [2.4.1] - 2026-03-31
 
 ### Changed
