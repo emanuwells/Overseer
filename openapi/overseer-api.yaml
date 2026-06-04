@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Overseer API
-  version: 4.0.0
+  version: 4.1.0
   description: API canónica para leitura, ingest e orquestração de pipelines.
 paths:
   /v1/health:
@@ -10,6 +10,9 @@ paths:
   /v1/read/overview:
     get:
       summary: Snapshot operacional para o dashboard.
+  /v1/read/database:
+    get:
+      summary: Estado seguro da ligação à base de dados, com URL mascarada e contagens por tabela.
   /v1/read/pipelines:
     get:
       summary: Catálogo de pipelines sincronizado a partir de YAML e DB.

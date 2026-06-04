@@ -5,13 +5,13 @@ services:
       OVERSEER_API_HOST: 0.0.0.0
       OVERSEER_API_PORT: 8090
       OVERSEER_API_TOKEN: ${OVERSEER_API_TOKEN:-}
-      OVERSEER_DB_URL: mysql+pymysql://overseer:${MYSQL_PASSWORD:-overseer}@mysql:3306/Overseer?charset=utf8mb4
+      OVERSEER_DB_URL: ${OVERSEER_DB_URL:-mysql+pymysql://overseer:${MYSQL_PASSWORD:-overseer}@mysql:3306/Overseer?charset=utf8mb4}
       OVERSEER_CORS_ORIGINS: ${OVERSEER_CORS_ORIGINS:-*}
       OVERSEER_API_URL: http://127.0.0.1:8090
     ports:
       - "${OVERSEER_API_PORT:-8090}:8090"
     volumes:
-      - ./pipelines:/app/pipelines
+      - ./pipelines:/app/host_pipelines:ro
       - ./runtime:/app/runtime
     depends_on:
       mysql:

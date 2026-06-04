@@ -45,3 +45,25 @@
 - `python -m pytest -q` passou com 4 testes.
 - `docker compose build` passou e validou `npm ci`, `vite build` e instalação Python dentro do container.
 - `npm install` local em Windows/OneDrive falhou ao escrever `webapp/node_modules`; o fluxo suportado não depende de Node local e `.dockerignore` exclui esse diretório.
+
+## Plano 4.1.0
+
+- [x] Preparar ligação ao schema oficial `Overseer` por `OVERSEER_DB_URL` em `.env`.
+- [x] Adicionar endpoint seguro `/v1/read/database` com URL mascarada e contagens.
+- [x] Criar `.env.official.example` para configuração da DB oficial sem segredos reais.
+- [x] Criar pacote instalável `overseer-core` via `pyproject.toml`.
+- [x] Criar template padrão para repos de pipelines em `templates/pipeline-repo/`.
+- [x] Criar documentação de integração em `docs/pipeline-integration.md`.
+- [x] Melhorar frontend para consola operacional tipo Airflow/Bruin Monitor SaaS.
+- [x] Corrigir mount de pipelines para não sobrepor o exemplo interno no Docker.
+- [x] Emitir run de demonstração no schema ativo com `scripts/overseer_emit_demo.py`.
+
+## Validação 4.1.0
+
+- [x] `python -m pytest -q` passou com 5 testes.
+- [x] `docker compose config` passou.
+- [x] `docker compose build` passou.
+- [x] `docker compose up -d` passou.
+- [x] `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py` criou uma run demo.
+- [x] `/v1/read/database` mostrou `pipelines=1`, `runs=1`, `modules=3`, `logs=3`, `heartbeats=1`.
+- [x] `/ui/` serviu HTML, JS e CSS em `/ui/assets/...`.

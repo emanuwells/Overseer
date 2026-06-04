@@ -2,7 +2,7 @@
 
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20React%20%7C%20Vite%20%7C%20MariaDB-29b6f6)
 ![Runtime](https://img.shields.io/badge/runtime-Docker%20Compose-f39c12)
-![Version](https://img.shields.io/badge/version-4.0.0-2ecc71)
+![Version](https://img.shields.io/badge/version-4.1.0-2ecc71)
 ![License](https://img.shields.io/badge/license-A%20confirmar-lightgrey)
 
 Overseer é um núcleo local para orquestrar pipelines, receber telemetria por API, persistir eventos numa base de dados e mostrar o estado operacional num frontend React servido pela própria API.
@@ -15,6 +15,7 @@ Overseer é um núcleo local para orquestrar pipelines, receber telemetria por A
 - Frontend React/Vite em `/ui/`.
 - Schema novo simples em tabelas `overseer_*`.
 - SDK Python e CLI `overseer-agent` para instrumentar pipelines.
+- Template padrão para integrar Overseer em repos de pipelines.
 - Workflow oficial por Docker Compose, sem instalar Python ou Node no host.
 - Exemplo real mantido: `microsoft_forms_2_datalake`.
 
@@ -49,19 +50,23 @@ flowchart LR
 ```text
 Overseer/
   docs/adr/                       # Decisões técnicas
+  docs/pipeline-integration.md     # Contrato padrão para repos de pipelines
   overseer_agent/                 # CLI para heartbeat, trigger, run e exec
   overseer_monitor/               # Adaptador compatível para pipelines antigos
   overseer_sdk/                   # SDK Python, cliente HTTP e utilitários
   openapi/                        # Contrato API versionado
+  pyproject.toml                   # Pacote instalável overseer-core
   pipelines/
     microsoft_forms_2_datalake/   # Exemplo real mantido
   scripts/
     overseer-up.ps1               # Arranque Docker para Windows PowerShell
     overseer-up.sh                # Arranque Docker para Linux/macOS
+    overseer_emit_demo.py          # Emite uma run de demonstração por API
   src/
     overseer_api/                 # FastAPI e routers
     overseer_core/                # Store SQLAlchemy e execução de pipelines
   tasks/                          # Plano operacional
+  templates/pipeline-repo/         # Kit copiável para repos de pipelines
   webapp/                         # React/Vite; build feito dentro do Docker
   docker-compose.yml
   Dockerfile
@@ -115,10 +120,18 @@ Variáveis principais:
 
 - `OVERSEER_API_TOKEN`: token Bearer para APIs protegidas.
 - `OVERSEER_API_PORT`: porta HTTP local.
-- `OVERSEER_DB_URL`: URL SQLAlchemy canónico.
+- `OVERSEER_DB_URL`: URL SQLAlchemy canónico. Se estiver vazio no Compose, é usado o MariaDB local; se estiver preenchido, a API usa essa DB, incluindo o schema oficial `Overseer`.
 - `MYSQL_PASSWORD` e `MYSQL_ROOT_PASSWORD`: credenciais MariaDB local.
 
 O frontend guarda o token apenas em `sessionStorage`.
+
+Para ligar ao schema oficial, copiar `.env.official.example` para `.env`, preencher `OVERSEER_DB_URL` com a ligação real e reiniciar:
+
+```bash
+docker compose up -d
+```
+
+O frontend mostra o modo da base de dados no bloco `DB`; `external` indica uma ligação fora do serviço MariaDB local do Compose.
 
 ## APIs Principais
 
@@ -126,6 +139,7 @@ Leitura:
 
 ```http
 GET /v1/read/overview
+GET /v1/read/database
 GET /v1/read/pipelines
 GET /v1/read/runs
 GET /v1/read/runs/{run_id}
@@ -169,6 +183,29 @@ python -m overseer_agent exec --pipeline microsoft_forms_2_datalake -- python sr
 
 No workflow oficial, a execução operacional é feita por Docker/API; comandos Python locais são apoio de desenvolvimento.
 
+## Integração Em Repos De Pipelines
+
+O contrato padrão está em `docs/pipeline-integration.md`.
+
+Copiar `templates/pipeline-repo/` para a raiz de cada repo de pipeline. O formato esperado é sempre:
+
+```text
+pipeline-repo/
+  .env.overseer.example
+  pipeline.yaml
+  requirements-overseer.txt
+  overseer_bootstrap.py
+  src/main.py
+```
+
+Cada pipeline deve escrever telemetria pela API do Overseer, nunca diretamente na DB.
+
+Para gerar dados de demonstração no schema atualmente ligado:
+
+```bash
+docker compose exec overseer-api python scripts/overseer_emit_demo.py
+```
+
 ## Testes E Validação
 
 Testes Python:
@@ -195,7 +232,8 @@ Serviços:
 Volumes:
 
 - `overseer_mysql_data`: dados MariaDB.
-- `./pipelines:/app/pipelines`: pipelines disponíveis para execução.
+- `/app/pipelines`: exemplo versionado dentro da imagem.
+- `./pipelines:/app/host_pipelines:ro`: pipelines externos do host, sem tapar o exemplo interno.
 - `./runtime:/app/runtime`: artefactos locais.
 
 ## Troubleshooting

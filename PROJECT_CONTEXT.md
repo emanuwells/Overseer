@@ -9,7 +9,7 @@ Este ficheiro descreve o contexto específico do projeto Overseer. Deve ser lido
 | Nome | Overseer |
 | Tipo | Núcleo Docker para orquestração, ingest e monitorização de pipelines |
 | Responsável | A confirmar |
-| Estado | Refactor agressivo em curso para v4.0.0 |
+| Estado | Núcleo v4.0.0 com DB oficial preparada, UI operacional e kit padrão de pipelines |
 | Escala | Projeto técnico não trivial, com API, DB, frontend, Docker, SDK e pipelines |
 
 ## Objetivo
@@ -23,7 +23,7 @@ Disponibilizar um workflow único por Docker que arranca API, frontend e base de
 | API | FastAPI, Uvicorn |
 | Frontend | React, Vite, lucide-react |
 | Base de dados | MariaDB local; SQLAlchemy para preparar outros dialectos como PostgreSQL |
-| SDK / Agent | Python, HTTPX |
+| SDK / Agent | Python, HTTPX, pacote instalável `overseer-core` |
 | Configuração | `.env.example`, variáveis de ambiente, YAML |
 | Docker | Dockerfile multi-stage, Docker Compose |
 | Testes | `pytest` |
@@ -47,6 +47,7 @@ flowchart LR
 | Fluxo | Origem | Processamento | Destino |
 |---|---|---|---|
 | Leitura | Frontend/API client | `/v1/read/*` | JSON operacional |
+| Estado DB | Frontend/API client | `/v1/read/database` | URL mascarada, modo e contagens |
 | Escrita | SDK, agent ou pipeline | `/v1/events/*` | Tabelas `overseer_*` |
 | Orquestração | UI/API client | `/v1/orchestrate/*` | Trigger ou execução de pipeline |
 | Arranque | `overseer-up.cmd`, `scripts/overseer-up.ps1` ou `scripts/overseer-up.sh` | Docker Compose | API + MariaDB + UI |
@@ -61,6 +62,7 @@ Overseer/
   overseer_sdk/
   openapi/
   pipelines/microsoft_forms_2_datalake/
+  templates/pipeline-repo/
   scripts/
   src/overseer_api/
   src/overseer_core/
@@ -91,6 +93,7 @@ Python e Node locais não são requisitos para executar o Overseer; o Dockerfile
 | `OVERSEER_API_TOKEN` | Não | Token Bearer para APIs protegidas | `change-me-local-token` |
 | `OVERSEER_API_PORT` | Não | Porta HTTP local | `8090` |
 | `OVERSEER_DB_URL` | Não | URL SQLAlchemy canónico | `mysql+pymysql://overseer:overseer@mysql:3306/Overseer?charset=utf8mb4` |
+| `OVERSEER_PIPELINES_DIR` | Não | Diretórios extra de pipelines, separados por `os.pathsep` | `/opt/pipelines` |
 | `MYSQL_PASSWORD` | Não | Password local MariaDB | `overseer` |
 | `MYSQL_ROOT_PASSWORD` | Não | Password root local MariaDB | `overseer` |
 
@@ -118,6 +121,7 @@ Skills locais inventariadas em `SKILLS.md`. Nesta tarefa são relevantes: `repo-
 | `webapp/node_modules` parcial em OneDrive | Pode resistir a remoção local | Ignorado por Git e excluído por `.dockerignore`; Docker instala dependências dentro da imagem |
 | Migração para schema novo | Dados legados não são contrato v4 | Refactor aceite como agressivo; tabelas antigas removidas do caminho principal |
 | Produção/SSH não confirmados | Risco operacional remoto | Não usar SSH/produção sem confirmação explícita |
+| Bind mount de pipelines em caminhos Windows/OneDrive | Pode chegar vazio ao container | O exemplo fica em `/app/pipelines`; o host monta em `/app/host_pipelines` sem sobrepor |
 
 ## Critérios De Verificação
 
@@ -125,3 +129,5 @@ Skills locais inventariadas em `SKILLS.md`. Nesta tarefa são relevantes: `repo-
 - `docker compose build` ou `docker compose up --build -d`.
 - Health em `http://127.0.0.1:8090/v1/health`.
 - UI em `http://127.0.0.1:8090/ui/`.
+- DB ativa em `http://127.0.0.1:8090/v1/read/database`.
+- Run de demonstração com `docker compose exec overseer-api python scripts/overseer_emit_demo.py`.

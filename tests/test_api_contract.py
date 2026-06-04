@@ -35,6 +35,21 @@ def test_read_overview(mock_overview):
     assert body["data"]["summary"]["pipelines"] == 1
 
 
+@patch("src.overseer_api.routers.read.store.database_status")
+def test_read_database(mock_database):
+    mock_database.return_value = {
+        "reachable": True,
+        "mode": "external",
+        "driver": "mysql+pymysql",
+        "database": "Overseer",
+        "url": "mysql+pymysql://user:***@db:3306/Overseer",
+        "tables": {"runs": 3},
+    }
+    response = client().get("/v1/read/database")
+    assert response.status_code == 200
+    assert response.json()["database"]["mode"] == "external"
+
+
 @patch("src.overseer_api.routers.events.store.start_run")
 def test_event_run_start(mock_start_run):
     mock_start_run.return_value = {"run_id": "run-1", "pipeline_id": "demo", "status": "running"}

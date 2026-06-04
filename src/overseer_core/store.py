@@ -31,9 +31,11 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import make_url
 
 ROOT = Path(__file__).resolve().parents[2]
 PIPELINES_DIR = ROOT / "pipelines"
+HOST_PIPELINES_DIR = ROOT / "host_pipelines"
 
 metadata = MetaData()
 _engine: Engine | None = None
@@ -190,6 +192,57 @@ def get_engine() -> Engine:
     return _engine
 
 
+def database_status() -> dict[str, Any]:
+    db_url = get_db_url()
+    try:
+        parsed = make_url(db_url)
+        safe_url = parsed.render_as_string(hide_password=True)
+        driver = parsed.drivername
+        database = parsed.database
+        host = parsed.host or "local-file"
+        port = parsed.port
+    except Exception:
+        safe_url = "invalid-url"
+        driver = "unknown"
+        database = None
+        host = None
+        port = None
+
+    host_label = str(host or "").lower()
+    if host_label == "mysql":
+        mode = "docker-local"
+    elif host_label in {"127.0.0.1", "localhost", "local-file"}:
+        mode = "host-local"
+    else:
+        mode = "external"
+
+    result: dict[str, Any] = {
+        "reachable": False,
+        "mode": mode,
+        "driver": driver,
+        "database": database,
+        "host": host,
+        "port": port,
+        "url": safe_url,
+        "tables": {},
+        "error": None,
+    }
+    try:
+        with get_engine().connect() as conn:
+            result["tables"] = {
+                "pipelines": conn.execute(select(func.count()).select_from(pipelines_table)).scalar_one(),
+                "runs": conn.execute(select(func.count()).select_from(runs_table)).scalar_one(),
+                "modules": conn.execute(select(func.count()).select_from(modules_table)).scalar_one(),
+                "logs": conn.execute(select(func.count()).select_from(logs_table)).scalar_one(),
+                "heartbeats": conn.execute(select(func.count()).select_from(heartbeats_table)).scalar_one(),
+                "triggers": conn.execute(select(func.count()).select_from(triggers_table)).scalar_one(),
+            }
+        result["reachable"] = True
+    except Exception as exc:
+        result["error"] = exc.__class__.__name__
+    return result
+
+
 def init_schema() -> None:
     metadata.create_all(get_engine())
     sync_pipeline_catalog()
@@ -223,19 +276,38 @@ def row_to_dict(row: Any) -> dict[str, Any]:
     return data
 
 
+def pipeline_dirs() -> list[Path]:
+    raw_dirs = [PIPELINES_DIR, HOST_PIPELINES_DIR]
+    extra = os.getenv("OVERSEER_PIPELINES_DIR")
+    if extra:
+        raw_dirs.extend(Path(item.strip()) for item in extra.split(os.pathsep) if item.strip())
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in raw_dirs:
+        resolved = path.resolve() if path.exists() else path
+        if resolved not in seen:
+            unique.append(path)
+            seen.add(resolved)
+    return unique
+
+
 def iter_pipeline_yamls() -> list[tuple[Path, dict[str, Any]]]:
     items: list[tuple[Path, dict[str, Any]]] = []
-    if not PIPELINES_DIR.exists():
-        return items
-    for path in sorted(PIPELINES_DIR.glob("*/pipeline.yaml")):
-        if path.parent.name.startswith("_"):
+    seen_pipeline_ids: set[str] = set()
+    for directory in pipeline_dirs():
+        if not directory.exists():
             continue
-        try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        except Exception:
-            continue
-        if payload.get("pipeline_id"):
-            items.append((path, payload))
+        for path in sorted(directory.glob("*/pipeline.yaml")):
+            if path.parent.name.startswith("_"):
+                continue
+            try:
+                payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                continue
+            pipeline_id = str(payload.get("pipeline_id") or "").strip()
+            if pipeline_id and pipeline_id not in seen_pipeline_ids:
+                items.append((path, payload))
+                seen_pipeline_ids.add(pipeline_id)
     return items
 
 
@@ -603,6 +675,12 @@ def run_pipeline_subprocess(pipeline_id: str, requested_by: str = "api") -> dict
     env["OVERSEER_PIPELINE_ID"] = pipeline_id
     env["OVERSEER_API_URL"] = env.get("OVERSEER_API_URL", "http://127.0.0.1:8090")
     workdir = PIPELINES_DIR / pipeline_id
+    if not workdir.exists():
+        for directory in pipeline_dirs():
+            candidate = directory / pipeline_id
+            if candidate.exists():
+                workdir = candidate
+                break
     started = time.monotonic()
     try:
         proc = subprocess.run(

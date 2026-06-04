@@ -1,5 +1,63 @@
 # Changelog
 
+## [4.1.0] - 2026-06-04T19:08:22+01:00
+
+### DB Oficial, Kit De Pipelines E Frontend Operacional
+
+**Motivo:**
+Permitir ligar o Overseer ao schema oficial `Overseer`, mostrar dados reais a fluir no frontend e definir uma forma única de instrumentar todos os repositórios de pipelines.
+
+**Impacto:**
+O Compose passa a aceitar `OVERSEER_DB_URL` para apontar para uma DB oficial externa, mantendo fallback local. A UI mostra o estado da DB, contagens por tabela, lanes de runs, DAGs, triggers, heartbeats, logs e detalhe de módulos. Os repos de pipelines passam a ter um template padrão e uma dependência instalável `overseer-core`.
+
+**Alterações:**
+- `src/overseer_core/store.py`: adicionada leitura segura de estado da DB, URL mascarada, contagens por tabela e suporte a `/app/host_pipelines` sem sobrepor `/app/pipelines`.
+- `src/overseer_api/routers/read.py`: adicionado `GET /v1/read/database`.
+- `docker-compose.yml`: `OVERSEER_DB_URL` passa a ser configurável por `.env`; pipelines do host montam em `/app/host_pipelines:ro`.
+- `.env.example` e `.env.official.example`: documentada configuração local e oficial sem segredos reais.
+- `pyproject.toml`: criado pacote instalável `overseer-core` com script `overseer-agent`.
+- `templates/pipeline-repo/`: criado kit padrão para cada repo de pipeline.
+- `docs/pipeline-integration.md`: documentado contrato único de instrumentação por API.
+- `scripts/overseer_emit_demo.py`: criado emissor de run/módulos/logs/heartbeat para validar fluxo no schema ativo.
+- `webapp/src/main.jsx` e `webapp/src/styles.css`: frontend refeito como consola operacional densa inspirada em Airflow/Bruin Monitor SaaS.
+- `openapi/overseer-api.yaml`, `README.md`, `PROJECT_CONTEXT.md`, `tasks/todo.md`: documentação atualizada.
+
+**Dependências:**
+- `pyproject.toml` adicionado com dependências Python instaláveis.
+- `webapp/package.json` e `webapp/package-lock.json` atualizados para versão 4.1.0.
+
+**Ferramentas, MCP E Skills:**
+- MCP servers: N/A — não há configuração MCP de projeto.
+- Skills usadas: `fullstack-delivery`, `frontend-architecture`, `backend-architecture`, `database-migration-safety`, `api-contract-guardian`, `dependency-manager`, `security-secrets-audit`, `documentation-keeper`, `handoff-maintainer`, `changelog-semver`, `definition-of-done`, `stop-the-slop`.
+- Fallbacks: Browser MCP indisponível na sessão; validação frontend feita por build Vite e HTTP de HTML/assets.
+
+**SSH / Servidores:**
+- N/A — nenhum servidor ou SSH foi acedido. A DB oficial fica preparada por `.env`, mas credenciais reais não existem no repo.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- N/A — não houve nova remoção relevante nesta etapa.
+
+**Testes:**
+- `python -m pytest -q` — passou com 5 testes.
+- `docker compose config` — passou.
+- `docker compose build` — passou.
+- `docker compose up -d` — passou.
+- `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py` — criou run de demonstração.
+
+**Validação:**
+- `/v1/read/database` confirmou DB `Overseer`, modo `docker-local`, URL mascarada e contagens `pipelines=1`, `runs=1`, `modules=3`, `logs=3`, `heartbeats=1`.
+- `/v1/read/overview` confirmou pipeline `microsoft_forms_2_datalake` e run demo `ok`.
+- `/ui/` serviu HTML com assets em `/ui/assets/...`; JS e CSS responderam 200.
+- Auditoria literal não encontrou valores antigos sensíveis conhecidos.
+
+**Refs:**
+- Pedido do utilizador: ligar ao schema Overseer oficial, preparar integração padrão nos repos de pipelines e melhorar frontend para algo entre Airflow e Bruin Monitor SaaS.
+
+**Diff:**
+Overseer ganha camada operacional 4.1.0: DB oficial por configuração, kit de adoção para pipelines, endpoint de estado da DB, demo de fluxo e frontend de monitorização mais rico.
+
+---
+
 ## [4.0.0] - 2026-06-04T11:42:09+01:00
 
 ### Refactor Core API, Docker E Frontend Local
@@ -17,6 +75,7 @@ Quebra compatibilidade com o fluxo antigo `DB -> JSON -> frontend externo`, sche
 - `overseer_sdk/client.py` e `overseer_agent/__main__.py`: adicionados SDK Python e CLI wrapper para registar telemetria, heartbeats, triggers e execuções.
 - `overseer_monitor/monitor.py`: adaptado para escrever via API mantendo compatibilidade razoável com pipelines existentes.
 - `webapp/`: substituído frontend legado por React/Vite com dashboard local, detalhe de runs, logs, módulos e ações operacionais.
+- `webapp/package.json`: build Vite configurado com `--base=/ui/` para os assets serem servidos corretamente quando a app está montada em `/ui/`.
 - `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/overseer-up.ps1`, `scripts/overseer-up.sh`, `overseer-up.cmd`: implementado fluxo Docker multi-plataforma por comando simples.
 - `openapi/overseer-api.yaml`: contrato OpenAPI atualizado para os endpoints v4.
 - `README.md`, `PROJECT_CONTEXT.md`, `tasks/todo.md`, `skills/overseer-pipeline/SKILL.md`: documentação e Skill local alinhadas com o novo contrato.
@@ -46,6 +105,9 @@ Quebra compatibilidade com o fluxo antigo `DB -> JSON -> frontend externo`, sche
 **Testes:**
 - `python -m pytest -q` — passou com 4 testes.
 - `docker compose build` — passou; validou `npm ci`, `vite build` e instalação Python dentro do container.
+- `docker compose up -d` — executado para aplicar a correção do frontend no container local.
+- `Invoke-WebRequest http://127.0.0.1:8090/ui/` — passou; HTML referencia `/ui/assets/...`.
+- `Invoke-WebRequest http://127.0.0.1:8090/ui/assets/...` — passou para JS e CSS.
 - `npm install` local em Windows/OneDrive — falhou por permissões em `webapp/node_modules`; sem impacto no fluxo suportado, porque Docker faz a instalação dentro da imagem e `.dockerignore` exclui `node_modules`.
 
 **Validação:**

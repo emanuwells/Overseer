@@ -16,6 +16,11 @@ def read_overview() -> dict[str, Any]:
     return {"ok": True, "data": store.overview()}
 
 
+@router.get("/database")
+def read_database() -> dict[str, Any]:
+    return {"ok": True, "database": store.database_status()}
+
+
 @router.get("/pipelines")
 def read_pipelines() -> dict[str, Any]:
     return {"ok": True, "items": store.list_pipelines()}

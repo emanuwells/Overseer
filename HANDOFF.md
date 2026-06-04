@@ -6,15 +6,15 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-04T11:42:09+01:00 |
+| Última atualização | 2026-06-04T19:08:22+01:00 |
 | Branch Git | `main` |
-| Estado | Refactor 4.0.0 implementado; validação final executada nesta sessão |
+| Estado | 4.1.0 implementado; DB oficial preparada, dados demo a fluir e frontend operacional melhorado |
 | Responsável / Agente | Codex |
-| Última versão registada | 4.0.0 |
+| Última versão registada | 4.1.0 |
 
 ## Objetivo Atual
 
-Refatorar agressivamente o Overseer para um núcleo Docker-first com FastAPI, três superfícies HTTP canónicas, schema SQL simples, SDK/CLI para pipelines e frontend React/Vite local.
+Manter o Overseer como núcleo Docker-first com API, schema SQL, SDK/CLI e frontend local. A etapa 4.1.0 prepara ligação ao schema oficial `Overseer`, padroniza a integração em repos de pipelines e melhora a UI operacional.
 
 ## Estado Atual
 
@@ -30,6 +30,14 @@ Refatorar agressivamente o Overseer para um núcleo Docker-first com FastAPI, tr
 - CLI `python -m overseer_agent` atualizado para heartbeat, trigger, run e exec instrumentado.
 - Adaptador `overseer_monitor.OverseerMonitor` mantido para pipelines que ainda usam a interface antiga, agora escrevendo via API.
 - Frontend React/Vite criado em `webapp/` e servido em `/ui/`.
+- Build Vite configurado com `--base=/ui/` para evitar página branca por assets em `/assets/...`.
+- Frontend redesenhado como consola operacional com DB status, lanes de runs, DAGs, triggers, heartbeats, logs e detalhe de módulos.
+- Endpoint `GET /v1/read/database` criado com URL mascarada e contagens por tabela.
+- `.env.official.example` criado para apontar a API para uma DB oficial externa via `OVERSEER_DB_URL`.
+- `pyproject.toml` criado para instalar `overseer-core` nos repos de pipelines.
+- Template `templates/pipeline-repo/` e guia `docs/pipeline-integration.md` criados para integração padrão.
+- `scripts/overseer_emit_demo.py` criado e executado; escreveu run/módulos/logs/heartbeat no schema ativo.
+- Mount de pipelines ajustado: `/app/pipelines` mantém exemplo interno e `./pipelines` entra em `/app/host_pipelines:ro`.
 - Docker multi-stage validado com build Node + Python.
 - Scripts de arranque multi-plataforma adicionados:
   - Windows CMD: `overseer-up.cmd`;
@@ -47,6 +55,8 @@ Refatorar agressivamente o Overseer para um núcleo Docker-first com FastAPI, tr
 
 ### Por Fazer
 
+- Preencher `.env` com `OVERSEER_DB_URL` real da DB oficial quando as credenciais forem fornecidas.
+- Depois de ligar à DB oficial, repetir `docker compose up -d` e `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py`.
 - Rever no futuro se `requirements.txt` pode ser ainda mais reduzido depois de estabilizar o pipeline Microsoft.
 - Decidir licença real do projeto; a documentação mantém `A confirmar`.
 - Se existir produção antiga dependente de JSON/MAIATRON, planear migração manual para a API v4.
@@ -57,14 +67,16 @@ Refatorar agressivamente o Overseer para um núcleo Docker-first com FastAPI, tr
 - `npm install` local em Windows/OneDrive falhou por permissões ao escrever `webapp/node_modules`; não bloqueia o fluxo suportado porque Docker instala tudo dentro da imagem.
 - Pode existir uma pasta parcial `webapp/node_modules` local, ignorada por Git e excluída por `.dockerignore`.
 - Configuração de produção/SSH continua não confirmada e não foi usada.
+- Não há credenciais oficiais no repo; a ligação externa fica preparada, mas não foi possível apontar para a DB oficial sem `OVERSEER_DB_URL` real.
 
 ## Próximo Passo Exato
 
-Executar o arranque Docker no sistema alvo:
+Para ligar à DB oficial:
 
-```bash
-docker compose up --build -d
-```
+1. Copiar `.env.official.example` para `.env`.
+2. Preencher `OVERSEER_DB_URL` com a ligação real ao schema `Overseer`.
+3. Executar `docker compose up -d`.
+4. Executar `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py`.
 
 Depois abrir:
 
@@ -96,9 +108,11 @@ Depois abrir:
 | Item | Estado | Nota |
 |---|---|---|
 | Python | Mantido | `requirements.txt` continua a ser o manifesto da API e exemplo |
+| Pacote Python | Adicionado | `pyproject.toml` instala `overseer-core` e `overseer-agent` |
 | Node | Adicionado | `webapp/package.json` e `webapp/package-lock.json` com versões fixas |
 | Docker | Implementado | Build multi-stage instala Python e Node dentro da imagem |
 | Pipeline exemplo | Mantido | `pipelines/microsoft_forms_2_datalake` |
+| Template de pipeline | Adicionado | `templates/pipeline-repo/` |
 | Outros pipelines | Removidos | `pipelines/webapp_medidata` e `_template` fora do novo contrato |
 
 ## Auditoria De Ficheiros Desnecessários
@@ -123,8 +137,8 @@ Depois abrir:
 | Repositório | `g:\O meu disco\Dev\Repos\emanuwells\Overseer` |
 | Branch | `main...origin/main` |
 | Alteração pré-existente preservada | `PROJECT_CONTEXT.template.md` já aparecia como removido antes desta tarefa |
-| Principais ficheiros alterados | `README.md`, `PROJECT_CONTEXT.md`, `CHANGELOG.md`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `openapi/overseer-api.yaml`, `tasks/todo.md`, `skills/overseer-pipeline/SKILL.md` |
-| Principais ficheiros novos | `.dockerignore`, `src/overseer_core/store.py`, routers v4, `overseer_sdk/client.py`, frontend React/Vite, scripts `overseer-up`, ADR |
+| Principais ficheiros alterados | `README.md`, `PROJECT_CONTEXT.md`, `CHANGELOG.md`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `openapi/overseer-api.yaml`, `tasks/todo.md`, `webapp/src/*`, `src/overseer_core/store.py` |
+| Principais ficheiros novos | `.env.official.example`, `.dockerignore`, `pyproject.toml`, `docs/pipeline-integration.md`, `templates/pipeline-repo/`, `scripts/overseer_emit_demo.py`, routers v4, `overseer_sdk/client.py`, ADR |
 | Principais ficheiros removidos | `orchestrator.py`, `src/pm_runtime/`, routers legados, migrations antigas, export JSON, frontend legado, pipelines fora de escopo |
 | Risco de sobrescrever alterações do utilizador | Baixo; não houve reset/checkout/clean e alterações existentes foram preservadas |
 
@@ -184,6 +198,8 @@ Depois abrir:
 |---|---|---|---|
 | Uma FastAPI com routers separados | Simplicidade operacional | Um serviço HTTP com superfícies claras | `docs/adr/0001-overseer-core-api-refactor.md` |
 | SQLAlchemy + tabelas `overseer_*` | Portabilidade DB | MariaDB agora, PostgreSQL possível depois | `docs/adr/0001-overseer-core-api-refactor.md` |
+| `OVERSEER_DB_URL` como contrato de DB oficial | Evitar segredos no repo e permitir DB externa | `.env` controla ligação real; frontend mostra URL mascarada | N/A |
+| Template padrão de pipeline | Evitar integrações ad hoc | Todos os repos usam `.env.overseer`, `pipeline.yaml` e `overseer_bootstrap.py` | N/A |
 | React/Vite servido localmente | UI moderna sem MAIATRON externo | `/ui/` dentro do serviço API | `docs/adr/0001-overseer-core-api-refactor.md` |
 | Docker-first | Mesmo workflow em Windows, Linux e macOS | Host só precisa de Docker | `docs/adr/0001-overseer-core-api-refactor.md` |
 | Remover scheduler/export legado | Reduzir ruído e contratos partidos | Orquestração passa pela API | `docs/adr/0001-overseer-core-api-refactor.md` |
@@ -213,7 +229,13 @@ Depois abrir:
 | `git status --short --branch` | Passou | Confirmou branch e alterações |
 | Verificação MCP | Passou | Nenhuma configuração MCP encontrada |
 | `python -m pytest -q` | Passou | 4 testes; aviso de cache sem permissão |
+| `python -m pytest -q` pós-4.1.0 | Passou | 5 testes; aviso de cache sem permissão |
 | `docker compose build` | Passou | Validou `npm ci`, `vite build` e instalação Python no container |
+| `docker compose up -d` | Passou | Container local recriado com frontend corrigido |
+| `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py` | Passou | Criou run demo no schema ativo |
+| `GET /v1/read/database` | Passou | `pipelines=1`, `runs=1`, `modules=3`, `logs=3`, `heartbeats=1` |
+| `Invoke-WebRequest http://127.0.0.1:8090/ui/` | Passou | HTML aponta para `/ui/assets/...` |
+| `Invoke-WebRequest http://127.0.0.1:8090/ui/assets/...` | Passou | JS e CSS respondem 200 |
 | Pesquisa de legado | Passou | MAIATRON/JSON só aparecem como contexto de remoção em plano/ADR/changelog |
 
 ## Checklist De Entrega
