@@ -1,5 +1,68 @@
 # Changelog
 
+## [4.0.0] - 2026-06-04T11:42:09+01:00
+
+### Refactor Core API, Docker E Frontend Local
+
+**Motivo:**
+Simplificar agressivamente o Overseer e transformá-lo num núcleo operacional com API de leitura, API de escrita, API de orquestração, frontend local moderno e execução Docker reproduzível em qualquer sistema operativo com Docker.
+
+**Impacto:**
+Quebra compatibilidade com o fluxo antigo `DB -> JSON -> frontend externo`, scheduler CLI legado e schema antigo. O contrato suportado passa a ser HTTP/API token, tabelas `overseer_*`, SDK/CLI para pipelines e dashboard React/Vite servido pela FastAPI. O fluxo recomendado de arranque é Docker-first e não requer Python ou Node instalados no host.
+
+**Alterações:**
+- `src/overseer_core/store.py`: criado store SQLAlchemy com schema novo para pipelines, runs, módulos, logs, heartbeats e triggers.
+- `src/overseer_api/main.py`: refeito para FastAPI v4 com lifespan, health, leitura, eventos e orquestração.
+- `src/overseer_api/routers/read.py`, `events.py`, `orchestrate.py`, `health.py`: adicionados/substituídos routers canónicos.
+- `overseer_sdk/client.py` e `overseer_agent/__main__.py`: adicionados SDK Python e CLI wrapper para registar telemetria, heartbeats, triggers e execuções.
+- `overseer_monitor/monitor.py`: adaptado para escrever via API mantendo compatibilidade razoável com pipelines existentes.
+- `webapp/`: substituído frontend legado por React/Vite com dashboard local, detalhe de runs, logs, módulos e ações operacionais.
+- `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/overseer-up.ps1`, `scripts/overseer-up.sh`, `overseer-up.cmd`: implementado fluxo Docker multi-plataforma por comando simples.
+- `openapi/overseer-api.yaml`: contrato OpenAPI atualizado para os endpoints v4.
+- `README.md`, `PROJECT_CONTEXT.md`, `tasks/todo.md`, `skills/overseer-pipeline/SKILL.md`: documentação e Skill local alinhadas com o novo contrato.
+- `docs/adr/0001-overseer-core-api-refactor.md`: ADR criada para a decisão arquitetural.
+- `pipelines/microsoft_forms_2_datalake/`: mantido como único exemplo e atualizado para apontar para o frontend local.
+- `pipelines/microsoft_forms_2_datalake/secrets/database.json.example.json`: valores com aparência de credencial substituídos por placeholders.
+- `overseer_sdk/runtime_context.py`: removido host/IP antigo por defeito; deteção local passa a depender de `OVERSEER_DB_LOCAL_HOSTS`.
+
+**Dependências:**
+- `webapp/package.json` e `webapp/package-lock.json` adicionados com versões fixas para React, Vite, TypeScript e `lucide-react`.
+- `requirements.txt` mantido como manifesto Python para a API e exemplo de pipeline.
+- Docker passa a instalar dependências Python e Node dentro da imagem, evitando instalação manual no host.
+
+**Ferramentas, MCP E Skills:**
+- MCP servers: N/A — não foram encontradas configurações `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json`.
+- Skills usadas: `repo-onboarding`, `skill-selector`, `backend-architecture`, `frontend-architecture`, `fullstack-delivery`, `api-contract-guardian`, `database-migration-safety`, `dependency-manager`, `file-pruner`, `security-secrets-audit`, `prompt-injection-guard`, `documentation-keeper`, `handoff-maintainer`, `changelog-semver`, `definition-of-done`, `stop-the-slop`.
+- Fallbacks: ferramentas locais e Docker; não houve MCP de projeto disponível.
+
+**SSH / Servidores:**
+- N/A — nenhum servidor, SSH, deploy remoto ou produção foi acedido.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- Removidos: `orchestrator.py`, `src/pm_runtime/`, routers/builders legados, `src/overseer_api/routers/runners.py`, migrations antigas, export JSON, scripts cron/Slack antigos, `pipelines/_template/`, `pipelines/webapp_medidata/`, frontend JS/CSS legado e documentação MAIATRON/PRD fora de contrato.
+- Mantido: `pipelines/microsoft_forms_2_datalake/` como exemplo funcional.
+- Observação: `PROJECT_CONTEXT.template.md` já aparecia removido antes desta tarefa e essa remoção foi preservada.
+
+**Testes:**
+- `python -m pytest -q` — passou com 4 testes.
+- `docker compose build` — passou; validou `npm ci`, `vite build` e instalação Python dentro do container.
+- `npm install` local em Windows/OneDrive — falhou por permissões em `webapp/node_modules`; sem impacto no fluxo suportado, porque Docker faz a instalação dentro da imagem e `.dockerignore` exclui `node_modules`.
+
+**Validação:**
+- Estado Git verificado antes e durante a tarefa.
+- OpenAPI, README, PROJECT_CONTEXT, ADR, Skill local e scripts de arranque alinhados com o novo contrato.
+- Pesquisa por referências legadas confirmou que MAIATRON/JSON ficam apenas em contexto de remoção no plano/ADR/changelog.
+- Auditoria de segredos substituiu um exemplo com aparência de credencial e removeu infraestrutura antiga embutida; se o valor original tiver sido real ou reutilizado, deve ser rodado no sistema de origem.
+- Build Docker multi-stage confirma que o arranque é reprodutível em ambientes com Docker.
+
+**Refs:**
+- Pedido do utilizador: refactor geral do Overseer, duas APIs nucleares, API separada de orquestração, frontend React/Vite, schema novo, remover legado e Docker instalável em qualquer sistema operativo.
+
+**Diff:**
+Overseer passa de runtime legado com export externo para aplicação fullstack local Docker-first, API-first e preparada para MariaDB/MySQL ou outro dialecto SQLAlchemy.
+
+---
+
 ## [2.4.2] - 2026-06-03T12:46:28+01:00
 
 ### Atualização De Documentação Operacional E Segurança

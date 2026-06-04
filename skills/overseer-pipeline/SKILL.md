@@ -1,9 +1,9 @@
 ---
 name: overseer-pipeline
-description: Integrar um pipeline no Overseer (YAML, lineage, secrets, API).
+description: Integrar um pipeline no Overseer Core API.
 ---
 
-# Skill: Integrar pipeline no Overseer
+# Skill: Integrar Pipeline No Overseer
 
 ## Quando usar
 
@@ -11,16 +11,18 @@ Ao criar ou migrar um pipeline para o runtime Overseer.
 
 ## Passos
 
-1. Copiar `pipelines/_template/` para `pipelines/<pipeline_id>/`.
-2. Preencher `pipeline.yaml`: `pipeline_id`, `name`, `owner`, `criticality`, `schedule`, `entrypoint`, `runner_host`.
-3. Implementar `src/main.py` com `LineageEmitter` (`@@OVERSEER_MODULE@@`) em cada fase.
-4. Configurar `secrets/database.json` e `secrets/slack.json` (nunca versionar).
-5. Testar: `python orchestrator.py run <pipeline_id>`.
-6. Validar telemetria via API: `GET /v1/monitoring/full` (não depender de JSON exportado).
-7. Registar runner remoto: `python -m overseer_agent heartbeat` + `consume-triggers`.
+1. Criar `pipelines/<pipeline_id>/pipeline.yaml` com `pipeline_id`, `name`, `owner`, `criticality`, `entrypoint` e, se necessário, `entrypoint_windows`.
+2. Implementar `src/main.py` com `OverseerClient`, `OverseerMonitor` ou `LineageEmitter` (`@@OVERSEER_MODULE@@`) para registar módulos e eventos.
+3. Configurar segredos apenas fora do Git; usar `.env.example` para nomes de variáveis e valores fictícios.
+4. Testar localmente via API: `python -m overseer_agent run <pipeline_id> --foreground`.
+5. Validar leitura: `GET /v1/read/runs` e `GET /v1/read/runs/{run_id}`.
+6. Validar ações operacionais no frontend local em `http://127.0.0.1:8090/ui/`.
+7. Usar `python -m overseer_agent heartbeat` para registar agentes externos.
 
 ## Contratos
 
-- Telemetria: schema `Overseer`, tabelas `pipeline_runs`, `pipeline_module_events`.
-- Triggers: `POST /v1/triggers` ou fila `orchestrator_triggers_local`.
-- Excepção: pipelines que escrevem em schema `MAIATRON` (ex. `webapp_medidata`) mantêm DB target documentado no PRD.
+- Telemetria: API `POST /v1/events/*`.
+- Leitura: API `GET /v1/read/*`.
+- Orquestração: API `POST /v1/orchestrate/*`.
+- Base de dados: tabelas `overseer_*`, criadas por SQLAlchemy.
+- Docker: o fluxo suportado é `overseer-up.cmd`, `scripts/overseer-up.ps1`, `scripts/overseer-up.sh` ou `docker compose up --build -d`.

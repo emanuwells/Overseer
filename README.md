@@ -1,209 +1,226 @@
 # Overseer
 
-![Stack](https://img.shields.io/badge/stack-Python%20%7C%20MySQL%20%7C%20YAML%20%7C%20Slack-29b6f6)
-![Runtime](https://img.shields.io/badge/runtime-CLI%20%7C%20scheduler-f39c12)
-![Version](https://img.shields.io/badge/version-2.4.2-2ecc71)
+![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20React%20%7C%20Vite%20%7C%20MariaDB-29b6f6)
+![Runtime](https://img.shields.io/badge/runtime-Docker%20Compose-f39c12)
+![Version](https://img.shields.io/badge/version-4.0.0-2ecc71)
 ![License](https://img.shields.io/badge/license-A%20confirmar-lightgrey)
 
-Overseer e um runtime Python para orquestrar pipelines, recolher telemetria operacional e publicar dados JSON consumidos por frontend externo MAIATRON. O repositorio nao detem o HTML/JS/CSS canonico da app MAIATRON; mantem o fluxo de dados, o scheduler, SDKs de monitorizacao e templates de pipelines.
+Overseer é um núcleo local para orquestrar pipelines, receber telemetria por API, persistir eventos numa base de dados e mostrar o estado operacional num frontend React servido pela própria API.
 
 ## Funcionalidades Principais
 
-- Execucao de pipelines definidos em `pipelines/<pipeline_id>/pipeline.yaml`.
-- Scheduler daemon em `orchestrator.py scheduler`, sem dependencia obrigatoria de cron.
-- Emissao de lineage por stdout com marcadores `@@OVERSEER_MODULE@@`.
-- Escrita de eventos, runs e permissao por pipeline em MySQL.
-- Export de payloads JSON para consumo por frontend externo.
-- Notificacoes Slack para erros e resumo diario.
-- Templates de pipeline com `src`, `config` e `secrets`.
-- Suporte a runners por host via `runner_host`.
+- API de leitura em `/v1/read/*`.
+- API de escrita em `/v1/events/*` para runs, módulos, logs e heartbeats.
+- API de orquestração em `/v1/orchestrate/*` para triggers e execução de pipelines.
+- Frontend React/Vite em `/ui/`.
+- Schema novo simples em tabelas `overseer_*`.
+- SDK Python e CLI `overseer-agent` para instrumentar pipelines.
+- Workflow oficial por Docker Compose, sem instalar Python ou Node no host.
+- Exemplo real mantido: `microsoft_forms_2_datalake`.
 
-## Stack Tecnica
+## Stack Técnica
 
-| Area | Tecnologia confirmada |
+| Área | Tecnologia |
 |---|---|
-| Runtime / CLI | Python 3, `orchestrator.py` |
-| Scheduler | Loop proprio em Python com `croniter` |
-| Base de dados | MySQL via `pymysql` / SQLAlchemy |
-| Configuracao | YAML, JSON e variaveis de ambiente |
-| Monitorizacao | `overseer_monitor`, `overseer_sdk` |
-| Frontend | Externo ao repo; este repo publica dados JSON |
-| Notificacoes | Slack webhook configurado por ficheiro/env |
-| Testes | `pytest` no manifesto; suite nao validada nesta sessao |
+| API | FastAPI, Uvicorn |
+| Frontend | React, Vite, lucide-react |
+| Base de dados | MariaDB local por Docker; SQLAlchemy prepara outros dialectos como PostgreSQL |
+| SDK / Agent | Python, HTTPX |
+| Configuração | Variáveis de ambiente, `.env.example`, YAML de pipelines |
+| Testes | `pytest` |
+| Deploy local | Docker Compose |
 
 ## Arquitetura
 
 ```mermaid
 flowchart LR
-    pipeline[Pipelines YAML] --> orchestrator[orchestrator.py]
-    orchestrator --> monitor[overseer_monitor / overseer_sdk]
-    monitor --> db[(MySQL)]
-    orchestrator --> export[scripts/export_payload_from_db.py]
-    db --> export
-    export --> json[Payloads JSON]
-    json --> frontend[Frontend MAIATRON externo]
-    orchestrator --> slack[Slack]
+    ui[Frontend React /ui] --> read[API leitura /v1/read]
+    pipeline[Pipeline ou agente] --> write[API escrita /v1/events]
+    ui --> orch[API orquestração /v1/orchestrate]
+    orch --> runner[Execução do pipeline]
+    runner --> write
+    read --> db[(MariaDB / SQLAlchemy)]
+    write --> db
+    orch --> db
 ```
 
 ## Estrutura Do Projeto
 
 ```text
 Overseer/
-  .claude/skills/              # Skills duplicadas para Claude Code
-  config/                      # Exemplos de configuracao local
-  docs/                        # PRDs, guias e ADRs
-  overseer_monitor/            # Monitorizacao e lineage
-  overseer_sdk/                # Utilitarios partilhados de runtime
-  pipelines/                   # Templates e pipelines concretas
-  runtime/                     # Artefactos runtime e assets sincronizados
-  scripts/                     # Export, arquivo e digest Slack
-  secrets/                     # Apenas exemplos e README versionados
-  skills/                      # Skills canonicas do repo
-  src/pm_runtime/              # Servicos auxiliares do runtime
-  tasks/                       # Plano e licoes operacionais
-  orchestrator.py              # CLI e scheduler principal
-  overseer.py                  # Wrapper curto do runtime
-  requirements.txt             # Dependencias Python
+  docs/adr/                       # Decisões técnicas
+  overseer_agent/                 # CLI para heartbeat, trigger, run e exec
+  overseer_monitor/               # Adaptador compatível para pipelines antigos
+  overseer_sdk/                   # SDK Python, cliente HTTP e utilitários
+  openapi/                        # Contrato API versionado
+  pipelines/
+    microsoft_forms_2_datalake/   # Exemplo real mantido
+  scripts/
+    overseer-up.ps1               # Arranque Docker para Windows PowerShell
+    overseer-up.sh                # Arranque Docker para Linux/macOS
+  src/
+    overseer_api/                 # FastAPI e routers
+    overseer_core/                # Store SQLAlchemy e execução de pipelines
+  tasks/                          # Plano operacional
+  webapp/                         # React/Vite; build feito dentro do Docker
+  docker-compose.yml
+  Dockerfile
+  overseer-up.cmd                 # Atalho Windows
+  requirements.txt
 ```
 
 ## Requisitos
 
-- Python 3.10+ recomendado.
-- MySQL acessivel quando forem executados pipelines, exports ou comandos que persistem telemetria.
-- Credenciais locais criadas a partir dos ficheiros `.example`.
-- Acesso Slack apenas se as notificacoes estiverem activas.
+- Docker Desktop, Docker Engine ou ambiente equivalente com `docker compose`.
+- Porta `8090` disponível, ou definir `OVERSEER_API_PORT`.
+- Python e Node locais não são necessários para arrancar o Overseer.
 
-## Instalacao
+## Instalação E Arranque
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-## Configuracao E Segredos
-
-Criar ficheiros reais apenas localmente, nunca versionar:
-
-- `secrets/database.json` a partir de `secrets/database.json.example.json`;
-- `secrets/slack.json` a partir de `secrets/slack.json.example`;
-- `pipelines/<pipeline_id>/secrets/*.json` a partir dos exemplos do pipeline.
-
-Variaveis principais em `.env.example`:
-
-- `DB_URL`;
-- `RUNS_TABLE`;
-- `P_MONITOR_DB_HOST`;
-- `P_MONITOR_DB_PORT`;
-- `P_MONITOR_DB_USER`;
-- `P_MONITOR_DB_PASSWORD`;
-- `P_MONITOR_DB_NAME`;
-- `P_MONITOR_FRONTEND_URL`;
-- `ORCHESTRATOR_ENABLED`.
-
-O README nao deve conter passwords, tokens, chaves SSH, cookies ou strings de ligacao reais. Se uma credencial real tiver sido publicada anteriormente, deve ser rodada no sistema de origem.
-
-## Utilizacao
+Windows:
 
 ```powershell
-python orchestrator.py list
-python orchestrator.py run example_pipeline
-python orchestrator.py run microsoft_forms_2_datalake
-python orchestrator.py run --file pipelines\_template\pipeline.yaml
-python orchestrator.py trigger enqueue example_pipeline --by Emanuel
-python orchestrator.py trigger consume --runner host-a
-python orchestrator.py export
-python orchestrator.py archive --days 30
+.\overseer-up.cmd
 ```
 
-Scheduler daemon:
+PowerShell:
 
 ```powershell
-python orchestrator.py scheduler
-python orchestrator.py scheduler --once
-python orchestrator.py scheduler --tick 30
-python orchestrator.py scheduler --workers 4
+.\scripts\overseer-up.ps1
 ```
 
-Permissoes por pipeline:
+Linux/macOS:
 
-```powershell
-python orchestrator.py user list
-python orchestrator.py user grant <username> <pipeline_id> --role executor
-python orchestrator.py user grant <username> <pipeline_id> --role owner
-python orchestrator.py user revoke <username> <pipeline_id>
-python orchestrator.py user show <pipeline_id>
+```bash
+sh scripts/overseer-up.sh
 ```
 
-`python orchestrator.py deploy-frontend` esta bloqueado por politica: o Overseer publica dados JSON, nao assets HTML/JS/CSS do frontend MAIATRON.
+Manual:
 
-## Pipelines Incluidas
-
-- `_template`: baseline para novos pipelines.
-- `microsoft_forms_2_datalake`: integracao Windows/Excel-Forms; requer secrets locais.
-- `webapp_medidata`: pipeline operacional especial; a configuracao de base de dados deve alinhar com a app MAIATRON publicada.
-
-## Testes, Lint E Build
-
-Dependencias de teste existem em `requirements.txt`, incluindo `pytest`.
-
-```powershell
-python -m pytest
-python -m compileall orchestrator.py overseer_monitor overseer_sdk scripts src pipelines
+```bash
+docker compose up --build -d
 ```
 
-Validacao nesta sessao: `python orchestrator.py --help` falhou porque o ambiente Python activo nao tinha `PyYAML` instalado. Executar a instalacao antes de validar CLI, testes ou scheduler.
+URLs locais:
 
-## API HTTP (canonica)
+- UI: `http://127.0.0.1:8090/ui/`
+- API docs: `http://127.0.0.1:8090/docs`
+- Health: `http://127.0.0.1:8090/v1/health`
 
-```powershell
-uvicorn src.overseer_api.main:app --host 0.0.0.0 --port 8090
+## Configuração E Segredos
+
+Copiar `.env.example` para `.env` quando for preciso alterar portas, token ou credenciais locais. Não versionar `.env`.
+
+Variáveis principais:
+
+- `OVERSEER_API_TOKEN`: token Bearer para APIs protegidas.
+- `OVERSEER_API_PORT`: porta HTTP local.
+- `OVERSEER_DB_URL`: URL SQLAlchemy canónico.
+- `MYSQL_PASSWORD` e `MYSQL_ROOT_PASSWORD`: credenciais MariaDB local.
+
+O frontend guarda o token apenas em `sessionStorage`.
+
+## APIs Principais
+
+Leitura:
+
+```http
+GET /v1/read/overview
+GET /v1/read/pipelines
+GET /v1/read/runs
+GET /v1/read/runs/{run_id}
 ```
 
-Endpoints principais: `GET /v1/monitoring/full`, `GET /v1/health`, `POST /v1/triggers`, UI em `/ui/`.
+Escrita:
 
-MAIATRON-HUB consome via BFF (`OVERSEER_API_URL` + `OVERSEER_API_TOKEN`).
+```http
+POST /v1/events/runs/start
+POST /v1/events/runs/{run_id}/finish
+POST /v1/events/modules
+POST /v1/events/logs
+POST /v1/events/heartbeat
+```
+
+Orquestração:
+
+```http
+POST /v1/orchestrate/triggers
+POST /v1/orchestrate/pipelines/{pipeline_id}/run
+```
+
+## SDK E Agent
+
+Instrumentação Python:
+
+```python
+from overseer_sdk import OverseerClient
+
+client = OverseerClient()
+with client.run("microsoft_forms_2_datalake") as run_id:
+    with client.step(run_id=run_id, pipeline_id="microsoft_forms_2_datalake", module_id="processamento"):
+        ...
+```
+
+Executar qualquer comando com registo via API:
+
+```bash
+python -m overseer_agent exec --pipeline microsoft_forms_2_datalake -- python src/main.py
+```
+
+No workflow oficial, a execução operacional é feita por Docker/API; comandos Python locais são apoio de desenvolvimento.
+
+## Testes E Validação
+
+Testes Python:
+
+```bash
+python -m pytest -q
+```
+
+Build completo via Docker:
+
+```bash
+docker compose build
+```
+
+O build do frontend é executado dentro da imagem Node do Dockerfile. Isto evita dependências Node no host e reduz diferenças entre Windows, Linux e macOS.
 
 ## Docker / Deploy
 
-```powershell
-docker compose --profile local up -d
-```
+Serviços:
 
-Servicos: `overseer-api`, `overseer-scheduler`, `mysql` (profile `local`).
+- `overseer-api`: API FastAPI e frontend compilado.
+- `mysql`: MariaDB local.
 
-Deploy operacional:
+Volumes:
 
-- telemetria via API HTTP (sem export JSON obrigatorio);
-- frontend MAIATRON externo via BFF `api.php`;
-- `deploy-frontend` esta bloqueado por politica.
+- `overseer_mysql_data`: dados MariaDB.
+- `./pipelines:/app/pipelines`: pipelines disponíveis para execução.
+- `./runtime:/app/runtime`: artefactos locais.
 
 ## Troubleshooting
 
-| Sintoma | Verificacao |
+| Sintoma | Verificação |
 |---|---|
-| `ModuleNotFoundError: No module named 'yaml'` | Activar `.venv` e executar `pip install -r requirements.txt`. |
-| Export nao gera payload | Confirmar `DB_URL` ou `secrets/database.json` e tabelas MySQL. |
-| Slack nao envia notificacoes | Confirmar `secrets/slack.json` local e overrides por pipeline. |
-| Frontend nao actualiza | Confirmar que os JSON exportados estao no caminho servido pelo frontend externo. |
-| Runner nao consome trigger | Verificar `runner_host` no YAML e o valor passado em `--runner`. |
+| `docker` não é reconhecido | Instalar Docker Desktop ou Docker Engine e confirmar `docker compose version`. |
+| UI não abre | Verificar `docker compose ps` e `docker compose logs overseer-api`. |
+| Health falha | Verificar se o serviço `mysql` está saudável. |
+| API devolve 401 | Preencher o token no frontend com o valor de `OVERSEER_API_TOKEN`. |
+| Build Node falha no host | Usar Docker; `node_modules` local não é necessário. |
 
 ## MCP Servers E Skills
 
-- MCP servers do projeto: nao foram encontrados ficheiros `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json`.
-- Skills locais: inventariadas em `SKILLS.md`, com copias em `skills/*/SKILL.md` e `.claude/skills/*/SKILL.md`.
+- MCP servers do projeto: não foram encontrados ficheiros `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json`.
+- Skills locais: inventariadas em `SKILLS.md`.
 
-## Documentacao
+## Documentação
 
-- `PROJECT_CONTEXT.md`: contexto especifico do projeto.
-- `AGENTS.md`: regras obrigatorias para agentes.
-- `HANDOFF.md`: estado operacional entre sessoes.
-- `CHANGELOG.md`: historico versionado.
-- `CHANGELOG_POLICY.md`: formato obrigatorio do changelog.
-- `docs/PRD_PM_Universal_DropIn_AI_Ready.md`: PRD mestre.
-- `docs/AI_HANDOFF_CHECKLIST.md`: checklist para IA.
-- `docs/PRD_PM_Pipeline_Project_Standard.md`: standard de estrutura de pipeline.
+- `PROJECT_CONTEXT.md`: contexto específico do projeto.
+- `AGENTS.md`: regras obrigatórias para agentes.
+- `HANDOFF.md`: continuidade operacional.
+- `CHANGELOG.md`: histórico versionado.
+- `docs/adr/0001-overseer-core-api-refactor.md`: decisão do refactor Core API.
 
-## Licenca
+## Licença
 
 A confirmar.

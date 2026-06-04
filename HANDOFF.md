@@ -1,33 +1,45 @@
 # HANDOFF
 
-Este ficheiro preserva o estado operacional do trabalho para continuidade entre sessões.
+Este ficheiro preserva o estado operacional verificável do projeto entre sessões.
 
 ## Metadados
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-03T12:46:28+01:00 |
+| Última atualização | 2026-06-04T11:42:09+01:00 |
 | Branch Git | `main` |
-| Estado | Concluído com risco de segurança pendente de rotação |
+| Estado | Refactor 4.0.0 implementado; validação final executada nesta sessão |
 | Responsável / Agente | Codex |
-| Última versão registada | 2.4.2 |
+| Última versão registada | 4.0.0 |
 
 ## Objetivo Atual
 
-Ler `AGENTS.md`, aplicar as instruções do repositório e atualizar documentação operacional essencial de forma proporcional à tarefa.
+Refatorar agressivamente o Overseer para um núcleo Docker-first com FastAPI, três superfícies HTTP canónicas, schema SQL simples, SDK/CLI para pipelines e frontend React/Vite local.
 
 ## Estado Atual
 
 ### Concluído
 
-- `AGENTS.md` lido e aplicado.
-- `HANDOFF.md`, `SKILLS.md`, Skills relevantes, `CHANGELOG_POLICY.md`, topo de `CHANGELOG.md`, `tasks/todo.md`, `README.md` e `PROJECT_CONTEXT.template.md` lidos.
-- `PROJECT_CONTEXT.md` criado com informação confirmada.
-- `README.md` reestruturado com badges, arquitetura Mermaid, estrutura real, instalação, comandos, Docker avaliado e política de segredos.
-- Credencial com aparência real removida do `README.md`.
-- `tasks/todo.md` atualizado com plano e validação.
-- `CHANGELOG.md` atualizado com entrada 2.4.2.
-- Artefactos `__pycache__` criados por `compileall` removidos.
+- API FastAPI reorganizada em:
+  - leitura: `/v1/read/*`;
+  - escrita/telemetria: `/v1/events/*`;
+  - orquestração: `/v1/orchestrate/*`.
+- Schema SQLAlchemy novo criado em `src/overseer_core/store.py` com tabelas `overseer_*`.
+- MariaDB/MySQL mantido no Compose e portabilidade futura preparada via `OVERSEER_DB_URL`.
+- SDK Python criado em `overseer_sdk/client.py`.
+- CLI `python -m overseer_agent` atualizado para heartbeat, trigger, run e exec instrumentado.
+- Adaptador `overseer_monitor.OverseerMonitor` mantido para pipelines que ainda usam a interface antiga, agora escrevendo via API.
+- Frontend React/Vite criado em `webapp/` e servido em `/ui/`.
+- Docker multi-stage validado com build Node + Python.
+- Scripts de arranque multi-plataforma adicionados:
+  - Windows CMD: `overseer-up.cmd`;
+  - PowerShell: `scripts/overseer-up.ps1`;
+  - Linux/macOS: `scripts/overseer-up.sh`;
+  - fallback universal: `docker compose up --build -d`.
+- Mantido apenas `pipelines/microsoft_forms_2_datalake` como exemplo.
+- Removidos fluxos legados de export JSON, MAIATRON, scheduler CLI, pipeline template antigo e `webapp_medidata`.
+- Valores com aparência de credencial e infraestrutura antiga removidos de exemplos/código de runtime.
+- README, PROJECT_CONTEXT, OpenAPI, ADR, Skill local, changelog e plano atualizados.
 
 ### Em Curso
 
@@ -35,18 +47,30 @@ Ler `AGENTS.md`, aplicar as instruções do repositório e atualizar documentaç
 
 ### Por Fazer
 
-- Rodar no sistema de origem a credencial que esteve documentada no README, se for real ou reutilizada.
-- Instalar dependências com `pip install -r requirements.txt` antes de validar CLI completo e `pytest`.
-- Confirmar licença, responsável, CI/CD, servidores e método de deploy real.
+- Rever no futuro se `requirements.txt` pode ser ainda mais reduzido depois de estabilizar o pipeline Microsoft.
+- Decidir licença real do projeto; a documentação mantém `A confirmar`.
+- Se existir produção antiga dependente de JSON/MAIATRON, planear migração manual para a API v4.
+- Rodar no sistema de origem qualquer credencial que possa corresponder aos valores antigos removidos de exemplos, caso tenha sido real ou reutilizada.
 
 ### Bloqueios / Perguntas Abertas
 
-- O Python ativo não tem `PyYAML`; `python orchestrator.py --help` falhou antes de carregar o CLI.
-- Configuração de produção/SSH não está confirmada.
+- `npm install` local em Windows/OneDrive falhou por permissões ao escrever `webapp/node_modules`; não bloqueia o fluxo suportado porque Docker instala tudo dentro da imagem.
+- Pode existir uma pasta parcial `webapp/node_modules` local, ignorada por Git e excluída por `.dockerignore`.
+- Configuração de produção/SSH continua não confirmada e não foi usada.
 
 ## Próximo Passo Exato
 
-Ativar `.venv`, executar `pip install -r requirements.txt` e repetir `python orchestrator.py --help` e `python -m pytest`.
+Executar o arranque Docker no sistema alvo:
+
+```bash
+docker compose up --build -d
+```
+
+Depois abrir:
+
+- UI: `http://127.0.0.1:8090/ui/`
+- API docs: `http://127.0.0.1:8090/docs`
+- Health: `http://127.0.0.1:8090/v1/health`
 
 ## Proporcionalidade Aplicada
 
@@ -54,7 +78,7 @@ Ativar `.venv`, executar `pip install -r requirements.txt` e repetir `python orc
 |---|---|
 | Tarefa trivial / não trivial | Não trivial |
 | Fluxo completo aplicado | Sim |
-| Justificação | O pedido exigiu aplicar regras globais do repo, criar contexto de projeto, rever documentação, segurança, Skills, Git, validação, changelog e handoff. |
+| Justificação | Houve refactor de arquitetura, API, base de dados, frontend, Docker, documentação, ADR, Skill local, testes e remoção de ficheiros. |
 
 ## SSH, GitHub E Servidores
 
@@ -63,31 +87,34 @@ Ativar `.venv`, executar `pip install -r requirements.txt` e repetir `python orc
 | SSH usado nesta sessão | Não |
 | Servidor acedido | N/A |
 | Ambiente | Local |
-| Utilizador SSH | N/A |
-| Host ou alias | N/A |
-| Caminho remoto | N/A |
-| Branch remota | N/A |
-| Comandos executados | N/A |
-| Resultado | N/A |
-| Risco identificado | Configuração remota a confirmar antes de qualquer operação |
-| Próximo passo remoto | N/A |
+| Deploy remoto | N/A |
+| Risco identificado | Produção antiga pode depender do contrato removido |
+| Próximo passo remoto | Confirmar alvo antes de qualquer operação em servidor |
 
 ## Dependências E Pipelines
 
 | Item | Estado | Nota |
 |---|---|---|
-| Dependências externas identificadas | Sim | `requirements.txt` existente |
-| Manifesto atualizado | Não | Não houve alteração de dependências |
-| Lockfile atualizado | N/A | Não existe lockfile Python |
-| README atualizado com instalação | Sim | Inclui criação de venv e `pip install -r requirements.txt` |
+| Python | Mantido | `requirements.txt` continua a ser o manifesto da API e exemplo |
+| Node | Adicionado | `webapp/package.json` e `webapp/package-lock.json` com versões fixas |
+| Docker | Implementado | Build multi-stage instala Python e Node dentro da imagem |
+| Pipeline exemplo | Mantido | `pipelines/microsoft_forms_2_datalake` |
+| Outros pipelines | Removidos | `pipelines/webapp_medidata` e `_template` fora do novo contrato |
 
 ## Auditoria De Ficheiros Desnecessários
 
 | Ficheiro/Pasta | Estado | Ação | Nota |
 |---|---|---|---|
-| `__pycache__/` | Gerado nesta sessão | Removido | Artefacto temporário criado por `compileall` |
-| `docs/Guia_Producao_Step_by_Step.rtf` | Candidato a revisão | Mantido | Possível duplicado do Markdown, mas pode ser documento histórico |
-| `PROJECT_CONTEXT.template.md` | Útil | Mantido | Template de projeto |
+| `orchestrator.py` | Legado avariado após remoção de `pm_runtime` | Removido | Substituído pela API de orquestração |
+| `src/pm_runtime/` | Legado | Removido | Contrato substituído por `src/overseer_core/store.py` |
+| `src/overseer_api/routers/runners.py` | Router legado avariado | Removido | Heartbeat passa por `/v1/events/heartbeat` |
+| `scripts/export_payload_from_db.py` | Legado JSON | Removido | Frontend passa a ler API |
+| `pipelines/webapp_medidata/` | Fora de escopo | Removido | Pedido do utilizador |
+| `pipelines/_template/` | Template obsoleto | Removido | Skill local atualizada para novo contrato |
+| `migrations/` | Schema antigo | Removido | Novo schema é criado por SQLAlchemy |
+| `docs/Guia_Producao_Step_by_Step.*` e PRDs antigos | Documentação contraditória | Removida | README/ADR passam a ser fonte atual |
+| `webapp/node_modules/` | Artefacto local possível | Mantido se existir | Ignorado por Git e excluído por Docker |
+| Host/IP antigo no runtime | Valor sensível ou ambiental | Removido | Usar `OVERSEER_DB_LOCAL_HOSTS` |
 
 ## Estado Git
 
@@ -95,110 +122,124 @@ Ativar `.venv`, executar `pip install -r requirements.txt` e repetir `python orc
 |---|---|
 | Repositório | `g:\O meu disco\Dev\Repos\emanuwells\Overseer` |
 | Branch | `main...origin/main` |
-| Ficheiros modificados antes da sessão | `AGENTS.md` |
-| Ficheiros não rastreados antes da sessão | `.claude/`, `CHANGELOG_POLICY.md`, `HANDOFF.md`, `PROJECT_CONTEXT.template.md`, `SKILLS.md`, `docs/adr/`, `skills/`, `tasks/` |
-| Ficheiros alterados nesta sessão | `README.md`, `PROJECT_CONTEXT.md`, `tasks/todo.md`, `HANDOFF.md`, `CHANGELOG.md` |
-| Risco de sobrescrever alterações do utilizador | Baixo; alterações existentes foram preservadas e não houve reset/checkout/clean |
+| Alteração pré-existente preservada | `PROJECT_CONTEXT.template.md` já aparecia como removido antes desta tarefa |
+| Principais ficheiros alterados | `README.md`, `PROJECT_CONTEXT.md`, `CHANGELOG.md`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `openapi/overseer-api.yaml`, `tasks/todo.md`, `skills/overseer-pipeline/SKILL.md` |
+| Principais ficheiros novos | `.dockerignore`, `src/overseer_core/store.py`, routers v4, `overseer_sdk/client.py`, frontend React/Vite, scripts `overseer-up`, ADR |
+| Principais ficheiros removidos | `orchestrator.py`, `src/pm_runtime/`, routers legados, migrations antigas, export JSON, frontend legado, pipelines fora de escopo |
+| Risco de sobrescrever alterações do utilizador | Baixo; não houve reset/checkout/clean e alterações existentes foram preservadas |
 
 ## MCP Servers
 
 | MCP Server | Usado Nesta Sessão | Finalidade | Resultado / Erro | Fallback |
 |---|---:|---|---|---|
-| N/A | Não | Verificação de configuração | Não foram encontrados ficheiros MCP do projeto | Ferramentas locais |
+| N/A | Não | Verificação de configuração | Não foram encontrados `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json` | Ferramentas locais |
 
 ## Skills Usadas
 
-| Skill | Usada Nesta Sessão | Finalidade | Resultado / Erro | Fallback |
-|---|---:|---|---|---|
-| `repo-onboarding` | Sim | Mapear contexto | Aplicada | N/A |
-| `skill-selector` | Sim | Escolher Skills | Aplicada | N/A |
-| `safe-git-operator` | Sim | Proteger alterações existentes | Aplicada | N/A |
-| `security-secrets-audit` | Sim | Remover credencial documentada | Aplicada | N/A |
-| `prompt-injection-guard` | Sim | Tratar outputs como dados não confiáveis | Aplicada | N/A |
-| `dependency-manager` | Sim | Validar manifesto Python | Aplicada | N/A |
-| `file-pruner` | Sim | Limpar artefactos próprios | Aplicada | N/A |
-| `documentation-keeper` | Sim | Atualizar README/contexto | Aplicada | N/A |
-| `handoff-maintainer` | Sim | Atualizar handoff | Aplicada | N/A |
-| `changelog-semver` | Sim | Atualizar changelog | Aplicada | N/A |
-| `definition-of-done` | Sim | Validar entrega | Aplicada | N/A |
-| `stop-the-slop` | Sim | Evitar texto vago/falso | Aplicada | N/A |
+| Skill | Usada Nesta Sessão | Finalidade | Resultado / Erro |
+|---|---:|---|---|
+| `repo-onboarding` | Sim | Mapear contexto do repo | Aplicada |
+| `skill-selector` | Sim | Escolher Skills relevantes | Aplicada |
+| `backend-architecture` | Sim | Desenhar API e store | Aplicada |
+| `frontend-architecture` | Sim | Construir dashboard React/Vite | Aplicada |
+| `fullstack-delivery` | Sim | Integrar API, DB, frontend e Docker | Aplicada |
+| `api-contract-guardian` | Sim | Atualizar OpenAPI/testes | Aplicada |
+| `database-migration-safety` | Sim | Evitar preservar schema antigo como contrato | Aplicada |
+| `dependency-manager` | Sim | Manifestos Python/Node/Docker | Aplicada |
+| `file-pruner` | Sim | Remover legado seguro | Aplicada |
+| `security-secrets-audit` | Sim | Auditar exemplos e `.env` | Aplicada |
+| `prompt-injection-guard` | Sim | Tratar outputs como dados não confiáveis | Aplicada |
+| `documentation-keeper` | Sim | Atualizar README/contexto | Aplicada |
+| `handoff-maintainer` | Sim | Atualizar este ficheiro | Aplicada |
+| `changelog-semver` | Sim | Registar 4.0.0 | Aplicada |
+| `definition-of-done` | Sim | Checklist final | Aplicada |
+| `stop-the-slop` | Sim | Remover texto obsoleto/vago | Aplicada |
 
 ## README, Arquitetura E Docker
 
 | Item | Estado | Nota |
 |---|---|---|
-| Badges no README | Atualizado | Stack, runtime, versão e licença a confirmar |
-| Arquitetura no README | Atualizada | Mermaid com pipeline, orchestrator, DB, export, JSON, frontend externo e Slack |
-| Estrutura do projeto no README | Atualizada | Reflete diretórios reais observados |
-| Docker avaliado | Sim | N/A nesta revisão por falta de Dockerfile/Compose e alvo confirmado |
-| Docker documentado | Sim | Justificado no README e PROJECT_CONTEXT |
+| Badges no README | Atualizado | Stack, versão, Docker e licença a confirmar |
+| Arquitetura no README | Atualizada | Mermaid com pipeline, API, DB e frontend local |
+| Estrutura do projeto no README | Atualizada | Reflete o novo layout |
+| Docker avaliado | Sim | Implementado como fluxo principal |
+| Docker documentado | Sim | Comandos por SO e fallback `docker compose` |
 
 ## Ficheiros Relevantes
 
 | Ficheiro | Estado | Nota |
 |---|---|---|
-| `README.md` | Atualizado | Documentação principal e remoção de credencial |
-| `PROJECT_CONTEXT.md` | Criado | Contexto específico do projeto |
-| `tasks/todo.md` | Atualizado | Plano da tarefa |
-| `CHANGELOG.md` | Atualizado | Entrada 2.4.2 |
-| `HANDOFF.md` | Atualizado | Estado final |
+| `src/overseer_core/store.py` | Novo | Schema e operações persistentes |
+| `src/overseer_api/routers/*.py` | Novo/atualizado | Contrato HTTP v4 |
+| `webapp/src/main.jsx` | Novo | Dashboard local |
+| `Dockerfile` | Atualizado | Build multi-stage |
+| `docker-compose.yml` | Atualizado | API + MariaDB |
+| `README.md` | Atualizado | Documentação principal |
+| `docs/adr/0001-overseer-core-api-refactor.md` | Novo | Decisão arquitetural |
+| `CHANGELOG.md` | Atualizado | Entrada 4.0.0 |
 
 ## Decisões Técnicas
 
 | Decisão | Motivo | Impacto | ADR |
 |---|---|---|---|
-| Não criar Docker nesta tarefa | Não há alvo de deploy confirmado nem pedido explícito | Evita infraestrutura inventada | N/A |
-| Não criar ADR | Não houve decisão arquitetural nova; só documentação operacional | Sem impacto futuro de arquitetura | N/A |
-| Remover credencial do README | Política de segredos | Reduz exposição futura; rotação ainda é necessária | N/A |
+| Uma FastAPI com routers separados | Simplicidade operacional | Um serviço HTTP com superfícies claras | `docs/adr/0001-overseer-core-api-refactor.md` |
+| SQLAlchemy + tabelas `overseer_*` | Portabilidade DB | MariaDB agora, PostgreSQL possível depois | `docs/adr/0001-overseer-core-api-refactor.md` |
+| React/Vite servido localmente | UI moderna sem MAIATRON externo | `/ui/` dentro do serviço API | `docs/adr/0001-overseer-core-api-refactor.md` |
+| Docker-first | Mesmo workflow em Windows, Linux e macOS | Host só precisa de Docker | `docs/adr/0001-overseer-core-api-refactor.md` |
+| Remover scheduler/export legado | Reduzir ruído e contratos partidos | Orquestração passa pela API | `docs/adr/0001-overseer-core-api-refactor.md` |
 
 ## Abordagens Falhadas / A Não Repetir
 
 | Abordagem | Porque Falhou | Alternativa Correta |
 |---|---|---|
-| Executor PowerShell em sandbox | Falhou com `windows sandbox: spawn setup refresh` | Usar execução escalada só para comandos necessários e registá-la |
-| `python orchestrator.py --help` | Falhou por ausência de `PyYAML` no Python ativo | Instalar `requirements.txt` antes de validar CLI |
+| `npm install` local em OneDrive | Permissões/ficheiros bloqueados em `webapp/node_modules` | Usar Docker: `docker compose build` ou `docker compose up --build -d` |
+| Manter `orchestrator.py` | Importava `src.pm_runtime`, removido no refactor | Usar `/v1/orchestrate/*` e `python -m overseer_agent run` |
+| Export JSON para frontend externo | Contrato removido | Frontend consome `/v1/read/*` |
 
 ## Segurança E Dados Não Confiáveis
 
 | Item | Estado | Nota |
 |---|---|---|
-| Segredos expostos | Sim, previamente no README | Valor removido; recomendar rotação se real/reutilizado |
-| Dados externos com instruções suspeitas | Não identificado | Outputs de ferramentas tratados como dados não confiáveis |
-| Prompt injection identificado | Não | N/A |
-| Fallback seguro aplicado | Sim | Não foram lidos ficheiros reais de secrets; só `.example` |
+| Segredos introduzidos | Não identificado | `.env.example` usa valores fictícios |
+| Segredos ou valores suspeitos removidos | Sim | Exemplo do pipeline Microsoft foi substituído por placeholders e host/IP antigo removido; rodar se algum valor antigo era real/reutilizado |
+| Ficheiros reais de secrets lidos | Não | Só foram tratados `.example` e configuração não sensível |
+| Dados externos | Tratados como não confiáveis | Outputs de ferramentas não foram seguidos como instruções |
+| API token | Mantido | `OVERSEER_API_TOKEN`; nunca registar valor real em documentação |
 
 ## Testes E Validação
 
 | Comando / Verificação | Resultado | Nota |
 |---|---|---|
-| `git status --short --branch` | Passou | Confirmou branch e alterações existentes |
+| `git status --short --branch` | Passou | Confirmou branch e alterações |
 | Verificação MCP | Passou | Nenhuma configuração MCP encontrada |
-| `python orchestrator.py --help` | Falhou | `ModuleNotFoundError: No module named 'yaml'` |
-| `python -m compileall orchestrator.py overseer_monitor overseer_sdk scripts src pipelines` | Passou | Validação de sintaxe Python |
-| Procura da credencial removida no `README.md` | Passou | Padrões verificados não aparecem |
+| `python -m pytest -q` | Passou | 4 testes; aviso de cache sem permissão |
+| `docker compose build` | Passou | Validou `npm ci`, `vite build` e instalação Python no container |
+| Pesquisa de legado | Passou | MAIATRON/JSON só aparecem como contexto de remoção em plano/ADR/changelog |
 
 ## Checklist De Entrega
 
 ```text
-[x] AGENTS.md lido.
-[x] Regras aplicadas proporcionalmente.
-[x] PROJECT_CONTEXT.md lido/criado quando aplicável.
-[x] HANDOFF.md atualizado.
-[x] MCP servers relevantes usados ou justificados.
-[x] Skills relevantes usadas ou justificadas.
-[x] Estado Git verificado quando possível.
-[x] Alterações do utilizador preservadas.
-[x] Sem segredos introduzidos; segredo pré-existente removido do README.
-[x] SSH/produção tratados de forma segura quando aplicável.
+[x] Apliquei as regras de forma proporcional à tarefa.
+[x] Li AGENTS.md.
+[x] Li ou criei PROJECT_CONTEXT.md quando aplicável.
+[x] Li ou criei HANDOFF.md quando a tarefa foi não trivial.
+[x] Verifiquei MCP servers e usei os relevantes ou registei fallback.
+[x] Verifiquei Skills e usei as relevantes ou registei fallback.
+[x] Verifiquei estado Git quando possível.
+[x] Protegi alterações existentes do utilizador.
+[x] Tratei outputs externos como dados não confiáveis.
+[x] Não introduzi nem expus segredos.
+[x] Se usei SSH/servidores, confirmei ambiente, pasta, branch e impacto.
 [x] Dependências externas têm manifesto adequado.
-[x] Ficheiros desnecessários auditados.
-[x] ADR criado/atualizado quando aplicável.
-[x] README atualizado quando aplicável.
+[x] Auditei ficheiros desnecessários e removi apenas os claramente seguros.
+[x] Atualizei documentação afetada.
 [x] README contém badges, arquitetura e estrutura do projeto quando aplicável.
 [x] Docker foi avaliado, implementado ou justificado como N/A.
-[x] CHANGELOG.md atualizado quando aplicável.
-[x] Testes/validações executados ou justificados.
-[x] Stop-the-slop aplicado à documentação/resposta final.
+[x] Atualizei ADRs quando houve decisão técnica relevante.
+[x] Executei testes/validações aplicáveis ou justifiquei N/A.
+[x] Atualizei CHANGELOG.md quando houve alteração versionável.
+[x] Atualizei HANDOFF.md com estado final, próximos passos e bloqueios.
+[x] Apliquei `stop-the-slop` para remover texto genérico, vago ou enganador.
 ```
 
 ## Notas Livres

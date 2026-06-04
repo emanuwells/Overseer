@@ -4,6 +4,7 @@ Overseer SDK — módulos partilhados para todos os pipelines Overseer.
 Exporta os componentes principais para importação directa::
 
     from overseer_sdk import (
+        OverseerClient,
         RuntimeContext,
         runtime_ctx,
         SSHTunnelManager,
@@ -16,6 +17,7 @@ Exporta os componentes principais para importação directa::
     )
 """
 
+from overseer_sdk.client import OverseerClient
 from overseer_sdk.runtime_context import RuntimeContext, runtime_ctx
 from overseer_sdk.ssh_tunnel import SSHTunnelManager
 from overseer_sdk.logger import LoggerManager, get_log_manager, get_logger
@@ -24,6 +26,7 @@ from overseer_sdk.db_manager_base import DatabaseManagerBase
 from overseer_sdk.validator import DataValidator
 
 __all__ = [
+    "OverseerClient",
     "RuntimeContext",
     "runtime_ctx",
     "SSHTunnelManager",

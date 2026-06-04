@@ -1,7 +1,7 @@
 {
   "logs_table": "Overseer.pipeline_runs",
   "script_name": "microsoft_forms_2_datalake",
-  "frontend_base_url": "http://baze2.cm-maia.pt/MAIATRON/apps/overseer/"
+  "frontend_base_url": "http://127.0.0.1:8090/ui/"
 }
 
 

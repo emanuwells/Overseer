@@ -1,34 +1,60 @@
 openapi: 3.0.3
 info:
   title: Overseer API
-  version: 3.2.0
+  version: 4.0.0
+  description: API canónica para leitura, ingest e orquestração de pipelines.
 paths:
   /v1/health:
     get:
-      summary: Health and DB connectivity
-  /v1/monitoring/full:
+      summary: Estado da API e conectividade à base de dados.
+  /v1/read/overview:
     get:
-      summary: Full monitoring payload
-  /v1/monitoring/details:
+      summary: Snapshot operacional para o dashboard.
+  /v1/read/pipelines:
     get:
-      summary: Run details and logs
-  /v1/monitoring/ops/fast:
+      summary: Catálogo de pipelines sincronizado a partir de YAML e DB.
+  /v1/read/runs:
     get:
-      summary: Ops Center fast snapshot
-  /v1/monitoring/ops/heavy:
+      summary: Lista runs recentes.
+  /v1/read/runs/{run_id}:
     get:
-      summary: Ops Center heavy snapshot
-  /v1/triggers:
+      summary: Detalhe de uma run com módulos e logs.
+  /v1/read/modules:
     get:
-      summary: List triggers
+      summary: Lista eventos de módulo por run ou pipeline.
+  /v1/read/logs:
+    get:
+      summary: Lista logs por run ou pipeline.
+  /v1/read/heartbeats:
+    get:
+      summary: Lista heartbeats recentes.
+  /v1/read/triggers:
+    get:
+      summary: Lista triggers de orquestração.
+  /v1/events/runs/start:
     post:
-      summary: Enqueue run-now trigger
-  /v1/pipelines:
-    get:
-      summary: Pipeline catalog from YAML
-  /v1/runners:
-    get:
-      summary: Registered runners
-  /v1/runners/heartbeat:
+      summary: Regista início de run.
+  /v1/events/runs/{run_id}/finish:
     post:
-      summary: Agent heartbeat
+      summary: Fecha run com estado final.
+  /v1/events/modules:
+    post:
+      summary: Regista evento de módulo.
+  /v1/events/logs:
+    post:
+      summary: Regista log ou evento livre.
+  /v1/events/heartbeat:
+    post:
+      summary: Regista heartbeat de runner, agente ou pipeline.
+  /v1/orchestrate/triggers:
+    post:
+      summary: Enfileira trigger operacional.
+  /v1/orchestrate/triggers/{trigger_id}/claim:
+    post:
+      summary: Reclama trigger para execução.
+  /v1/orchestrate/triggers/{trigger_id}/complete:
+    post:
+      summary: Marca trigger como concluído.
+  /v1/orchestrate/pipelines/{pipeline_id}/run:
+    post:
+      summary: Executa pipeline via API de orquestração.

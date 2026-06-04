@@ -19,6 +19,8 @@ Thumbs.db
 
 # Runtime artifacts
 logs/
+webapp/node_modules/
+webapp/dist/
 pipelines/**/logs/
 *.log
 orch_log.txt

@@ -32,8 +32,9 @@ from pathlib import Path
 from typing import FrozenSet, Optional
 
 
-# IPs / hostnames das máquinas que têm acesso directo (localhost) à DB.
-_DEFAULT_DB_LOCAL_HOSTS: FrozenSet[str] = frozenset({"195.23.9.32"})
+# IPs / hostnames das máquinas que têm acesso directo à DB.
+# Configurar via OVERSEER_DB_LOCAL_HOSTS quando esta detecção for necessária.
+_DEFAULT_DB_LOCAL_HOSTS: FrozenSet[str] = frozenset()
 
 
 def _resolve_local_ips() -> frozenset[str]:
@@ -123,7 +124,7 @@ class RuntimeContext:
             ou calcula 1 nível acima de ``overseer_sdk/``.
         db_local_hosts :
             Conjunto de IPs/hostnames onde a DB corre localmente.
-            Default: ``{"195.23.9.32"}``.
+            Default: conjunto vazio, configurável por ``OVERSEER_DB_LOCAL_HOSTS``.
         """
         # Overseer root
         if overseer_root is None:

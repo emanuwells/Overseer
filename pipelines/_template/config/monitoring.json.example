@@ -1,9 +1,0 @@
-{
-  "pipeline_id": "template_pipeline",
-  "owner": "data.team",
-  "criticality": "medium",
-  "logs_table": "Overseer.pipeline_runs",
-  "script_name": "template_pipeline",
-  "frontend_base_url": "http://baze2.cm-maia.pt/MAIATRON/apps/overseer/"
-}
-

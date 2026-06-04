@@ -52,7 +52,7 @@ except ImportError:
 DEFAULT_FRONTEND_URL = (
     os.getenv("OVERSEER_MONITOR_URL")
     or os.getenv("OVERSEER_FRONTEND_URL")
-    or "http://baze2.cm-maia.pt/D4CMMaia/Bruin_Monitor/index.html"
+    or "http://127.0.0.1:8090/ui/"
 )
 MAX_ERROR_MESSAGE_LENGTH = int(os.getenv("PERF_ERROR_MAX_LEN", "65000"))
 
@@ -905,7 +905,7 @@ class SyncOrchestrator:
                     context={
                         "pipeline_id": "microsoft_forms_2_datalake",
                         "trigger_type": os.getenv("P_TRIGGER_TYPE", "manual"),
-                        "owner": (self.monitoring_config or {}).get("owner", "eferreira"),
+                        "owner": (self.monitoring_config or {}).get("owner", "overseer"),
                         "criticality": (self.monitoring_config or {}).get("criticality", "medium"),
                     },
                 )

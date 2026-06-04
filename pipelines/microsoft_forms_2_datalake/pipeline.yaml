@@ -1,6 +1,6 @@
 pipeline_id: microsoft_forms_2_datalake
 name: Microsoft Forms to Datalake
-owner: eferreira
+owner: overseer
 criticality: medium
 runner_host: auto
 schedule: paused

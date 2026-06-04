@@ -6,56 +6,48 @@ from fastapi.testclient import TestClient
 
 from src.overseer_api.main import create_app
 
-SAMPLE_PAYLOAD = {
-    "schema_version": "3.2.0-api",
-    "generated_at": "2026-06-03T12:00:00Z",
-    "fields": ["id", "pipelineId"],
-    "rows": [[1, "demo"]],
-    "summary": {"total_runs": 1, "ok_runs": 1, "nok_runs": 0},
-    "overview": {"globalKpis": {"totalRuns": 1}},
-    "pipelines": [],
-    "orchestrator_runs": [],
-    "orchestrator_triggers": [],
-}
 
-SAMPLE_DETAILS = {"1": {"errorMessage": "", "logMessage": "ok"}}
+def client() -> TestClient:
+    app = create_app()
+    app.router.on_startup.clear()
+    return TestClient(app)
 
 
-@patch("src.overseer_api.routers.monitoring.build_full")
-def test_monitoring_full(mock_build):
-    mock_build.return_value = SAMPLE_PAYLOAD
-    client = TestClient(create_app())
-    response = client.get("/v1/monitoring/full")
+def test_health_shape():
+    with patch("src.overseer_api.routers.health.get_engine") as mock_engine:
+        mock_engine.return_value.connect.return_value.__enter__.return_value.execute.return_value.first.return_value = [1]
+        response = client().get("/v1/health")
+    assert response.status_code == 200
+    assert response.json()["service"] == "overseer-api"
+
+
+@patch("src.overseer_api.routers.read.store.overview")
+def test_read_overview(mock_overview):
+    mock_overview.return_value = {
+        "summary": {"pipelines": 1, "runs": 1},
+        "pipelines": [{"pipeline_id": "demo"}],
+        "recent_runs": [],
+    }
+    response = client().get("/v1/read/overview")
     assert response.status_code == 200
     body = response.json()
-    assert body["schema_version"] == "3.2.0-api"
-    assert body["rows"] == [[1, "demo"]]
+    assert body["ok"] is True
+    assert body["data"]["summary"]["pipelines"] == 1
 
 
-@patch("src.overseer_api.routers.monitoring.build_ops_fast")
-@patch("src.overseer_api.routers.monitoring.build_full")
-def test_monitoring_ops_fast(mock_full, mock_ops):
-    mock_full.return_value = SAMPLE_PAYLOAD
-    mock_ops.return_value = {
-        "generated_at": SAMPLE_PAYLOAD["generated_at"],
-        "overview": {},
-        "summary": {},
-    }
-    client = TestClient(create_app())
-    response = client.get("/v1/monitoring/ops/fast")
+@patch("src.overseer_api.routers.events.store.start_run")
+def test_event_run_start(mock_start_run):
+    mock_start_run.return_value = {"run_id": "run-1", "pipeline_id": "demo", "status": "running"}
+    response = client().post("/v1/events/runs/start", json={"pipeline_id": "demo"})
     assert response.status_code == 200
-    body = response.json()
-    assert "overview" in body
-    assert body["generated_at"] == SAMPLE_PAYLOAD["generated_at"]
+    assert response.json()["run"]["run_id"] == "run-1"
 
 
-@patch("src.overseer_api.routers.health.build_health")
-def test_health(mock_health):
-    mock_health.return_value = {
-        "ok": True,
-        "db_connectivity": {"overseer": {"reachable": True}},
-    }
-    client = TestClient(create_app())
-    response = client.get("/v1/health")
+@patch("src.overseer_api.routers.orchestrate.store.enqueue_trigger")
+@patch("src.overseer_api.routers.orchestrate.store.get_pipeline")
+def test_orchestrate_trigger(mock_get_pipeline, mock_enqueue):
+    mock_get_pipeline.return_value = {"pipeline_id": "demo"}
+    mock_enqueue.return_value = {"trigger_id": "trg-1", "pipeline_id": "demo", "status": "queued"}
+    response = client().post("/v1/orchestrate/triggers", json={"pipeline_id": "demo"})
     assert response.status_code == 200
-    assert response.json()["ok"] is True
+    assert response.json()["trigger"]["status"] == "queued"
