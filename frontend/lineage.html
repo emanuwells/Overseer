@@ -1,46 +1,20 @@
 <!doctype html>
 <html lang="pt-PT">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Overseer - DAG</title>
-  <link rel="stylesheet" href="css/app.css">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Overseer - DAG</title><link rel="stylesheet" href="css/app.css"></head>
 <body data-view="lineage">
   <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>Catálogo DAG</span></div></a>
-      <nav class="nav">
-        <a href="dashboard.html">Dashboard</a><a href="run-detail.html">Runs</a><a aria-current="page" href="lineage.html">DAG</a><a href="deployments.html">Ambiente</a>
-      </nav>
-      <div class="side-status"><small>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div>
-    </aside>
-    <main class="main">
-      <header class="topbar">
-        <div class="crumb">Overseer / DAG</div>
-        <div class="actions">
-          <select class="select-control" data-pipeline-select></select>
-          <input class="token-input" data-token-input type="password" placeholder="Token API">
-          <button class="btn" data-token-save>Guardar</button>
-          <button class="btn primary" data-refresh>Atualizar</button>
-        </div>
-      </header>
-      <section class="content">
-        <div class="hero-row"><div><h1>Catálogo DAG</h1><p class="subhead">Nodes, dependências e estado runtime reportado pelos pipelines via API.</p></div><span class="pill" data-sync-state>A carregar</span></div>
+    <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>catálogo DAG</span></div></a><nav class="nav"><a href="dashboard.html">Ops</a><a href="run-detail.html">Runs</a><a aria-current="page" href="lineage.html">DAG</a><a href="deployments.html">Ambiente</a></nav></aside>
+    <main class="main"><header class="topbar"><div class="crumb" data-dag-crumb>DAG / a carregar</div><div class="actions"><label class="select">Pipeline <select data-pipeline-select></select></label><label class="search"><input data-token-input type="password" placeholder="Token API"></label><button class="btn" data-token-save>Guardar token</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
+      <section class="content"><div class="hero-row"><div><h1 data-dag-title>Catálogo DAG</h1><p class="subhead" data-dag-summary>Nodes, dependências e estado runtime dos módulos reportados pelos pipelines.</p></div><span class="pill" data-sync-state>A carregar</span></div>
         <div data-alert></div>
         <div class="two-col grid">
-          <section class="card">
-            <div class="section-head"><div><h2 data-dag-title>DAG</h2><p data-count="nodes">--</p></div></div>
-            <div class="dag-board" data-dag-board></div>
+          <section class="card lineage-canvas" data-dag-board>
+            <article class="node" style="left:30px;top:110px"><span>loading</span><strong>A carregar DAG</strong><p>A aguardar catálogo do Overseer.</p><span class="pill">loading</span></article>
           </section>
-          <aside class="card">
-            <div class="section-head"><div><h2>Dependências</h2><p data-count="edges">--</p></div></div>
-            <div class="alert-list" data-dag-edges></div>
-          </aside>
+          <aside class="card"><div class="section-head"><div><h2>Selecionado</h2><p data-count="edges">A carregar dependências.</p></div></div><div class="card-pad inspector" data-dag-inspector><div class="kv"><span>Pipeline</span><strong>--</strong></div></div><div class="alert-list" data-dag-edges></div></aside>
         </div>
       </section>
     </main>
   </div>
   <script src="js/app.js"></script>
-</body>
-</html>
+</body></html>

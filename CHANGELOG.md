@@ -1,5 +1,53 @@
 # Changelog
 
+## [4.2.1] - 2026-06-05T16:11:31+01:00
+
+### Template Frontend Ligado A Dados Reais
+
+**Motivo:**
+Adaptar o template colocado em `frontend/` para mostrar dados reais do Overseer, mantendo o visual do template.
+
+**Impacto:**
+As vistas `dashboard`, `runs`, `DAG` e `ambiente` passam a preencher KPIs, tabelas, timeline, canvas e atividade com dados de `/v1/read/*`. A página inicial continua sem launcher: `index.html` redireciona para `dashboard.html`.
+
+**Alterações:**
+- `frontend/dashboard.html`, `run-detail.html`, `lineage.html`, `deployments.html`: adicionados pontos `data-*` ao template para renderização dinâmica.
+- `frontend/js/app.js`: substituída lógica estática por fetch aos endpoints do Overseer, token opcional em `sessionStorage`, estados vazios, erro, filtros, tabs e copy.
+- `frontend/css/app.css`: adicionados estilos mínimos para alertas, estados vazios e input de token.
+- `frontend/index.html`: mantido redirecionamento para `dashboard.html`.
+
+**Dependências:**
+- N/A — não foram adicionadas dependências.
+
+**Ferramentas, MCP E Skills:**
+- MCP servers: N/A — não há configuração MCP de projeto.
+- Skills usadas: `frontend-architecture`, `fullstack-delivery`, `documentation-keeper`, `changelog-semver`, `definition-of-done`, `security-secrets-audit`, `prompt-injection-guard`.
+
+**SSH / Servidores:**
+- N/A — nenhum SSH, servidor remoto ou produção foi acedido.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- N/A — ficheiros de template extra foram preservados como fornecidos pelo utilizador, mas não são usados como entrada inicial.
+
+**Testes:**
+- `python -m pytest -q` — passou com 10 testes e 1 aviso de depreciação do TestClient.
+- `node --check frontend\js\app.js` — passou.
+- `docker compose build` — passou.
+- `docker compose up -d` — passou.
+
+**Validação:**
+- `/ui/dashboard.html`, `/ui/run-detail.html`, `/ui/lineage.html` e `/ui/deployments.html` responderam 200.
+- `/ui/js/app.js` respondeu 200.
+- `/v1/read/overview` e `/v1/read/database` responderam com dados reais.
+
+**Refs:**
+- Pedido do utilizador: adaptar os dados ao template colocado na pasta `frontend`.
+
+**Diff:**
+Frontend preserva o template visual e passa a renderizar os dados reais do Overseer.
+
+---
+
 ## [4.2.0] - 2026-06-05T15:53:35+01:00
 
 ### Observabilidade DAG Por API E Frontend Estático

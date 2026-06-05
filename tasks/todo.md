@@ -1,5 +1,15 @@
 # Todo
 
+## Plano Atual — 4.2.1
+
+- [x] Preservar o template visual colocado em `frontend/`.
+- [x] Adaptar `dashboard.html` para dados reais de overview/database.
+- [x] Adaptar `run-detail.html` para run mais recente, módulos e logs.
+- [x] Adaptar `lineage.html` para catálogo DAG real.
+- [x] Adaptar `deployments.html` para DB, heartbeats e triggers.
+- [x] Manter `index.html` sem página inicial, redirecionando para dashboard.
+- [x] Validar JS, testes, Docker build, Compose e HTTP das páginas.
+
 ## Plano Atual — 4.2.0
 
 - [x] Remover página inicial/landing e abrir a UI diretamente em `/ui/dashboard.html`.

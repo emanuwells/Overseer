@@ -6,11 +6,11 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-05T15:58:18+01:00 |
+| Última atualização | 2026-06-05T16:11:31+01:00 |
 | Branch Git | `main` |
-| Estado | 4.2.0 implementado; Overseer observa DAGs por API e serve frontend estático |
+| Estado | 4.2.1 implementado; template frontend ligado a dados reais do Overseer |
 | Responsável / Agente | Codex |
-| Última versão registada | 4.2.0 |
+| Última versão registada | 4.2.1 |
 
 ## Objetivo Atual
 
@@ -20,6 +20,11 @@ Manter o Overseer como núcleo Docker-first para observabilidade de pipelines ex
 
 ### Concluído
 
+- Template colocado em `frontend/` adaptado para consumir dados reais da API.
+- `dashboard.html`, `run-detail.html`, `lineage.html` e `deployments.html` mantêm a estrutura visual do template com pontos `data-*`.
+- `frontend/js/app.js` renderiza overview, database, runs, DAG, heartbeats e triggers via `/v1/read/*`.
+- `frontend/index.html` continua a redirecionar para `dashboard.html`, sem launcher/página inicial.
+- `frontend/css/app.css` recebeu estilos auxiliares para alertas, estados vazios e token.
 - `POST /v1/catalog/pipelines` criado para registar ou atualizar pipeline, nodes e edges.
 - `GET /v1/read/pipelines/{pipeline_id}/dag` criado para leitura de DAG.
 - Tabelas `overseer_pipeline_nodes` e `overseer_pipeline_edges` adicionadas ao schema.
@@ -167,6 +172,12 @@ Para integrar um pipeline real:
 | `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py` | Passou | Criou run `run-1780671437-521cd7ad` |
 | `GET /v1/read/database` | Passou | DB reachable; `pipeline_nodes=3`, `pipeline_edges=2`, `runs=1`, `modules=3` |
 | `GET /v1/read/pipelines/demo_dag/dag` | Passou | 3 nodes e 2 edges |
+| `GET /ui/dashboard.html` pós-template | Passou | HTTP 200 |
+| `GET /ui/run-detail.html` pós-template | Passou | HTTP 200 |
+| `GET /ui/lineage.html` pós-template | Passou | HTTP 200 |
+| `GET /ui/deployments.html` pós-template | Passou | HTTP 200 |
+| `GET /ui/js/app.js` pós-template | Passou | HTTP 200 |
+| `node --check frontend\js\app.js` | Passou | Sintaxe JS válida |
 | Browser in-app | N/A | Ferramenta não disponível via `tool_search` |
 
 ## Checklist De Entrega

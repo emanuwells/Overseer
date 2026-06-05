@@ -1,54 +1,23 @@
 <!doctype html>
 <html lang="pt-PT">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Overseer - Runs</title>
-  <link rel="stylesheet" href="css/app.css">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Overseer - Runs</title><link rel="stylesheet" href="css/app.css"></head>
 <body data-view="runs">
   <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>Runs e módulos</span></div></a>
-      <nav class="nav">
-        <a href="dashboard.html">Dashboard</a><a aria-current="page" href="run-detail.html">Runs</a><a href="lineage.html">DAG</a><a href="deployments.html">Ambiente</a>
-      </nav>
-      <div class="side-status"><small>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div>
-    </aside>
+    <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span data-current-run>runs recentes</span></div></a><nav class="nav"><a href="dashboard.html">Ops</a><a aria-current="page" href="run-detail.html">Runs</a><a href="lineage.html">DAG</a><a href="deployments.html">Ambiente</a></nav><div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div></aside>
     <main class="main">
-      <header class="topbar">
-        <div class="crumb">Overseer / Runs</div>
-        <div class="actions">
-          <input class="token-input" data-token-input type="password" placeholder="Token API">
-          <button class="btn" data-token-save>Guardar</button>
-          <button class="btn primary" data-refresh>Atualizar</button>
-        </div>
-      </header>
+      <header class="topbar"><div class="crumb" data-run-crumb>Runs / a carregar</div><div class="actions"><button class="btn" data-copy="">Copiar run id</button><label class="search"><input data-token-input type="password" placeholder="Token API"></label><button class="btn" data-token-save>Guardar token</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
       <section class="content">
-        <div class="hero-row"><div><h1>Runs</h1><p class="subhead">Histórico operacional, módulos registados e logs por pipeline.</p></div><span class="pill" data-sync-state>A carregar</span></div>
+        <div class="hero-row"><div><h1 data-run-title>Runs</h1><p class="subhead mono" data-run-summary>A carregar detalhe da run mais recente.</p></div><span class="pill" data-sync-state>A carregar</span></div>
         <div data-alert></div>
+        <div class="kpis grid"><div class="card card-pad kpi"><span class="label">Início</span><span class="metric" data-run-started>--</span></div><div class="card card-pad kpi"><span class="label">Duração</span><span class="metric" data-run-duration>--</span></div><div class="card card-pad kpi"><span class="label">Módulos</span><span class="metric" data-run-module-count>--</span></div><div class="card card-pad kpi"><span class="label">Logs</span><span class="metric" data-run-log-count>--</span></div></div>
         <div class="two-col grid">
           <section class="card">
-            <div class="section-head"><div><h2>Últimas runs</h2><p data-count="runs">--</p></div></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Run</th><th>Pipeline</th><th>Estado</th><th>Início</th><th>Duração</th></tr></thead>
-                <tbody data-runs></tbody>
-              </table>
-            </div>
+            <div class="section-head"><div><h2>Timeline de módulos</h2><p data-count="modules">A carregar módulos.</p></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Módulo</th><th>Estado</th><th>Início</th><th>Duração</th><th>Pipeline</th><th>Erro</th></tr></thead><tbody data-run-modules><tr><td colspan="6">A carregar módulos.</td></tr></tbody></table></div>
           </section>
-          <aside class="card">
-            <div class="section-head"><div><h2 data-run-title>Detalhe</h2><p data-run-subtitle>Seleção automática da run mais recente</p></div></div>
-            <div class="stack">
-              <div class="card-pad inspector" data-run-detail></div>
-              <div>
-                <h3>Módulos</h3>
-                <div class="alert-list" data-run-modules></div>
-              </div>
-              <div>
-                <h3>Logs</h3>
-                <div class="log-list" data-run-logs></div>
-              </div>
+          <aside class="card"><div class="section-head"><div><h2>Logs</h2><p>Filtrar por módulo, erro ou mensagem.</p></div></div><label class="search" style="margin:12px 14px"><input data-search="#logs" placeholder="Pesquisar logs"></label>
+            <div class="log-list" id="logs" data-run-logs>
+              <div class="log-line" data-search-row><span>--</span><span>INFO</span><span>A carregar logs.</span></div>
             </div>
           </aside>
         </div>
@@ -56,5 +25,4 @@
     </main>
   </div>
   <script src="js/app.js"></script>
-</body>
-</html>
+</body></html>
