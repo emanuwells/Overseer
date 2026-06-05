@@ -11,7 +11,7 @@ import httpx
 
 API_URL = os.getenv("OVERSEER_API_URL", "http://127.0.0.1:8090").rstrip("/")
 API_TOKEN = os.getenv("OVERSEER_API_TOKEN", "").strip()
-PIPELINE_ID = os.getenv("OVERSEER_DEMO_PIPELINE", "microsoft_forms_2_datalake")
+PIPELINE_ID = os.getenv("OVERSEER_DEMO_PIPELINE", "demo_dag")
 
 
 def headers() -> dict[str, str]:
@@ -37,6 +37,27 @@ def main() -> int:
     with httpx.Client(timeout=30) as client:
         post(
             client,
+            "/v1/catalog/pipelines",
+            {
+                "pipeline_id": PIPELINE_ID,
+                "name": "Demo DAG",
+                "owner": "overseer",
+                "criticality": "medium",
+                "schedule": "manual",
+                "metadata": {"source": "scripts/overseer_emit_demo.py"},
+                "nodes": [
+                    {"module_id": "extract", "label": "Extrair", "type": "task"},
+                    {"module_id": "validate", "label": "Validar", "type": "task"},
+                    {"module_id": "load", "label": "Carregar", "type": "task"},
+                ],
+                "edges": [
+                    {"from_module_id": "extract", "to_module_id": "validate"},
+                    {"from_module_id": "validate", "to_module_id": "load"},
+                ],
+            },
+        )
+        post(
+            client,
             "/v1/events/heartbeat",
             {
                 "source_id": f"demo-{host}",
@@ -52,7 +73,7 @@ def main() -> int:
             "/v1/events/runs/start",
             {
                 "pipeline_id": PIPELINE_ID,
-                "pipeline_name": "Microsoft Forms to Datalake",
+                "pipeline_name": "Demo DAG",
                 "trigger_type": "demo",
                 "requested_by": "overseer-demo",
                 "runner_host": host,
@@ -62,9 +83,9 @@ def main() -> int:
         )["run"]
         run_id = run["run_id"]
         modules = [
-            ("extract_forms", "ok", 4.2, "Leitura de respostas Microsoft Forms concluída."),
-            ("validate_payload", "ok", 1.1, "Validação de schema e campos obrigatórios concluída."),
-            ("load_datalake", "ok", 2.8, "Carga no datalake simulada com sucesso."),
+            ("extract", "ok", 4.2, "Extração concluída."),
+            ("validate", "ok", 1.1, "Validação concluída."),
+            ("load", "ok", 2.8, "Carga concluída."),
         ]
         for module_id, status, duration, message in modules:
             post(

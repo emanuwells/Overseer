@@ -1,15 +1,17 @@
 # Integração Padrão De Pipelines No Overseer
 
-Este é o contrato único para colocar Overseer em qualquer repositório de pipeline.
+Este é o contrato para ligar qualquer repositório de pipeline ao Overseer sem copiar o código do pipeline para este repositório.
 
 ## Princípio
 
-O pipeline não escreve diretamente na base de dados. O pipeline escreve sempre na API do Overseer:
+O pipeline não escreve diretamente na base de dados. O pipeline comunica sempre por API:
 
+- catálogo DAG: `/v1/catalog/pipelines`;
 - run: `/v1/events/runs/start` e `/v1/events/runs/{run_id}/finish`;
 - módulo: `/v1/events/modules`;
 - log/evento: `/v1/events/logs`;
-- heartbeat: `/v1/events/heartbeat`.
+- heartbeat: `/v1/events/heartbeat`;
+- triggers operacionais: `/v1/orchestrate/triggers`.
 
 ## Instalação Em Cada Repo De Pipeline
 
@@ -24,7 +26,6 @@ Para a raiz do repo do pipeline:
 ```text
 pipeline-repo/
   .env.overseer.example
-  pipeline.yaml
   requirements-overseer.txt
   overseer_bootstrap.py
   src/main.py
@@ -43,7 +44,32 @@ OVERSEER_API_URL=http://127.0.0.1:8090
 OVERSEER_API_TOKEN=change-me-api-token
 OVERSEER_PIPELINE_ID=my_pipeline
 OVERSEER_PIPELINE_NAME=My Pipeline
+OVERSEER_PIPELINE_OWNER=data
+OVERSEER_PIPELINE_CRITICALITY=medium
+OVERSEER_PIPELINE_SCHEDULE=manual
 ```
+
+Nunca guardar `.env.overseer` com credenciais reais no Git.
+
+## Registo Do DAG
+
+```python
+from overseer_bootstrap import overseer
+
+overseer.register_catalog(
+    nodes=[
+        {"module_id": "extract", "label": "Extrair", "type": "task"},
+        {"module_id": "transform", "label": "Transformar", "type": "task"},
+        {"module_id": "load", "label": "Carregar", "type": "task"},
+    ],
+    edges=[
+        {"from_module_id": "extract", "to_module_id": "transform"},
+        {"from_module_id": "transform", "to_module_id": "load"},
+    ],
+)
+```
+
+O registo é idempotente por `pipeline_id`: cada novo envio atualiza os dados do pipeline, substitui nodes e substitui edges desse pipeline.
 
 ## Instrumentação
 
@@ -61,9 +87,7 @@ with overseer.run() as run_id:
         overseer.log(run_id, "Carga concluída.", module_id="load")
 ```
 
-## Execução Com Registo Automático
-
-Também é possível envolver um comando inteiro:
+Também é possível envolver um comando inteiro a partir do repo do pipeline:
 
 ```bash
 python -m overseer_agent exec --pipeline my_pipeline -- python src/main.py
@@ -80,7 +104,7 @@ docker compose exec overseer-api python scripts/overseer_emit_demo.py
 Depois abrir:
 
 ```text
-http://127.0.0.1:8090/ui/
+http://127.0.0.1:8090/ui/dashboard.html
 ```
 
 ## DB Oficial
@@ -95,6 +119,4 @@ Para ligar o Overseer ao schema oficial:
 docker compose up -d
 ```
 
-4. Confirmar no frontend, no bloco `Base de dados`, que o modo é `external` e que a database é `Overseer`.
-
-Nunca guardar `.env` ou credenciais reais no Git.
+4. Confirmar no frontend, em `Ambiente`, que a base de dados está acessível.

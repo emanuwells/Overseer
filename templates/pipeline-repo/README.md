@@ -1,13 +1,12 @@
 # Template De Integração Overseer Para Pipelines
 
-Este diretório contém o contrato mínimo para qualquer repositório de pipeline escrever telemetria no Overseer sempre da mesma forma.
+Este diretório contém o contrato mínimo para um repositório de pipeline registar o seu DAG e escrever telemetria no Overseer por API.
 
 ## Ficheiros
 
 | Ficheiro | Destino No Repo Do Pipeline |
 |---|---|
 | `.env.overseer.example` | `.env.overseer.example` |
-| `pipeline.yaml` | `pipeline.yaml` |
 | `requirements-overseer.txt` | `requirements-overseer.txt` |
 | `overseer_bootstrap.py` | `overseer_bootstrap.py` |
 
@@ -22,10 +21,20 @@ Este diretório contém o contrato mínimo para qualquer repositório de pipelin
 python -m pip install -r requirements-overseer.txt
 ```
 
-5. Instrumentar o script principal:
+5. Registar o DAG e instrumentar o script principal:
 
 ```python
 from overseer_bootstrap import overseer
+
+overseer.register_catalog(
+    nodes=[
+        {"module_id": "extract", "label": "Extrair"},
+        {"module_id": "load", "label": "Carregar"},
+    ],
+    edges=[
+        {"from_module_id": "extract", "to_module_id": "load"},
+    ],
+)
 
 with overseer.run() as run_id:
     with overseer.step(run_id, "extract"):
@@ -36,7 +45,7 @@ with overseer.run() as run_id:
 
 ## Contrato Operacional
 
-- Cada pipeline tem um `pipeline.yaml` na raiz.
+- O catálogo do pipeline é registado em `/v1/catalog/pipelines`.
 - Cada execução cria uma run em `/v1/events/runs/start`.
 - Cada fase relevante cria um módulo em `/v1/events/modules`.
 - Cada evento humano ou técnico escreve em `/v1/events/logs`.

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overseer - Dashboard</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-view="dashboard">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>Observabilidade DAG</span></div></a>
+      <nav class="nav">
+        <a aria-current="page" href="dashboard.html">Dashboard</a><a href="run-detail.html">Runs</a><a href="lineage.html">DAG</a><a href="deployments.html">Ambiente</a>
+      </nav>
+      <div class="side-status"><small>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb">Overseer / Operação</div>
+        <div class="actions">
+          <input class="token-input" data-token-input type="password" placeholder="Token API">
+          <button class="btn" data-token-save>Guardar</button>
+          <button class="btn primary" data-refresh>Atualizar</button>
+        </div>
+      </header>
+      <section class="content">
+        <div class="hero-row"><div><h1>Dashboard operacional</h1><p class="subhead">Runs, pipelines registados por API, heartbeats e sinais recentes.</p></div><span class="pill" data-sync-state>A carregar</span></div>
+        <div data-alert></div>
+        <div class="kpis grid">
+          <div class="card card-pad kpi"><span class="label">Pipelines</span><div class="kpi-main"><span class="metric" data-kpi="pipelines">--</span><span class="delta">catálogo</span></div></div>
+          <div class="card card-pad kpi"><span class="label">Runs</span><div class="kpi-main"><span class="metric" data-kpi="runs">--</span><span class="delta">histórico</span></div></div>
+          <div class="card card-pad kpi"><span class="label">A decorrer</span><div class="kpi-main"><span class="metric" data-kpi="running">--</span><span class="delta warn">runtime</span></div></div>
+          <div class="card card-pad kpi"><span class="label">Sucesso</span><div class="kpi-main"><span class="metric" data-kpi="success_rate">--</span><span class="delta">últimas runs</span></div></div>
+        </div>
+        <div class="two-col grid">
+          <section class="card">
+            <div class="section-head"><div><h2>Pipelines registados</h2><p data-count="pipelines">--</p></div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Pipeline</th><th>Estado</th><th>Dono</th><th>Agenda</th><th>Última run</th></tr></thead>
+                <tbody data-pipelines></tbody>
+              </table>
+            </div>
+          </section>
+          <aside class="card" id="inspector">
+            <div class="section-head"><div><h2>Runs recentes</h2><p data-count="runs">--</p></div><a class="btn" href="run-detail.html">Abrir runs</a></div>
+            <div class="alert-list" data-recent-runs></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>

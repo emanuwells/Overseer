@@ -4,18 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overseer-core"
-version = "4.1.0"
+version = "4.2.0"
 description = "API, SDK e agente para telemetria e orquestração de pipelines Overseer."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
   "httpx>=0.27,<1",
+  "colorlog>=6.8,<7",
+  "paramiko>=3.4,<4",
+  "psutil>=7,<8",
   "pydantic>=2.8,<3",
   "PyMySQL>=1.1,<2",
-  "PyYAML>=6,<7",
   "requests>=2.32,<3",
   "SQLAlchemy>=2.0,<3",
+  "sshtunnel>=0.4,<1",
   "uvicorn[standard]>=0.30,<1",
 ]
 

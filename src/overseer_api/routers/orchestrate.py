@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from src.overseer_core import store
@@ -28,11 +28,6 @@ class CompleteBody(BaseModel):
     status: str = "done"
 
 
-class RunBody(BaseModel):
-    requested_by: str = "api"
-    background: bool = True
-
-
 @router.post("/triggers")
 def orchestrate_trigger(body: TriggerBody) -> dict[str, Any]:
     if not store.get_pipeline(body.pipeline_id):
@@ -55,22 +50,3 @@ def orchestrate_complete_trigger(trigger_id: str, body: CompleteBody) -> dict[st
     if not trigger:
         raise HTTPException(status_code=404, detail="Trigger inexistente.")
     return {"ok": True, "trigger": trigger}
-
-
-@router.post("/pipelines/{pipeline_id}/run")
-def orchestrate_run_pipeline(
-    pipeline_id: str,
-    body: RunBody,
-    background_tasks: BackgroundTasks,
-) -> dict[str, Any]:
-    if not store.get_pipeline(pipeline_id):
-        raise HTTPException(status_code=404, detail="Pipeline inexistente.")
-
-    if body.background:
-        background_tasks.add_task(store.run_pipeline_subprocess, pipeline_id, body.requested_by)
-        return {"ok": True, "status": "queued_background", "pipeline_id": pipeline_id}
-
-    return {
-        "ok": True,
-        "run": store.run_pipeline_subprocess(pipeline_id, requested_by=body.requested_by),
-    }

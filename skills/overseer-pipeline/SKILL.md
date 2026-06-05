@@ -1,28 +1,29 @@
 ---
 name: overseer-pipeline
-description: Integrar um pipeline no Overseer Core API.
+description: Integrar um pipeline externo no Overseer por API.
 ---
 
 # Skill: Integrar Pipeline No Overseer
 
 ## Quando usar
 
-Ao criar ou migrar um pipeline para o runtime Overseer.
+Ao criar ou migrar um pipeline externo para observabilidade no Overseer.
 
 ## Passos
 
-1. Criar `pipelines/<pipeline_id>/pipeline.yaml` com `pipeline_id`, `name`, `owner`, `criticality`, `entrypoint` e, se necessário, `entrypoint_windows`.
-2. Implementar `src/main.py` com `OverseerClient`, `OverseerMonitor` ou `LineageEmitter` (`@@OVERSEER_MODULE@@`) para registar módulos e eventos.
-3. Configurar segredos apenas fora do Git; usar `.env.example` para nomes de variáveis e valores fictícios.
-4. Testar localmente via API: `python -m overseer_agent run <pipeline_id> --foreground`.
-5. Validar leitura: `GET /v1/read/runs` e `GET /v1/read/runs/{run_id}`.
-6. Validar ações operacionais no frontend local em `http://127.0.0.1:8090/ui/`.
-7. Usar `python -m overseer_agent heartbeat` para registar agentes externos.
+1. Copiar `templates/pipeline-repo/` para a raiz do repositório do pipeline.
+2. Criar `.env.overseer` a partir de `.env.overseer.example`, sem versionar segredos reais.
+3. Registar o DAG com `overseer.register_catalog(nodes=[...], edges=[...])` ou `POST /v1/catalog/pipelines`.
+4. Instrumentar runs com `OverseerClient`, `overseer.run()` e `overseer.step()`.
+5. Registar logs relevantes em `/v1/events/logs` e heartbeats em `/v1/events/heartbeat`.
+6. Validar leitura: `GET /v1/read/pipelines/{pipeline_id}/dag`, `GET /v1/read/runs` e `GET /v1/read/runs/{run_id}`.
+7. Validar o frontend local em `http://127.0.0.1:8090/ui/dashboard.html`.
 
 ## Contratos
 
+- Catálogo DAG: API `POST /v1/catalog/pipelines`.
 - Telemetria: API `POST /v1/events/*`.
 - Leitura: API `GET /v1/read/*`.
-- Orquestração: API `POST /v1/orchestrate/*`.
+- Triggers: API `POST /v1/orchestrate/triggers`, sem execução local de código.
 - Base de dados: tabelas `overseer_*`, criadas por SQLAlchemy.
 - Docker: o fluxo suportado é `overseer-up.cmd`, `scripts/overseer-up.ps1`, `scripts/overseer-up.sh` ou `docker compose up --build -d`.

@@ -24,7 +24,21 @@ class PipelineOverseer:
         load_env_file()
         self.pipeline_id = os.getenv("OVERSEER_PIPELINE_ID", "unknown_pipeline")
         self.pipeline_name = os.getenv("OVERSEER_PIPELINE_NAME", self.pipeline_id)
+        self.owner = os.getenv("OVERSEER_PIPELINE_OWNER", "data")
+        self.criticality = os.getenv("OVERSEER_PIPELINE_CRITICALITY", "medium")
+        self.schedule = os.getenv("OVERSEER_PIPELINE_SCHEDULE", "manual")
         self.client = OverseerClient()
+
+    def register_catalog(self, *, nodes: list[dict], edges: list[dict]) -> dict:
+        return self.client.register_pipeline(
+            pipeline_id=self.pipeline_id,
+            name=self.pipeline_name,
+            owner=self.owner,
+            criticality=self.criticality,
+            schedule=self.schedule,
+            nodes=nodes,
+            edges=edges,
+        )
 
     @contextmanager
     def run(self, trigger_type: str = "pipeline"):

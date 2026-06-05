@@ -4,20 +4,16 @@ import json
 import os
 import secrets
 import socket
-import subprocess
-import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
-import yaml
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
     DateTime,
+    delete,
     Float,
     Integer,
     MetaData,
@@ -26,16 +22,14 @@ from sqlalchemy import (
     Text,
     create_engine,
     func,
+    inspect,
     insert,
     select,
+    text,
     update,
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.url import make_url
-
-ROOT = Path(__file__).resolve().parents[2]
-PIPELINES_DIR = ROOT / "pipelines"
-HOST_PIPELINES_DIR = ROOT / "host_pipelines"
 
 metadata = MetaData()
 _engine: Engine | None = None
@@ -52,8 +46,31 @@ pipelines_table = Table(
     Column("entrypoint", Text, nullable=True),
     Column("runner_host", String(128), nullable=False, default="any"),
     Column("active", Boolean, nullable=False, default=True),
+    Column("metadata_json", Text, nullable=True),
     Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
     Column("updated_at", DateTime, nullable=False, default=datetime.utcnow),
+)
+
+pipeline_nodes_table = Table(
+    "overseer_pipeline_nodes",
+    metadata,
+    Column("pipeline_id", String(128), primary_key=True),
+    Column("module_id", String(255), primary_key=True),
+    Column("label", String(255), nullable=False),
+    Column("type", String(64), nullable=False, default="task"),
+    Column("metadata_json", Text, nullable=True),
+    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
+    Column("updated_at", DateTime, nullable=False, default=datetime.utcnow),
+)
+
+pipeline_edges_table = Table(
+    "overseer_pipeline_edges",
+    metadata,
+    Column("pipeline_id", String(128), primary_key=True),
+    Column("from_module_id", String(255), primary_key=True),
+    Column("to_module_id", String(255), primary_key=True),
+    Column("metadata_json", Text, nullable=True),
+    Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
 )
 
 runs_table = Table(
@@ -80,7 +97,7 @@ runs_table = Table(
 modules_table = Table(
     "overseer_modules",
     metadata,
-    Column("event_id", BigInteger, primary_key=True, autoincrement=True),
+    Column("event_id", Integer, primary_key=True, autoincrement=True),
     Column("run_id", String(128), nullable=False, index=True),
     Column("pipeline_id", String(128), nullable=False, index=True),
     Column("module_id", String(255), nullable=False),
@@ -97,7 +114,7 @@ modules_table = Table(
 logs_table = Table(
     "overseer_logs",
     metadata,
-    Column("log_id", BigInteger, primary_key=True, autoincrement=True),
+    Column("log_id", Integer, primary_key=True, autoincrement=True),
     Column("run_id", String(128), nullable=True, index=True),
     Column("pipeline_id", String(128), nullable=True, index=True),
     Column("module_id", String(255), nullable=True),
@@ -111,7 +128,7 @@ logs_table = Table(
 heartbeats_table = Table(
     "overseer_heartbeats",
     metadata,
-    Column("heartbeat_id", BigInteger, primary_key=True, autoincrement=True),
+    Column("heartbeat_id", Integer, primary_key=True, autoincrement=True),
     Column("source_id", String(255), nullable=False, index=True),
     Column("source_type", String(64), nullable=False, default="runner"),
     Column("pipeline_id", String(128), nullable=True),
@@ -231,6 +248,8 @@ def database_status() -> dict[str, Any]:
         with get_engine().connect() as conn:
             result["tables"] = {
                 "pipelines": conn.execute(select(func.count()).select_from(pipelines_table)).scalar_one(),
+                "pipeline_nodes": conn.execute(select(func.count()).select_from(pipeline_nodes_table)).scalar_one(),
+                "pipeline_edges": conn.execute(select(func.count()).select_from(pipeline_edges_table)).scalar_one(),
                 "runs": conn.execute(select(func.count()).select_from(runs_table)).scalar_one(),
                 "modules": conn.execute(select(func.count()).select_from(modules_table)).scalar_one(),
                 "logs": conn.execute(select(func.count()).select_from(logs_table)).scalar_one(),
@@ -245,7 +264,16 @@ def database_status() -> dict[str, Any]:
 
 def init_schema() -> None:
     metadata.create_all(get_engine())
-    sync_pipeline_catalog()
+    ensure_schema_columns()
+
+
+def ensure_schema_columns() -> None:
+    engine = get_engine()
+    existing = {column["name"] for column in inspect(engine).get_columns("overseer_pipelines")}
+    if "metadata_json" in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE overseer_pipelines ADD COLUMN metadata_json TEXT NULL"))
 
 
 def new_id(prefix: str) -> str:
@@ -276,69 +304,63 @@ def row_to_dict(row: Any) -> dict[str, Any]:
     return data
 
 
-def pipeline_dirs() -> list[Path]:
-    raw_dirs = [PIPELINES_DIR, HOST_PIPELINES_DIR]
-    extra = os.getenv("OVERSEER_PIPELINES_DIR")
-    if extra:
-        raw_dirs.extend(Path(item.strip()) for item in extra.split(os.pathsep) if item.strip())
-    unique: list[Path] = []
-    seen: set[Path] = set()
-    for path in raw_dirs:
-        resolved = path.resolve() if path.exists() else path
-        if resolved not in seen:
-            unique.append(path)
-            seen.add(resolved)
-    return unique
-
-
-def iter_pipeline_yamls() -> list[tuple[Path, dict[str, Any]]]:
-    items: list[tuple[Path, dict[str, Any]]] = []
-    seen_pipeline_ids: set[str] = set()
-    for directory in pipeline_dirs():
-        if not directory.exists():
-            continue
-        for path in sorted(directory.glob("*/pipeline.yaml")):
-            if path.parent.name.startswith("_"):
-                continue
-            try:
-                payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-            except Exception:
-                continue
-            pipeline_id = str(payload.get("pipeline_id") or "").strip()
-            if pipeline_id and pipeline_id not in seen_pipeline_ids:
-                items.append((path, payload))
-                seen_pipeline_ids.add(pipeline_id)
-    return items
-
-
-def sync_pipeline_catalog() -> None:
+def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     now = utcnow()
+    pipeline_id = str(payload["pipeline_id"]).strip()
+    values = {
+        "pipeline_id": pipeline_id,
+        "name": str(payload.get("name") or pipeline_id),
+        "owner": str(payload.get("owner") or "unknown"),
+        "criticality": str(payload.get("criticality") or "medium").lower(),
+        "schedule": str(payload.get("schedule") or "manual"),
+        "entrypoint": None,
+        "runner_host": normalize_runner(payload.get("runner_host")),
+        "active": True,
+        "metadata_json": json_dump(payload.get("metadata") or {}),
+        "created_at": now,
+        "updated_at": now,
+    }
+    nodes = payload.get("nodes") or []
+    edges = payload.get("edges") or []
     with get_engine().begin() as conn:
-        for path, payload in iter_pipeline_yamls():
-            pipeline_id = str(payload.get("pipeline_id")).strip()
-            values = {
-                "pipeline_id": pipeline_id,
-                "name": str(payload.get("name") or pipeline_id),
-                "owner": str(payload.get("owner") or "unknown"),
-                "criticality": str(payload.get("criticality") or "medium").lower(),
-                "schedule": str(payload.get("schedule") or "manual"),
-                "entrypoint": str(payload.get("entrypoint_windows") if os.name == "nt" else payload.get("entrypoint") or ""),
-                "runner_host": normalize_runner(payload.get("runner_host")),
-                "active": True,
-                "created_at": now,
-                "updated_at": now,
-            }
-            existing = conn.execute(
-                select(pipelines_table.c.pipeline_id).where(pipelines_table.c.pipeline_id == pipeline_id)
-            ).first()
-            if existing:
-                conn.execute(
-                    update(pipelines_table)
-                    .where(pipelines_table.c.pipeline_id == pipeline_id)
-                    .values(**{k: v for k, v in values.items() if k != "created_at"})
+        existing = conn.execute(
+            select(pipelines_table.c.pipeline_id).where(pipelines_table.c.pipeline_id == pipeline_id)
+        ).first()
+        if existing:
+            conn.execute(
+                update(pipelines_table)
+                .where(pipelines_table.c.pipeline_id == pipeline_id)
+                .values(**{k: v for k, v in values.items() if k != "created_at"})
+            )
+        else:
+            conn.execute(insert(pipelines_table).values(**values))
+
+        conn.execute(delete(pipeline_nodes_table).where(pipeline_nodes_table.c.pipeline_id == pipeline_id))
+        conn.execute(delete(pipeline_edges_table).where(pipeline_edges_table.c.pipeline_id == pipeline_id))
+
+        for node in nodes:
+            conn.execute(
+                insert(pipeline_nodes_table).values(
+                    pipeline_id=pipeline_id,
+                    module_id=str(node["module_id"]).strip(),
+                    label=str(node.get("label") or node["module_id"]),
+                    type=str(node.get("type") or "task"),
+                    metadata_json=json_dump(node.get("metadata") or {}),
+                    created_at=now,
+                    updated_at=now,
                 )
-            else:
-                conn.execute(insert(pipelines_table).values(**values))
+            )
+        for edge in edges:
+            conn.execute(
+                insert(pipeline_edges_table).values(
+                    pipeline_id=pipeline_id,
+                    from_module_id=str(edge["from_module_id"]).strip(),
+                    to_module_id=str(edge["to_module_id"]).strip(),
+                    metadata_json=json_dump(edge.get("metadata") or {}),
+                    created_at=now,
+                )
+            )
+    return get_pipeline_dag(pipeline_id)
 
 
 def normalize_runner(value: Any) -> str:
@@ -349,7 +371,6 @@ def normalize_runner(value: Any) -> str:
 
 
 def list_pipelines() -> list[dict[str, Any]]:
-    sync_pipeline_catalog()
     latest = (
         select(runs_table.c.pipeline_id, func.max(runs_table.c.started_at).label("latest_at"))
         .group_by(runs_table.c.pipeline_id)
@@ -529,12 +550,31 @@ def complete_trigger(trigger_id: str, status: str = "done") -> dict[str, Any] | 
 
 
 def get_pipeline(pipeline_id: str) -> dict[str, Any] | None:
-    sync_pipeline_catalog()
     with get_engine().connect() as conn:
         row = conn.execute(
             select(pipelines_table).where(pipelines_table.c.pipeline_id == pipeline_id)
         ).mappings().first()
     return row_to_dict(row) if row else None
+
+
+def get_pipeline_dag(pipeline_id: str) -> dict[str, Any]:
+    pipeline = get_pipeline(pipeline_id)
+    with get_engine().connect() as conn:
+        node_rows = conn.execute(
+            select(pipeline_nodes_table)
+            .where(pipeline_nodes_table.c.pipeline_id == pipeline_id)
+            .order_by(pipeline_nodes_table.c.module_id)
+        ).mappings().all()
+        edge_rows = conn.execute(
+            select(pipeline_edges_table)
+            .where(pipeline_edges_table.c.pipeline_id == pipeline_id)
+            .order_by(pipeline_edges_table.c.from_module_id, pipeline_edges_table.c.to_module_id)
+        ).mappings().all()
+    return {
+        "pipeline": pipeline,
+        "nodes": [row_to_dict(row) for row in node_rows],
+        "edges": [row_to_dict(row) for row in edge_rows],
+    }
 
 
 def get_run(run_id: str) -> dict[str, Any] | None:
@@ -647,76 +687,6 @@ def parse_dt(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
     except Exception:
         return None
-
-
-def run_pipeline_subprocess(pipeline_id: str, requested_by: str = "api") -> dict[str, Any]:
-    pipeline = get_pipeline(pipeline_id)
-    if not pipeline:
-        raise ValueError("pipeline_id inexistente.")
-    entrypoint = str(pipeline.get("entrypoint") or "").strip()
-    if not entrypoint:
-        raise ValueError("Pipeline sem entrypoint.")
-
-    run = start_run(
-        {
-            "pipeline_id": pipeline_id,
-            "pipeline_name": pipeline.get("name"),
-            "requested_by": requested_by,
-            "trigger_type": "api",
-            "runner_host": socket.gethostname(),
-            "metadata": {"source": "orchestrate-api"},
-        }
-    )
-    run_id = run["run_id"]
-    record_log({"run_id": run_id, "pipeline_id": pipeline_id, "level": "info", "message": f"A executar: {entrypoint}"})
-
-    env = os.environ.copy()
-    env["OVERSEER_RUN_ID"] = run_id
-    env["OVERSEER_PIPELINE_ID"] = pipeline_id
-    env["OVERSEER_API_URL"] = env.get("OVERSEER_API_URL", "http://127.0.0.1:8090")
-    workdir = PIPELINES_DIR / pipeline_id
-    if not workdir.exists():
-        for directory in pipeline_dirs():
-            candidate = directory / pipeline_id
-            if candidate.exists():
-                workdir = candidate
-                break
-    started = time.monotonic()
-    try:
-        proc = subprocess.run(
-            entrypoint,
-            cwd=str(workdir),
-            env=env,
-            shell=True,
-            text=True,
-            capture_output=True,
-            timeout=3600,
-            check=False,
-        )
-        if proc.stdout:
-            record_log({"run_id": run_id, "pipeline_id": pipeline_id, "level": "info", "message": proc.stdout[-60000:]})
-            persist_lineage_markers(run_id=run_id, pipeline_id=pipeline_id, output=proc.stdout)
-        if proc.stderr:
-            record_log({"run_id": run_id, "pipeline_id": pipeline_id, "level": "error", "message": proc.stderr[-60000:]})
-        return finish_run(
-            run_id,
-            {
-                "status": "ok" if proc.returncode == 0 else "failed",
-                "exit_code": proc.returncode,
-                "duration_sec": round(time.monotonic() - started, 3),
-                "error_message": proc.stderr[-4000:] if proc.returncode else None,
-            },
-        )
-    except Exception as exc:
-        record_log({"run_id": run_id, "pipeline_id": pipeline_id, "level": "error", "message": str(exc)})
-        return finish_run(
-            run_id,
-            {
-                "status": "failed",
-                "duration_sec": round(time.monotonic() - started, 3),
-                "error_message": str(exc),
-            },
-        )
 
 
 def persist_lineage_markers(*, run_id: str, pipeline_id: str, output: str) -> None:

@@ -5,6 +5,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from src.overseer_api.main import create_app
+from src.overseer_core import store
 
 
 def client() -> TestClient:
@@ -66,3 +67,81 @@ def test_orchestrate_trigger(mock_get_pipeline, mock_enqueue):
     response = client().post("/v1/orchestrate/triggers", json={"pipeline_id": "demo"})
     assert response.status_code == 200
     assert response.json()["trigger"]["status"] == "queued"
+
+
+def test_root_redirects_to_dashboard():
+    response = client().get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/ui/dashboard.html"
+
+
+def test_ui_root_redirects_to_dashboard():
+    response = client().get("/ui", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/ui/dashboard.html"
+
+
+def test_pipeline_catalog_registers_dag(tmp_path, monkeypatch):
+    monkeypatch.setenv("OVERSEER_DB_URL", f"sqlite:///{tmp_path / 'overseer.db'}")
+    store._engine = None
+    store.init_schema()
+    api = client()
+    payload = {
+        "pipeline_id": "demo_pipeline",
+        "name": "Demo Pipeline",
+        "owner": "data",
+        "criticality": "medium",
+        "schedule": "manual",
+        "metadata": {"area": "demo"},
+        "nodes": [
+            {"module_id": "extract", "label": "Extrair", "type": "task"},
+            {"module_id": "load", "label": "Carregar", "type": "task"},
+        ],
+        "edges": [{"from_module_id": "extract", "to_module_id": "load"}],
+    }
+
+    response = api.post("/v1/catalog/pipelines", json=payload)
+    assert response.status_code == 200
+    assert response.json()["dag"]["pipeline"]["pipeline_id"] == "demo_pipeline"
+
+    response = api.get("/v1/read/pipelines/demo_pipeline/dag")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert len(body["dag"]["nodes"]) == 2
+    assert body["dag"]["edges"][0]["from_module_id"] == "extract"
+
+
+def test_module_events_still_reference_pipeline_and_module(tmp_path, monkeypatch):
+    monkeypatch.setenv("OVERSEER_DB_URL", f"sqlite:///{tmp_path / 'overseer.db'}")
+    store._engine = None
+    store.init_schema()
+    api = client()
+    api.post(
+        "/v1/catalog/pipelines",
+        json={
+            "pipeline_id": "demo_pipeline",
+            "nodes": [{"module_id": "extract"}],
+            "edges": [],
+        },
+    )
+    run = api.post("/v1/events/runs/start", json={"pipeline_id": "demo_pipeline"}).json()["run"]
+
+    response = api.post(
+        "/v1/events/modules",
+        json={
+            "run_id": run["run_id"],
+            "pipeline_id": "demo_pipeline",
+            "module_id": "extract",
+            "status": "ok",
+        },
+    )
+    assert response.status_code == 200
+    module = response.json()["module"]
+    assert module["pipeline_id"] == "demo_pipeline"
+    assert module["module_id"] == "extract"
+
+
+def test_local_pipeline_execution_endpoint_removed():
+    response = client().post("/v1/orchestrate/pipelines/demo/run", json={"requested_by": "test"})
+    assert response.status_code == 404

@@ -26,6 +26,12 @@ def read_pipelines() -> dict[str, Any]:
     return {"ok": True, "items": store.list_pipelines()}
 
 
+@router.get("/pipelines/{pipeline_id}/dag")
+def read_pipeline_dag(pipeline_id: str) -> dict[str, Any]:
+    dag = store.get_pipeline_dag(pipeline_id)
+    return {"ok": dag["pipeline"] is not None, "dag": dag}
+
+
 @router.get("/runs")
 def read_runs(limit: int = 200, pipeline_id: str | None = None) -> dict[str, Any]:
     return {"ok": True, "items": store.list_runs(limit=limit, pipeline_id=pipeline_id)}

@@ -57,19 +57,6 @@ def cmd_trigger(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_run(args: argparse.Namespace) -> int:
-    payload = {"requested_by": args.by, "background": not args.foreground}
-    with httpx.Client(timeout=None) as client:
-        res = client.post(
-            f"{DEFAULT_API}/v1/orchestrate/pipelines/{args.pipeline}/run",
-            json=payload,
-            headers=_headers(),
-        )
-        res.raise_for_status()
-        print(res.json())
-    return 0
-
-
 def _strip_command_separator(command: list[str]) -> list[str]:
     return command[1:] if command and command[0] == "--" else command
 
@@ -94,12 +81,6 @@ def main() -> int:
     trigger.add_argument("--by", default="agent")
     trigger.add_argument("--runner", default="any")
     trigger.set_defaults(func=cmd_trigger)
-
-    run = sub.add_parser("run", help="Pede execução de pipeline via API de orquestração.")
-    run.add_argument("pipeline")
-    run.add_argument("--by", default="agent")
-    run.add_argument("--foreground", action="store_true")
-    run.set_defaults(func=cmd_run)
 
     args = parser.parse_args()
     if hasattr(args, "command"):

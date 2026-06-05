@@ -42,6 +42,32 @@ class OverseerClient:
             response.raise_for_status()
             return response.json()
 
+    def register_pipeline(
+        self,
+        *,
+        pipeline_id: str,
+        name: str | None = None,
+        owner: str = "unknown",
+        criticality: str = "medium",
+        schedule: str = "manual",
+        metadata: dict[str, Any] | None = None,
+        nodes: list[dict[str, Any]] | None = None,
+        edges: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        return self.post(
+            "/v1/catalog/pipelines",
+            {
+                "pipeline_id": pipeline_id,
+                "name": name,
+                "owner": owner,
+                "criticality": criticality,
+                "schedule": schedule,
+                "metadata": metadata or {},
+                "nodes": nodes or [],
+                "edges": edges or [],
+            },
+        )
+
     def start_run(
         self,
         pipeline_id: str,

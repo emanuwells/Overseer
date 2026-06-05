@@ -8,6 +8,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,11 +17,10 @@ if str(ROOT) not in sys.path:
 
 from src.overseer_core.store import init_schema
 
-from .routers import events, health, orchestrate, read
+from .routers import catalog, events, health, orchestrate, read
 
-WEBAPP_DIR = ROOT / "webapp" / "dist"
-WEBAPP_FALLBACK_DIR = ROOT / "webapp"
-API_VERSION = "4.0.0"
+FRONTEND_DIR = ROOT / "frontend"
+API_VERSION = "4.2.0"
 
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Overseer API",
         version=API_VERSION,
-        description="API canónica para leitura, ingest e orquestração de pipelines.",
+        description="API canónica para observabilidade de pipelines e DAGs.",
         lifespan=lifespan,
     )
 
@@ -49,24 +49,19 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(read.router)
     app.include_router(events.router)
+    app.include_router(catalog.router)
     app.include_router(orchestrate.router)
 
-    ui_dir = WEBAPP_DIR if WEBAPP_DIR.is_dir() else WEBAPP_FALLBACK_DIR
-    if ui_dir.is_dir():
-        app.mount("/ui", StaticFiles(directory=str(ui_dir), html=True), name="ui")
-
     @app.get("/")
-    def root() -> dict:
-        return {
-            "service": "overseer-api",
-            "version": API_VERSION,
-            "health": "/v1/health",
-            "read_api": "/v1/read/overview",
-            "write_api": "/v1/events/runs/start",
-            "orchestrate_api": "/v1/orchestrate/triggers",
-            "docs": "/docs",
-            "ui": "/ui/",
-        }
+    def root() -> RedirectResponse:
+        return RedirectResponse(url="/ui/dashboard.html", status_code=307)
+
+    @app.get("/ui")
+    def ui_root() -> RedirectResponse:
+        return RedirectResponse(url="/ui/dashboard.html", status_code=307)
+
+    if FRONTEND_DIR.is_dir():
+        app.mount("/ui", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="ui")
 
     return app
 

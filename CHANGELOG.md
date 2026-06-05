@@ -1,5 +1,67 @@
 # Changelog
 
+## [4.2.0] - 2026-06-05T15:53:35+01:00
+
+### Observabilidade DAG Por API E Frontend Estático
+
+**Motivo:**
+Separar o Overseer do código dos pipelines reais, remover exemplos de negócio do núcleo e transformar o produto num observador de DAGs alimentado por API.
+
+**Impacto:**
+O Overseer deixa de executar pipelines por subprocesso local. O contrato principal passa a ser registo de catálogo por `/v1/catalog/pipelines` e telemetria por `/v1/events/*`. A UI abre diretamente no dashboard, lê dados reais da FastAPI e o Docker deixa de precisar de Node/Vite.
+
+**Alterações:**
+- `src/overseer_core/store.py`: adicionadas tabelas `overseer_pipeline_nodes` e `overseer_pipeline_edges`, upsert de catálogo DAG, leitura de DAG e remoção da execução por subprocesso.
+- `src/overseer_api/routers/catalog.py`: criado `POST /v1/catalog/pipelines`.
+- `src/overseer_api/routers/read.py`: criado `GET /v1/read/pipelines/{pipeline_id}/dag`.
+- `src/overseer_api/routers/orchestrate.py`: removido endpoint de execução local de pipelines.
+- `src/overseer_api/main.py`: frontend passa a ser servido de `frontend/`; `/` e `/ui` redirecionam para `/ui/dashboard.html`.
+- `frontend/`: removido launcher/landing BruinOps e criada UI estática Overseer ligada a `/v1/read/*`.
+- `overseer_sdk/client.py`: adicionado método `register_pipeline`.
+- `overseer_agent/__main__.py`: removido comando `run` que chamava o endpoint removido.
+- `scripts/overseer_emit_demo.py`: demo passa a registar um DAG genérico e emitir eventos sobre esse catálogo.
+- `Dockerfile` e `docker-compose.yml`: removido build Node/Vite e mount de `pipelines/`.
+- `templates/pipeline-repo/` e `docs/pipeline-integration.md`: template e documentação passam a usar registo DAG por API.
+- `README.md`, `PROJECT_CONTEXT.md`, `docs/adr/0001-overseer-core-api-refactor.md`, `openapi/overseer-api.yaml` e `tasks/todo.md`: documentação alinhada com o contrato 4.2.0.
+
+**Dependências:**
+- `requirements.txt`: removidas dependências de pipeline/YAML não usadas pelo núcleo.
+- `pyproject.toml`: versão atualizada para 4.2.0 e dependências do SDK explicitadas.
+
+**Ferramentas, MCP E Skills:**
+- MCP servers: N/A — não há configuração MCP de projeto.
+- Skills usadas: `repo-onboarding`, `skill-selector`, `backend-architecture`, `frontend-architecture`, `fullstack-delivery`, `api-contract-guardian`, `database-migration-safety`, `dependency-manager`, `file-pruner`, `documentation-keeper`, `handoff-maintainer`, `changelog-semver`, `definition-of-done`, `security-secrets-audit`, `prompt-injection-guard`, `stop-the-slop`.
+- Fallbacks: comandos locais foram executados com aprovação por erro inicial do sandbox Windows.
+
+**SSH / Servidores:**
+- N/A — nenhum SSH, servidor remoto ou produção foi acedido.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- Removidos `frontend/landing.html`, `frontend/bruinops-prototype.html` e o conteúdo versionado de `pipelines/microsoft_forms_2_datalake/`.
+- Removido `templates/pipeline-repo/pipeline.yaml` como contrato obrigatório.
+- Mantidos templates genéricos de integração por API.
+
+**Testes:**
+- `python -m pytest -q` — passou com 10 testes e 1 aviso de depreciação do TestClient.
+- `docker compose config` — passou.
+- `docker compose build` — passou.
+- `docker compose up -d` — passou.
+- `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py` — registou DAG demo e run.
+
+**Validação:**
+- Testes de contrato cobrem registo DAG, leitura DAG, eventos de módulo, redirecionamento da UI e remoção do endpoint de execução local.
+- `GET /v1/health` e `GET /ui/dashboard.html` responderam 200.
+- `GET /` respondeu 307 para `/ui/dashboard.html`.
+- `GET /v1/read/pipelines/demo_dag/dag` confirmou 3 nodes e 2 edges.
+
+**Refs:**
+- Pedido do utilizador: implementar o plano “Overseer Como Observador De DAGs”.
+
+**Diff:**
+Overseer 4.2.0 passa a ser um observador de DAGs desacoplado dos pipelines reais, com frontend estático ligado à API e Docker simplificado.
+
+---
+
 ## [4.1.0] - 2026-06-04T19:08:22+01:00
 
 ### DB Oficial, Kit De Pipelines E Frontend Operacional

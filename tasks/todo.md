@@ -1,69 +1,41 @@
 # Todo
 
-## Plano Atual
+## Plano Atual — 4.2.0
 
-- [x] Refatorar o Overseer para núcleo único com API de leitura, API de escrita e API de orquestração.
-- [x] Criar schema novo simples para runs, módulos, logs, heartbeats, pipelines e triggers, mantendo MariaDB como alvo local e SQLAlchemy para preparar outros dialectos.
-- [x] Substituir o fluxo legado `DB -> JSON -> MAIATRON` por API HTTP canónica.
-- [x] Criar SDK Python e CLI drop-in para instrumentar pipelines por API.
-- [x] Criar frontend React/Vite para dashboard local, detalhe, logs, módulos e ações operacionais.
-- [x] Atualizar Docker/Compose para workflow único e reprodutível.
-- [x] Manter apenas `microsoft_forms_2_datalake` como exemplo de pipeline e remover o restante legado fora de escopo.
-- [x] Atualizar `README.md`, `PROJECT_CONTEXT.md`, `CHANGELOG.md` e `HANDOFF.md`.
+- [x] Remover página inicial/landing e abrir a UI diretamente em `/ui/dashboard.html`.
+- [x] Servir `frontend/` estático pela FastAPI em `/ui/`.
+- [x] Substituir dados fictícios do frontend por chamadas a `/v1/read/*`.
+- [x] Adicionar `POST /v1/catalog/pipelines` para registo idempotente de catálogo DAG.
+- [x] Adicionar `GET /v1/read/pipelines/{pipeline_id}/dag`.
+- [x] Criar persistência de nodes e edges em `overseer_pipeline_nodes` e `overseer_pipeline_edges`.
+- [x] Remover endpoint de execução local `/v1/orchestrate/pipelines/{pipeline_id}/run`.
+- [x] Remover o pipeline exemplo `pipelines/microsoft_forms_2_datalake`.
+- [x] Simplificar Dockerfile para runtime Python sem build Node/Vite.
+- [x] Remover mount `./pipelines` do Compose.
+- [x] Atualizar template externo de pipeline para registo DAG por API.
+- [x] Atualizar README, PROJECT_CONTEXT, ADR, OpenAPI, changelog e handoff.
 
 ## Decisões Confirmadas
 
-- [x] O Overseer continua a executar/orquestrar pipelines, mas via API própria.
-- [x] Usar uma FastAPI com routers separados, não dois serviços independentes.
-- [x] Manter MariaDB/MySQL como base local, preparando o código para outros dialectos como PostgreSQL.
-- [x] A API de escrita aceita run, módulos, logs/eventos e heartbeat.
-- [x] Fornecer SDK Python e CLI wrapper para pipelines.
-- [x] Frontend em React + Vite.
-- [x] UI com leitura e ações operacionais.
-- [x] Workflow Docker por comando único simples.
-- [x] Schema novo simples, sem preservar o legado como contrato principal.
-- [x] Remover export JSON/MAIATRON e legado associado.
-- [x] Manter apenas `microsoft_forms_2_datalake` como exemplo.
-- [x] Autenticação por API token.
+- [x] O Overseer observa pipelines externos por API e não executa o seu código.
+- [x] Registo por API é a fonte principal do catálogo; YAML não é obrigatório.
+- [x] Triggers são sinais operacionais, não execução local.
+- [x] Frontend é HTML/CSS/JS estático servido pela FastAPI.
+- [x] Docker continua a ser o fluxo principal.
 
 ## Validação
 
 - [x] `git status --short --branch` executado antes das alterações.
-- [x] `python -m pytest -q` passou antes do refactor, com avisos de cache sem permissão.
-- [x] Testes de contrato da nova API.
-- [x] Build do frontend via `docker compose build`.
-- [x] Validação Docker/Compose com build multi-stage.
+- [x] `python -m pytest -q` executado durante a implementação; falhou inicialmente por schema não inicializado nos testes novos.
+- [x] Testes ajustados para inicializar schema em DB temporária.
+- [x] `python -m pytest -q` final.
+- [x] `docker compose config`.
+- [x] `docker compose build`.
+- [x] `docker compose up -d`.
+- [x] Verificação HTTP/API final com health, dashboard, overview, database e DAG demo.
 
 ## Revisão Final
 
-- [x] Auditar segredos e exemplos.
-- [x] Auditar ficheiros removidos e candidatos.
+- [x] Auditar referências legadas a `webapp`, React/Vite, YAML obrigatório e pipeline exemplo.
+- [x] Auditar segredos.
 - [x] Aplicar checklist final de `definition-of-done`.
-
-## Notas De Validação
-
-- `python -m pytest -q` passou com 4 testes.
-- `docker compose build` passou e validou `npm ci`, `vite build` e instalação Python dentro do container.
-- `npm install` local em Windows/OneDrive falhou ao escrever `webapp/node_modules`; o fluxo suportado não depende de Node local e `.dockerignore` exclui esse diretório.
-
-## Plano 4.1.0
-
-- [x] Preparar ligação ao schema oficial `Overseer` por `OVERSEER_DB_URL` em `.env`.
-- [x] Adicionar endpoint seguro `/v1/read/database` com URL mascarada e contagens.
-- [x] Criar `.env.official.example` para configuração da DB oficial sem segredos reais.
-- [x] Criar pacote instalável `overseer-core` via `pyproject.toml`.
-- [x] Criar template padrão para repos de pipelines em `templates/pipeline-repo/`.
-- [x] Criar documentação de integração em `docs/pipeline-integration.md`.
-- [x] Melhorar frontend para consola operacional tipo Airflow/Bruin Monitor SaaS.
-- [x] Corrigir mount de pipelines para não sobrepor o exemplo interno no Docker.
-- [x] Emitir run de demonstração no schema ativo com `scripts/overseer_emit_demo.py`.
-
-## Validação 4.1.0
-
-- [x] `python -m pytest -q` passou com 5 testes.
-- [x] `docker compose config` passou.
-- [x] `docker compose build` passou.
-- [x] `docker compose up -d` passou.
-- [x] `docker compose exec -T overseer-api python scripts/overseer_emit_demo.py` criou uma run demo.
-- [x] `/v1/read/database` mostrou `pipelines=1`, `runs=1`, `modules=3`, `logs=3`, `heartbeats=1`.
-- [x] `/ui/` serviu HTML, JS e CSS em `/ui/assets/...`.

@@ -1,4 +1,4 @@
-# ADR 0001 — Refactor Para Overseer Core API
+# ADR 0001 — Núcleo API E Observabilidade DAG
 
 ## Estado
 
@@ -6,21 +6,29 @@ Aceite.
 
 ## Contexto
 
-O Overseer tinha acumulado fluxos antigos de exportação `DB -> JSON`, frontend externo MAIATRON, scheduler CLI e escrita direta na base de dados. O novo objetivo é simplificar o produto sem perder capacidade operacional: observar, escrever telemetria, orquestrar pipelines e mostrar o estado local num frontend moderno.
+O Overseer acumulou fluxos antigos de exportação, frontend externo, scheduler CLI, escrita direta na base de dados e exemplos de pipelines dentro do próprio repositório. O objetivo atual é manter o Overseer como núcleo operacional independente: observar pipelines externos, receber catálogo DAG e telemetria por API, persistir eventos e expor uma UI local.
 
 ## Decisão
 
-O Overseer passa a ter uma FastAPI única com três superfícies:
-
-- `/v1/read/*` para leitura operacional;
-- `/v1/events/*` para ingest de runs, módulos, logs e heartbeats;
-- `/v1/orchestrate/*` para triggers e execução de pipelines.
-
-O schema canónico passa para tabelas `overseer_*`, criadas por SQLAlchemy no arranque. MariaDB continua a ser a base local suportada por Docker, mas o acesso por SQLAlchemy prepara migração futura para PostgreSQL ou outro dialecto compatível.
+- Manter uma FastAPI única com routers separados para leitura, catálogo, eventos, health e triggers.
+- Usar SQLAlchemy e tabelas `overseer_*` como contrato persistente.
+- Registar catálogo de pipelines por `POST /v1/catalog/pipelines`, com nodes e edges de DAG.
+- Interpretar `overseer_modules.module_id` como estado runtime de um node do DAG.
+- Servir frontend estático em `/ui/`, com `/` e `/ui` a redirecionarem para `/ui/dashboard.html`.
+- Não executar código de pipelines dentro do Overseer; pipelines externos enviam catálogo e telemetria por API.
+- Manter triggers como sinais operacionais, não como execução local.
+- Manter Docker Compose como fluxo principal para API, frontend e MariaDB local.
 
 ## Consequências
 
-- O frontend local passa a ser React/Vite servido em `/ui/`.
-- O fluxo MAIATRON/JSON/export deixa de ser contrato suportado.
-- Pipelines podem integrar por SDK Python ou CLI `overseer-agent`.
-- `microsoft_forms_2_datalake` fica como exemplo real; pipelines e docs legadas fora de escopo foram removidas.
+- Repositórios de pipelines deixam de precisar de ser copiados para `pipelines/`.
+- YAML deixa de ser contrato obrigatório; o registo por API passa a ser a fonte principal do catálogo.
+- O endpoint `/v1/orchestrate/pipelines/{pipeline_id}/run` deixa de existir.
+- O Dockerfile deixa de ter fase Node/Vite porque o frontend é estático.
+- Dados de pipelines reais só aparecem na UI depois de registo por `/v1/catalog/pipelines` e emissão de eventos por `/v1/events/*`.
+
+## Alternativas Rejeitadas
+
+- Manter execução local por subprocesso no Overseer: acoplava o núcleo ao código e dependências de cada pipeline.
+- Manter pipeline de exemplo no núcleo: confundia demo com contrato operacional.
+- Manter frontend React/Vite: acrescentava build Node sem necessidade para o estado atual da UI.
