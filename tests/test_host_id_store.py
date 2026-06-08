@@ -61,3 +61,28 @@ def test_list_runs_filters_host(sqlite_store) -> None:
     store.start_run({"pipeline_id": "p", "host_id": "b"})
     assert len(store.list_runs(pipeline_id="p", host_id="a")) == 1
     assert store.list_runs(pipeline_id="p", host_id="a")[0]["host_id"] == "a"
+
+
+def test_list_pipelines_dedupes_logical_id(sqlite_store) -> None:
+    for host in ("baze2", "WS1207"):
+        store.register_pipeline_catalog(
+            {
+                "pipeline_id": "medidata_pipeline",
+                "host_id": host,
+                "name": "Medidata Pipeline",
+                "nodes": [{"module_id": "run", "label": "run"}],
+                "edges": [],
+            }
+        )
+        store.start_run({"pipeline_id": "medidata_pipeline", "host_id": host})
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "medidata_pipeline__WS1207",
+            "name": "Medidata Pipeline Legacy",
+            "nodes": [{"module_id": "run", "label": "run"}],
+            "edges": [],
+        }
+    )
+    rows = store.list_pipelines()
+    assert len(rows) == 1
+    assert rows[0]["pipeline_id"] == "medidata_pipeline"

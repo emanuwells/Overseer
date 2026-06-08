@@ -324,6 +324,36 @@ def split_legacy_pipeline_id(pipeline_id: str) -> tuple[str, str]:
     return pipeline_id, ""
 
 
+def logical_pipeline_id(pipeline_id: str) -> str:
+    logical, _ = split_legacy_pipeline_id(str(pipeline_id or "").strip())
+    return logical
+
+
+def _pipeline_recency_key(row: dict[str, Any]) -> tuple[datetime, int, int]:
+    started = parse_dt(row.get("last_started_at")) or datetime.min
+    prefers_clean_id = 0 if "__" in str(row.get("pipeline_id") or "") else 1
+    has_host = 1 if str(row.get("host_id") or "").strip() else 0
+    return (started, prefers_clean_id, has_host)
+
+
+def dedupe_pipelines(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Uma linha por pipeline lógico (ignora host e sufixos legacy duplicados)."""
+    best: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        logical_id = logical_pipeline_id(str(row.get("pipeline_id") or ""))
+        if not logical_id:
+            continue
+        candidate = dict(row)
+        candidate["pipeline_id"] = logical_id
+        legacy_host = split_legacy_pipeline_id(str(row.get("pipeline_id") or ""))[1]
+        if legacy_host and not str(candidate.get("host_id") or "").strip():
+            candidate["host_id"] = legacy_host
+        current = best.get(logical_id)
+        if not current or _pipeline_recency_key(candidate) > _pipeline_recency_key(current):
+            best[logical_id] = candidate
+    return sorted(best.values(), key=lambda item: item.get("pipeline_id") or "")
+
+
 def new_id(prefix: str) -> str:
     return f"{prefix}-{int(time.time())}-{secrets.token_hex(4)}"
 
@@ -469,7 +499,7 @@ def list_pipelines() -> list[dict[str, Any]]:
     )
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
-    return [row_to_dict(row) for row in rows]
+    return dedupe_pipelines([row_to_dict(row) for row in rows])
 
 
 def start_run(payload: dict[str, Any]) -> dict[str, Any]:

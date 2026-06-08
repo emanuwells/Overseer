@@ -90,8 +90,49 @@ function duration(value) {
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
 }
 
+function logicalPipelineId(pipelineId) {
+  const raw = String(pipelineId || '');
+  const idx = raw.lastIndexOf('__');
+  if (idx > 0) {
+    const host = raw.slice(idx + 2);
+    if (host) return raw.slice(0, idx);
+  }
+  return raw;
+}
+
+function pipelineRecencyScore(item) {
+  const started = item?.last_started_at ? new Date(item.last_started_at).getTime() : 0;
+  const cleanId = logicalPipelineId(item?.pipeline_id) === item?.pipeline_id ? 1 : 0;
+  const hasHost = item?.host_id ? 1 : 0;
+  return [Number.isFinite(started) ? started : 0, cleanId, hasHost];
+}
+
+function dedupePipelines(pipelines) {
+  const best = new Map();
+  (pipelines || []).forEach((item) => {
+    const logicalId = logicalPipelineId(item.pipeline_id);
+    if (!logicalId) return;
+    const candidate = { ...item, pipeline_id: logicalId };
+    const legacyHost = logicalPipelineId(item.pipeline_id) !== item.pipeline_id
+      ? String(item.pipeline_id).split('__').pop()
+      : '';
+    if (legacyHost && !candidate.host_id) candidate.host_id = legacyHost;
+    const prev = best.get(logicalId);
+    if (!prev) {
+      best.set(logicalId, candidate);
+      return;
+    }
+    const a = pipelineRecencyScore(candidate);
+    const b = pipelineRecencyScore(prev);
+    if (a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] > b[2])))) {
+      best.set(logicalId, candidate);
+    }
+  });
+  return Array.from(best.values()).sort((left, right) => String(left.pipeline_id).localeCompare(String(right.pipeline_id)));
+}
+
 function deploymentKey(item) {
-  return `${item.pipeline_id}::${item.host_id || ''}`;
+  return `${logicalPipelineId(item.pipeline_id)}::${item.host_id || ''}`;
 }
 
 function parseDeploymentKey(key) {
@@ -215,7 +256,7 @@ function renderOverview(overview) {
   text('[data-kpi="failed"]', summary.failed ?? 0);
   text('[data-kpi="success_rate"]', `${summary.success_rate ?? 0}%`);
 
-  const pipelines = overview?.pipelines || [];
+  const pipelines = dedupePipelines(overview?.pipelines || []);
   state.pipelines = pipelines;
   text('[data-count="pipelines"]', `${pipelines.length} pipeline(s) registado(s).`);
   html('[data-pipelines]', pipelines.length ? pipelines.map((item) => {
@@ -243,7 +284,16 @@ function renderOverview(overview) {
     const copy = one('[data-copy]', inspector);
     if (copy) copy.dataset.copy = pipelines[0].last_run_id || '';
   }
-  html('[data-recent-runs]', runs.length ? runs.slice(0, 8).map((run) => {
+  const recentByPipeline = new Map();
+  runs.forEach((run) => {
+    const key = logicalPipelineId(run.pipeline_id);
+    const prev = recentByPipeline.get(key);
+    if (!prev || new Date(run.started_at) > new Date(prev.started_at)) recentByPipeline.set(key, run);
+  });
+  const recentRuns = Array.from(recentByPipeline.values())
+    .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+    .slice(0, 8);
+  html('[data-recent-runs]', recentRuns.length ? recentRuns.map((run) => {
     const stale = isStaleRun(run.started_at, run.status);
     const klass = stale ? 'stale' : statusClass(run.status);
     return `
@@ -459,7 +509,7 @@ async function loadLineage() {
     if (urlPipeline) state.selectedDeploymentKey = `${urlPipeline}::${urlHost}`;
 
     const pipelinesResponse = await api('/v1/read/pipelines');
-    state.pipelines = pipelinesResponse.items || [];
+    state.pipelines = dedupePipelines(pipelinesResponse.items || []);
     const select = one('[data-pipeline-select]');
     if (select) {
       if (!state.selectedDeploymentKey && state.pipelines[0]) {
