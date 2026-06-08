@@ -14,6 +14,7 @@ router = APIRouter(prefix="/v1/orchestrate", tags=["orchestrate"], dependencies=
 
 class TriggerBody(BaseModel):
     pipeline_id: str
+    host_id: str | None = None
     trigger_type: str = "run_now"
     requested_by: str = "api"
     runner_host: str = "any"

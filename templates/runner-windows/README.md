@@ -19,14 +19,17 @@ telemetria por API. É o equivalente Windows de [`templates/runner/`](../runner/
 ```text
 %USERPROFILE%\overseer-runners\
   .env.overseer                       # OVERSEER_API_URL + token + OVERSEER_HOST_ID (partilhado)
-  forms_to_lake__WIN-ETL01\
-    manifest.yaml
+  medidata_pipeline\
+    manifest.yaml                     # pipeline_id lógico + metadata.host_id
     run.ps1
     run.log                           # opcional: redirect do Task Scheduler
 ```
 
-O sufixo `__<host_id>` no nome da pasta e no `pipeline_id` evita colisões quando o
-mesmo pipeline lógico corre em várias máquinas.
+O `pipeline_id` no manifest é lógico (ex. `medidata_pipeline`); o deployment por
+máquina distingue-se pela coluna `host_id` / `metadata.host_id` / `OVERSEER_HOST_ID`.
+
+Em redes com proxy corporativo, os wrappers definem `NO_PROXY=127.0.0.1,localhost`
+e o SDK usa `httpx` com `trust_env=False` para o túnel SSH em loopback.
 
 ## Instalação
 

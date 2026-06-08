@@ -5,7 +5,8 @@ const state = {
   overview: null,
   database: null,
   pipelines: [],
-  selectedPipelineId: sessionStorage.getItem('overseer_selected_pipeline') || '',
+  selectedDeploymentKey: sessionStorage.getItem('overseer_selected_deployment') || '',
+  selectedNodeId: '',
 };
 
 function esc(value) {
@@ -87,6 +88,36 @@ function duration(value) {
   if (!Number.isFinite(seconds)) return String(value);
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}
+
+function deploymentKey(item) {
+  return `${item.pipeline_id}::${item.host_id || ''}`;
+}
+
+function parseDeploymentKey(key) {
+  const [pipelineId, hostId = ''] = String(key || '').split('::');
+  return { pipelineId, hostId };
+}
+
+function pipelineDisplayName(item) {
+  return item?.name || item?.pipeline_id || '--';
+}
+
+function hostDisplay(item) {
+  return item?.host_id || item?.runner_host || '--';
+}
+
+function isStaleRun(startedAt, status) {
+  if (String(status || '').toLowerCase() !== 'running' || !startedAt) return false;
+  const date = new Date(startedAt);
+  if (Number.isNaN(date.getTime())) return false;
+  return Date.now() - date.getTime() > 24 * 60 * 60 * 1000;
+}
+
+function lineageUrl(pipelineId, hostId) {
+  const params = new URLSearchParams({ pipeline: pipelineId });
+  if (hostId) params.set('host', hostId);
+  return `lineage.html?${params.toString()}`;
 }
 
 function emptyRow(columns, label) {
@@ -187,29 +218,37 @@ function renderOverview(overview) {
   const pipelines = overview?.pipelines || [];
   state.pipelines = pipelines;
   text('[data-count="pipelines"]', `${pipelines.length} pipeline(s) registado(s).`);
-  html('[data-pipelines]', pipelines.length ? pipelines.map((item) => `
-    <tr data-state="${stateBucket(item.last_status)}" data-name="${esc(item.pipeline_id)}" data-owner="${esc(item.owner)}" data-state-label="${esc(statusLabel(item.last_status))}" data-last-run="${esc(item.last_run_id || '')}">
-      <td><span class="name-cell"><span class="dot ${statusClass(item.last_status)}"></span>${esc(item.pipeline_id)}</span></td>
-      <td><span class="pill ${statusClass(item.last_status)}">${esc(statusLabel(item.last_status))}</span></td>
+  html('[data-pipelines]', pipelines.length ? pipelines.map((item) => {
+    const stale = isStaleRun(item.last_started_at, item.last_status);
+    const statusKlass = stale ? 'stale' : statusClass(item.last_status);
+  const statusText = stale ? 'stale' : statusLabel(item.last_status);
+    return `
+    <tr data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
+      <td><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
+      <td>${esc(hostDisplay(item))}</td>
+      <td><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
       <td>${esc(item.owner)}</td>
       <td>${esc(item.schedule)}</td>
       <td>${esc(formatDate(item.last_started_at))}</td>
       <td>${esc(duration(item.last_duration_sec))}</td>
       <td>${esc(item.criticality)}</td>
-    </tr>
-  `).join('') : emptyRow(7, 'Ainda não há pipelines registados por API.'));
+    </tr>`;
+  }).join('') : emptyRow(8, 'Ainda não há pipelines registados por API.'));
 
   const runs = overview?.recent_runs || [];
   const inspector = one('#inspector');
   if (inspector && pipelines[0]) {
-    text('[data-inspector-title]', pipelines[0].pipeline_id, inspector);
+    text('[data-inspector-title]', `${pipelineDisplayName(pipelines[0])} · ${hostDisplay(pipelines[0])}`, inspector);
     text('[data-inspector-state]', statusLabel(pipelines[0].last_status), inspector);
     const copy = one('[data-copy]', inspector);
     if (copy) copy.dataset.copy = pipelines[0].last_run_id || '';
   }
-  html('[data-recent-runs]', runs.length ? runs.slice(0, 8).map((run) => `
-    <div class="alert-item"><div><strong>${esc(run.pipeline_id)}</strong><p>${esc(run.run_id)} · ${esc(formatDate(run.started_at))}</p></div><span class="pill ${statusClass(run.status)}">${esc(statusLabel(run.status))}</span></div>
-  `).join('') : emptyBlock('Ainda não há runs recebidas.'));
+  html('[data-recent-runs]', runs.length ? runs.slice(0, 8).map((run) => {
+    const stale = isStaleRun(run.started_at, run.status);
+    const klass = stale ? 'stale' : statusClass(run.status);
+    return `
+    <div class="alert-item"><div><strong>${esc(run.pipeline_id)}</strong><p>${esc(run.host_id || '--')} · ${esc(run.run_id)} · ${esc(formatDate(run.started_at))}</p></div><span class="pill ${klass}">${esc(stale ? 'stale' : statusLabel(run.status))}</span></div>`;
+  }).join('') : emptyBlock('Ainda não há runs recebidas.'));
 
   by('[data-pipelines] tr[data-name]').forEach((row) => {
     row.addEventListener('click', () => {
@@ -302,74 +341,166 @@ function latestStatusByModule(modules) {
   return latest;
 }
 
-function renderDag(dag, modules) {
+function orderNodesLinear(nodes, edges) {
+  if (!nodes.length) return [];
+  const byId = new Map(nodes.map((node) => [node.module_id, node]));
+  const targets = new Set(edges.map((edge) => edge.to_module_id));
+  let current = nodes.find((node) => !targets.has(node.module_id))?.module_id || nodes[0].module_id;
+  const ordered = [];
+  const seen = new Set();
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (byId.has(current)) ordered.push(byId.get(current));
+    current = edges.find((edge) => edge.from_module_id === current)?.to_module_id;
+  }
+  nodes.forEach((node) => {
+    if (!seen.has(node.module_id)) ordered.push(node);
+  });
+  return ordered;
+}
+
+function computeBlockedDownstream(edges, latest) {
+  const failed = new Set();
+  latest.forEach((item, moduleId) => {
+    if (statusClass(item.status) === 'danger') failed.add(moduleId);
+  });
+  const adj = new Map();
+  edges.forEach((edge) => {
+    if (!adj.has(edge.from_module_id)) adj.set(edge.from_module_id, []);
+    adj.get(edge.from_module_id).push(edge.to_module_id);
+  });
+  const blocked = new Set();
+  const queue = [...failed];
+  while (queue.length) {
+    const id = queue.shift();
+    for (const next of adj.get(id) || []) {
+      if (!blocked.has(next) && !failed.has(next)) {
+        blocked.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return blocked;
+}
+
+function renderNodeInspector(node, runtime, blocked) {
+  const meta = node?.metadata || {};
+  const command = Array.isArray(meta.command) ? meta.command.join(' ') : (meta.command || '--');
+  html('[data-dag-inspector]', `
+    <div class="kv"><span>Módulo</span><strong>${esc(node?.label || node?.module_id || '--')}</strong></div>
+    <div class="kv"><span>Estado</span><strong>${esc(blocked ? 'blocked' : statusLabel(runtime?.status || 'sem runtime'))}</strong></div>
+    <div class="kv"><span>Comando</span><strong class="mono">${esc(command)}</strong></div>
+    <div class="kv"><span>Crítico</span><strong>${esc(meta.critical === false ? 'não' : 'sim')}</strong></div>
+    ${runtime?.error_message ? `<div class="inspector-error">${esc(runtime.error_message)}</div>` : ''}
+  `);
+}
+
+function renderDag(dag, modules, deployment = null, lastRun = null) {
   const pipeline = dag?.pipeline;
   const nodes = dag?.nodes || [];
   const edges = dag?.edges || [];
   const latest = latestStatusByModule(modules || []);
+  const blocked = computeBlockedDownstream(edges, latest);
+  const ordered = orderNodesLinear(nodes, edges);
+  const hostLabel = deployment?.host_id || pipeline?.host_id || '--';
   text('[data-dag-title]', pipeline?.name || pipeline?.pipeline_id || 'Catálogo DAG');
-  text('[data-dag-crumb]', pipeline ? `DAG / ${pipeline.pipeline_id}` : 'DAG / sem catálogo');
-  text('[data-dag-summary]', `${nodes.length} node(s), ${edges.length} dependência(s).`);
+  text('[data-dag-crumb]', pipeline ? `DAG / ${pipeline.pipeline_id} @ ${hostLabel}` : 'DAG / sem catálogo');
+  text('[data-dag-summary]', `${nodes.length} node(s), ${edges.length} dependência(s).${lastRun ? ` Última run: ${lastRun.run_id}.` : ''}`);
   text('[data-count="edges"]', `${edges.length} dependência(s).`);
-  html('[data-dag-inspector]', pipeline ? `
-    <div class="kv"><span>Pipeline</span><strong>${esc(pipeline.pipeline_id)}</strong></div>
-    <div class="kv"><span>Dono</span><strong>${esc(pipeline.owner)}</strong></div>
-    <div class="kv"><span>Agenda</span><strong>${esc(pipeline.schedule)}</strong></div>
-    <div class="kv"><span>Criticidade</span><strong>${esc(pipeline.criticality)}</strong></div>
-  ` : `<div class="kv"><span>Pipeline</span><strong>--</strong></div>`);
+  if (!state.selectedNodeId && ordered[0]) state.selectedNodeId = ordered[0].module_id;
+  const selected = ordered.find((node) => node.module_id === state.selectedNodeId) || ordered[0];
+  if (selected) {
+    renderNodeInspector(selected, latest.get(selected.module_id), blocked.has(selected.module_id));
+  } else {
+    html('[data-dag-inspector]', pipeline ? `
+      <div class="kv"><span>Pipeline</span><strong>${esc(pipeline.pipeline_id)}</strong></div>
+      <div class="kv"><span>Host</span><strong>${esc(hostLabel)}</strong></div>
+      <div class="kv"><span>Dono</span><strong>${esc(pipeline.owner)}</strong></div>
+      <div class="kv"><span>Agenda</span><strong>${esc(pipeline.schedule)}</strong></div>
+    ` : `<div class="kv"><span>Pipeline</span><strong>--</strong></div>`);
+  }
 
-  const positions = [
-    [30, 110], [300, 135], [560, 205], [820, 165], [820, 315], [300, 330], [560, 390],
-  ];
-  const nodeHtml = nodes.length ? nodes.map((node, index) => {
-    const [left, top] = positions[index % positions.length];
+  const nodeHtml = ordered.length ? ordered.map((node, index) => {
+    const left = 30 + index * 230;
+    const top = 120;
     const runtime = latest.get(node.module_id);
-    return `<article class="node" style="left:${left}px;top:${top}px"><span>${esc(node.type || 'task')}</span><strong>${esc(node.label || node.module_id)}</strong><p>${esc(node.module_id)}</p><span class="pill ${statusClass(runtime?.status)}">${esc(statusLabel(runtime?.status || 'sem runtime'))}</span></article>`;
+    const isBlocked = blocked.has(node.module_id);
+    const stale = isStaleRun(runtime?.started_at, runtime?.status);
+    const klass = isBlocked ? 'blocked' : (stale ? 'stale' : statusClass(runtime?.status));
+    const selectedClass = node.module_id === state.selectedNodeId ? ' is-selected' : '';
+    return `<article class="node${selectedClass}" data-node-id="${esc(node.module_id)}" style="left:${left}px;top:${top}px"><span>${esc(node.type || 'task')}</span><strong>${esc(node.label || node.module_id)}</strong><p class="mono">${esc(node.module_id)}</p><span class="pill ${klass}">${esc(isBlocked ? 'blocked' : (stale ? 'stale' : statusLabel(runtime?.status || 'sem runtime')))}</span></article>`;
   }).join('') : `<article class="node" style="left:30px;top:110px"><span>empty</span><strong>Sem catálogo</strong><p>Regista um DAG em /v1/catalog/pipelines.</p><span class="pill warn">vazio</span></article>`;
-  const edgeHtml = edges.slice(0, 6).map((_, index) => {
-    const styles = [
-      'left:170px;top:160px;width:180px;transform:rotate(8deg)',
-      'left:390px;top:184px;width:190px;transform:rotate(17deg)',
-      'left:610px;top:250px;width:190px;transform:rotate(-10deg)',
-      'left:170px;top:360px;width:180px;transform:rotate(-8deg)',
-      'left:390px;top:382px;width:190px;transform:rotate(-17deg)',
-      'left:610px;top:340px;width:190px;transform:rotate(10deg)',
-    ];
-    return `<div class="edge" style="${styles[index]}"></div>`;
+  const edgeHtml = ordered.slice(0, -1).map((node, index) => {
+    const left = 30 + index * 230 + 180;
+    const nextBlocked = blocked.has(ordered[index + 1].module_id);
+    return `<div class="edge ${nextBlocked ? 'blocked' : ''}" style="left:${left}px;top:168px;width:70px"></div>`;
   }).join('');
   html('[data-dag-board]', edgeHtml + nodeHtml);
   html('[data-dag-edges]', edges.length ? edges.map((edge) => `
     <div class="alert-item"><div><strong>${esc(edge.from_module_id)}</strong><p>${esc(edge.to_module_id)}</p></div><span class="pill">edge</span></div>
   `).join('') : emptyBlock('Sem dependências registadas.'));
+  by('[data-dag-board] .node[data-node-id]').forEach((nodeEl) => {
+    nodeEl.addEventListener('click', () => {
+      state.selectedNodeId = nodeEl.dataset.nodeId;
+      const node = ordered.find((item) => item.module_id === state.selectedNodeId);
+      renderNodeInspector(node, latest.get(state.selectedNodeId), blocked.has(state.selectedNodeId));
+      by('[data-dag-board] .node').forEach((item) => item.classList.toggle('is-selected', item === nodeEl));
+    });
+  });
 }
 
 async function loadLineage() {
   setSync('A carregar');
   setAlert();
   try {
+    const params = new URLSearchParams(window.location.search);
+    const urlPipeline = params.get('pipeline');
+    const urlHost = params.get('host') || '';
+    if (urlPipeline) state.selectedDeploymentKey = `${urlPipeline}::${urlHost}`;
+
     const pipelinesResponse = await api('/v1/read/pipelines');
     state.pipelines = pipelinesResponse.items || [];
     const select = one('[data-pipeline-select]');
     if (select) {
-      if (!state.selectedPipelineId && state.pipelines[0]) state.selectedPipelineId = state.pipelines[0].pipeline_id;
-      select.innerHTML = state.pipelines.length ? state.pipelines.map((item) => `<option value="${esc(item.pipeline_id)}">${esc(item.pipeline_id)}</option>`).join('') : '<option value="">Sem pipelines</option>';
-      select.value = state.selectedPipelineId;
+      if (!state.selectedDeploymentKey && state.pipelines[0]) {
+        state.selectedDeploymentKey = deploymentKey(state.pipelines[0]);
+      }
+      select.innerHTML = state.pipelines.length
+        ? state.pipelines.map((item) => `<option value="${esc(deploymentKey(item))}">${esc(pipelineDisplayName(item))} @ ${esc(hostDisplay(item))}</option>`).join('')
+        : '<option value="">Sem pipelines</option>';
+      select.value = state.selectedDeploymentKey;
       select.onchange = () => {
-        state.selectedPipelineId = select.value;
-        sessionStorage.setItem('overseer_selected_pipeline', state.selectedPipelineId);
+        state.selectedDeploymentKey = select.value;
+        state.selectedNodeId = '';
+        sessionStorage.setItem('overseer_selected_deployment', state.selectedDeploymentKey);
+        const { pipelineId, hostId } = parseDeploymentKey(state.selectedDeploymentKey);
+        const next = new URL(window.location.href);
+        next.searchParams.set('pipeline', pipelineId);
+        if (hostId) next.searchParams.set('host', hostId);
+        else next.searchParams.delete('host');
+        window.history.replaceState({}, '', next);
         loadLineage();
       };
     }
-    if (!state.selectedPipelineId) {
+    const { pipelineId, hostId } = parseDeploymentKey(state.selectedDeploymentKey);
+    if (!pipelineId) {
       renderDag(null, []);
       setSync('Sem catálogo', 'warn');
       return;
     }
-    const [dagResponse, modulesResponse] = await Promise.all([
-      api(`/v1/read/pipelines/${encodeURIComponent(state.selectedPipelineId)}/dag`),
-      api(`/v1/read/modules?pipeline_id=${encodeURIComponent(state.selectedPipelineId)}`),
+    const deployment = state.pipelines.find((item) => item.pipeline_id === pipelineId && (item.host_id || '') === hostId);
+    const runsUrl = `/v1/read/runs?pipeline_id=${encodeURIComponent(pipelineId)}&host_id=${encodeURIComponent(hostId)}&limit=1`;
+    const [dagResponse, runsResponse] = await Promise.all([
+      api(`/v1/read/pipelines/${encodeURIComponent(pipelineId)}/dag`),
+      api(runsUrl),
     ]);
-    renderDag(dagResponse.dag, modulesResponse.items || []);
+    const lastRun = runsResponse.items?.[0];
+    let modules = [];
+    if (lastRun?.run_id) {
+      const detail = await api(`/v1/read/runs/${encodeURIComponent(lastRun.run_id)}`);
+      modules = detail.modules || [];
+    }
+    renderDag(dagResponse.dag, modules, deployment, lastRun);
     setSync('Sincronizado', 'ok');
   } catch (error) {
     setSync('Erro', 'danger');
@@ -389,19 +520,19 @@ async function loadDeployments() {
     renderDatabase(database.database);
     const heartbeats = heartbeatsResponse.items || [];
     const triggers = triggersResponse.items || [];
-    const sources = new Set(heartbeats.map((item) => item.source_id));
     text('[data-count-kpi="heartbeats"]', heartbeats.length);
     text('[data-count-kpi="heartbeats_ok"]', heartbeats.filter((item) => item.status === 'ok').length);
     text('[data-last-heartbeat]', formatDate(heartbeats[0]?.seen_at));
-    text('[data-count-kpi="sources"]', sources.size);
     text('[data-count-kpi="triggers"]', triggers.length);
     text('[data-count-kpi="queued"]', triggers.filter((item) => item.status === 'queued').length);
     text('[data-count-kpi="claimed"]', triggers.filter((item) => item.status === 'claimed').length);
     text('[data-count-kpi="completed"]', triggers.filter((item) => ['ok', 'done', 'completed'].includes(String(item.status).toLowerCase())).length);
+    const hosts = new Set(heartbeats.map((item) => item.host_id || item.hostname || item.source_id).filter(Boolean));
     html('[data-activity]', [
-      ...heartbeats.slice(0, 5).map((item) => `<div class="deploy-item"><strong>${esc(item.source_id)}</strong><p class="mono">${esc(item.pipeline_id || item.source_type)} · ${esc(formatDate(item.seen_at))} · ${esc(item.status)}</p></div>`),
-      ...triggers.slice(0, 5).map((item) => `<div class="deploy-item"><strong>${esc(item.pipeline_id)}</strong><p class="mono">${esc(item.trigger_id)} · ${esc(item.status)}</p></div>`),
+      ...heartbeats.slice(0, 8).map((item) => `<div class="deploy-item"><strong>${esc(item.source_id)}</strong><p class="mono">${esc(item.host_id || item.hostname || '--')} · ${esc(item.pipeline_id || item.source_type)} · ${esc(formatDate(item.seen_at))} · ${esc(item.status)}</p></div>`),
+      ...triggers.slice(0, 5).map((item) => `<div class="deploy-item"><strong>${esc(item.pipeline_id)}</strong><p class="mono">${esc(item.host_id || '--')} · ${esc(item.trigger_id)} · ${esc(item.status)}</p></div>`),
     ].join('') || `<div class="deploy-item"><strong>Sem atividade</strong><p class="mono">Ainda não há heartbeats ou triggers.</p></div>`);
+    text('[data-count-kpi="sources"]', hosts.size);
     setSync('Sincronizado', 'ok');
   } catch (error) {
     setSync('Erro', 'danger');

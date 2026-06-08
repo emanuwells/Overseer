@@ -120,7 +120,14 @@ def load_manifest(path: str | Path) -> PipelineManifest:
 
 def _catalog_nodes_edges(manifest: PipelineManifest) -> tuple[list[dict], list[dict]]:
     """Deriva nodes e edges de um DAG linear a partir da ordem dos passos."""
-    nodes = [{"module_id": step.module_id, "label": step.module_id} for step in manifest.steps]
+    nodes = [
+        {
+            "module_id": step.module_id,
+            "label": step.module_id,
+            "metadata": {"command": step.command, "critical": step.critical},
+        }
+        for step in manifest.steps
+    ]
     edges = [
         {
             "from_module_id": manifest.steps[i].module_id,
@@ -158,7 +165,8 @@ def run_manifest(
     Devolve o código de saída do primeiro passo que falhar, ou 0 se todos os
     passos críticos terminarem com sucesso.
     """
-    client = client or OverseerClient()
+    host_id = str(manifest.metadata.get("host_id") or "")
+    client = client or OverseerClient(host_id=host_id)
     started = time.monotonic()
     run_id = client.start_run(
         manifest.pipeline_id,

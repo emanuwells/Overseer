@@ -14,6 +14,7 @@ router = APIRouter(prefix="/v1/events", tags=["events"], dependencies=[Depends(r
 
 class RunStartBody(BaseModel):
     pipeline_id: str
+    host_id: str | None = None
     pipeline_name: str | None = None
     run_id: str | None = None
     trigger_type: str = "manual"
@@ -36,6 +37,7 @@ class RunFinishBody(BaseModel):
 class ModuleBody(BaseModel):
     run_id: str
     pipeline_id: str
+    host_id: str | None = None
     module_id: str
     parent_module_id: str | None = None
     status: str = "running"
@@ -49,6 +51,7 @@ class ModuleBody(BaseModel):
 class LogBody(BaseModel):
     run_id: str | None = None
     pipeline_id: str | None = None
+    host_id: str | None = None
     module_id: str | None = None
     level: str = "info"
     event_type: str = "log"
@@ -61,6 +64,7 @@ class HeartbeatBody(BaseModel):
     source_id: str | None = None
     source_type: str = "runner"
     pipeline_id: str | None = None
+    host_id: str | None = None
     run_id: str | None = None
     hostname: str | None = None
     status: str = "ok"

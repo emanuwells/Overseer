@@ -33,8 +33,12 @@ def read_pipeline_dag(pipeline_id: str) -> dict[str, Any]:
 
 
 @router.get("/runs")
-def read_runs(limit: int = 200, pipeline_id: str | None = None) -> dict[str, Any]:
-    return {"ok": True, "items": store.list_runs(limit=limit, pipeline_id=pipeline_id)}
+def read_runs(
+    limit: int = 200,
+    pipeline_id: str | None = None,
+    host_id: str | None = None,
+) -> dict[str, Any]:
+    return {"ok": True, "items": store.list_runs(limit=limit, pipeline_id=pipeline_id, host_id=host_id)}
 
 
 @router.get("/runs/{run_id}")

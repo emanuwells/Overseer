@@ -17,6 +17,11 @@ $ErrorActionPreference = "Stop"
 
 Import-OverseerEnvFile (Join-Path $RunnersRoot ".env.overseer")
 
+$env:NO_PROXY = "127.0.0.1,localhost"
+$env:HTTP_PROXY = ""
+$env:HTTPS_PROXY = ""
+$env:ALL_PROXY = ""
+
 if (-not $env:OVERSEER_API_URL) {
     throw "OVERSEER_API_URL em falta. Corre Initialize-OverseerEnv.ps1 ou define $RunnersRoot\.env.overseer"
 }

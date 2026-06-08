@@ -66,6 +66,7 @@ def test_catalog_nodes_edges_linear(tmp_path):
     manifest = load_manifest(_write(tmp_path, MANIFEST_YAML))
     nodes, edges = _catalog_nodes_edges(manifest)
     assert [node["module_id"] for node in nodes] == ["extract", "load"]
+    assert nodes[0]["metadata"]["command"] == ["python3", "extract.py"]
     assert edges == [{"from_module_id": "extract", "to_module_id": "load"}]
 
 

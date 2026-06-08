@@ -37,15 +37,16 @@
             <div class="section-head"><div><h2>Pipelines registados</h2><p data-count="pipelines">A carregar catálogo.</p></div></div>
             <div class="table-wrap">
               <table id="pipeline-table">
-                <thead><tr><th>Pipeline</th><th>Estado</th><th>Dono</th><th>Agenda</th><th>Última run</th><th>Duração</th><th>Criticidade</th></tr></thead>
+                <thead><tr><th>Pipeline</th><th>Host</th><th>Estado</th><th>Dono</th><th>Agenda</th><th>Última run</th><th>Duração</th><th>Criticidade</th></tr></thead>
                 <tbody data-pipelines>
-                  <tr><td colspan="7">A carregar dados do Overseer.</td></tr>
+                  <tr><td colspan="8">A carregar dados do Overseer.</td></tr>
                 </tbody>
               </table>
             </div>
           </section>
           <aside class="card" id="inspector">
             <div class="section-head"><div><h2 data-inspector-title>Sem pipeline selecionado</h2><p data-inspector-state>aguardar dados</p></div><button class="btn" data-copy="">Copiar run</button></div>
+            <p class="subhead" style="padding:0 1.25rem 0.5rem">Actividade recente (todas as runs)</p>
             <div class="alert-list" data-recent-runs>
               <div class="alert-item"><div><strong>A carregar runs</strong><p>Os dados serão preenchidos a partir de /v1/read/overview.</p></div><span class="pill">loading</span></div>
             </div>

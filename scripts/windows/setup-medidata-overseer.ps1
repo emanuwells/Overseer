@@ -30,7 +30,7 @@ if (-not $listening) {
 Write-Host "== Provisionar Medidata =="
 & (Join-Path $OverseerScriptDir "provision-runners.ps1") -Register -VenvPath $VenvPath
 
-$runDir = Join-Path $env:USERPROFILE "overseer-runners\medidata_pipeline__WS1207"
+$runDir = Join-Path $env:USERPROFILE "overseer-runners\medidata_pipeline"
 $manifest = Join-Path $runDir "manifest.yaml"
 if (-not (Test-Path -LiteralPath $manifest)) {
     throw "Manifest não encontrado: $manifest"
@@ -39,6 +39,10 @@ if (-not (Test-Path -LiteralPath $manifest)) {
 if (-not $SkipTest) {
     Write-Host "== Teste manual do manifest =="
     Import-OverseerEnvFile (Join-Path $env:USERPROFILE "overseer-runners\.env.overseer")
+    $env:NO_PROXY = "127.0.0.1,localhost"
+    $env:HTTP_PROXY = ""
+    $env:HTTPS_PROXY = ""
+    $env:ALL_PROXY = ""
     $py = Join-Path $VenvPath "Scripts\python.exe"
     & $py -m overseer_agent manifest $manifest --by taskscheduler
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -52,4 +56,4 @@ Write-Host "  Argumentos: -ExecutionPolicy Bypass -File `"$runDir\run.ps1`""
 Write-Host "  Iniciar em: $runDir"
 Write-Host ""
 Write-Host "Dashboard (no teu PC): ssh -L 8080:127.0.0.1:8090 $SshTarget"
-Write-Host "  http://127.0.0.1:8080/ui/dashboard.html -> medidata_pipeline__WS1207"
+Write-Host "  http://127.0.0.1:8080/ui/dashboard.html -> medidata_pipeline (host WS1207)"

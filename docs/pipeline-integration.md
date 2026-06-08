@@ -178,9 +178,12 @@ O ficheiro fica com ACL restrita ao utilizador e nunca é versionado.
 Quando o mesmo pipeline lógico corre em várias máquinas, o `pipeline_id`
 efetivo recebe o sufixo do host: `{id}__{host_id}` (ex.: `forms_sync__WIN-ETL01`).
 O `host_id` vem de `OVERSEER_HOST_ID` no `.env.overseer` (ou do hostname
-normalizado) e é aplicado pelo provisionamento com `--host-id auto`. Assim, os
-runners Linux (`~/overseer-runners/`) e Windows reportam ao mesmo Overseer
-central sem colidir.
+normalizado) e é enviado em todos os eventos de API. O `pipeline_id` mantém-se
+lógico e partilhado; o DAG (`nodes`/`edges`) é único por pipeline. Deployments
+distintos (baze2, WS1207, …) diferenciam-se pela coluna `host_id`.
+
+Runners Windows atrás de proxy: o SDK ignora variáveis `HTTP_PROXY` (`trust_env=False`);
+os scripts `run.ps1` e `heartbeat.ps1` limpam proxy para `127.0.0.1`.
 
 ### Observabilidade Sempre Ligada
 

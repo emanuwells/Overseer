@@ -27,6 +27,7 @@ class CatalogEdge(BaseModel):
 
 class PipelineCatalogBody(BaseModel):
     pipeline_id: str
+    host_id: str | None = None
     name: str | None = None
     owner: str = "unknown"
     criticality: str = "medium"

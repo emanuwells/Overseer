@@ -39,6 +39,7 @@ pipelines_table = Table(
     "overseer_pipelines",
     metadata,
     Column("pipeline_id", String(128), primary_key=True),
+    Column("host_id", String(128), primary_key=True, default=""),
     Column("name", String(255), nullable=False),
     Column("owner", String(128), nullable=False, default="unknown"),
     Column("criticality", String(32), nullable=False, default="medium"),
@@ -78,6 +79,7 @@ runs_table = Table(
     metadata,
     Column("run_id", String(128), primary_key=True),
     Column("pipeline_id", String(128), nullable=False, index=True),
+    Column("host_id", String(128), nullable=False, default="", index=True),
     Column("pipeline_name", String(255), nullable=True),
     Column("status", String(32), nullable=False, default="running", index=True),
     Column("trigger_type", String(64), nullable=False, default="manual"),
@@ -100,6 +102,7 @@ modules_table = Table(
     Column("event_id", Integer, primary_key=True, autoincrement=True),
     Column("run_id", String(128), nullable=False, index=True),
     Column("pipeline_id", String(128), nullable=False, index=True),
+    Column("host_id", String(128), nullable=False, default="", index=True),
     Column("module_id", String(255), nullable=False),
     Column("parent_module_id", String(255), nullable=True),
     Column("status", String(32), nullable=False, default="running"),
@@ -117,6 +120,7 @@ logs_table = Table(
     Column("log_id", Integer, primary_key=True, autoincrement=True),
     Column("run_id", String(128), nullable=True, index=True),
     Column("pipeline_id", String(128), nullable=True, index=True),
+    Column("host_id", String(128), nullable=True, default="", index=True),
     Column("module_id", String(255), nullable=True),
     Column("level", String(32), nullable=False, default="info"),
     Column("event_type", String(64), nullable=False, default="log"),
@@ -132,6 +136,7 @@ heartbeats_table = Table(
     Column("source_id", String(255), nullable=False, index=True),
     Column("source_type", String(64), nullable=False, default="runner"),
     Column("pipeline_id", String(128), nullable=True),
+    Column("host_id", String(128), nullable=True, default=""),
     Column("run_id", String(128), nullable=True),
     Column("hostname", String(255), nullable=True),
     Column("status", String(32), nullable=False, default="ok"),
@@ -144,6 +149,7 @@ triggers_table = Table(
     metadata,
     Column("trigger_id", String(128), primary_key=True),
     Column("pipeline_id", String(128), nullable=False, index=True),
+    Column("host_id", String(128), nullable=False, default="", index=True),
     Column("trigger_type", String(64), nullable=False, default="run_now"),
     Column("status", String(32), nullable=False, default="queued", index=True),
     Column("requested_by", String(128), nullable=True),
@@ -267,13 +273,55 @@ def init_schema() -> None:
     ensure_schema_columns()
 
 
+_HOST_ID_TABLES: dict[str, str] = {
+    "overseer_pipelines": "VARCHAR(128) NOT NULL DEFAULT ''",
+    "overseer_runs": "VARCHAR(128) NOT NULL DEFAULT ''",
+    "overseer_modules": "VARCHAR(128) NOT NULL DEFAULT ''",
+    "overseer_logs": "VARCHAR(128) NULL DEFAULT ''",
+    "overseer_heartbeats": "VARCHAR(128) NULL DEFAULT ''",
+    "overseer_triggers": "VARCHAR(128) NOT NULL DEFAULT ''",
+}
+
+
 def ensure_schema_columns() -> None:
     engine = get_engine()
-    existing = {column["name"] for column in inspect(engine).get_columns("overseer_pipelines")}
-    if "metadata_json" in existing:
-        return
+    inspector = inspect(engine)
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE overseer_pipelines ADD COLUMN metadata_json TEXT NULL"))
+        if inspector.has_table("overseer_pipelines"):
+            existing = {column["name"] for column in inspector.get_columns("overseer_pipelines")}
+            if "metadata_json" not in existing:
+                conn.execute(text("ALTER TABLE overseer_pipelines ADD COLUMN metadata_json TEXT NULL"))
+        for table, ddl in _HOST_ID_TABLES.items():
+            if not inspector.has_table(table):
+                continue
+            cols = {column["name"] for column in inspector.get_columns(table)}
+            if "host_id" not in cols:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN host_id {ddl}"))
+
+
+def normalize_host_id(value: Any) -> str:
+    import re
+
+    return re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-")
+
+
+def resolve_host_id(payload: dict[str, Any]) -> str:
+    explicit = str(payload.get("host_id") or "").strip()
+    if explicit:
+        return normalize_host_id(explicit)
+    metadata = payload.get("metadata") or {}
+    if isinstance(metadata, dict) and metadata.get("host_id"):
+        return normalize_host_id(metadata["host_id"])
+    return ""
+
+
+def split_legacy_pipeline_id(pipeline_id: str) -> tuple[str, str]:
+    if "__" not in pipeline_id:
+        return pipeline_id, ""
+    logical, _, host = pipeline_id.rpartition("__")
+    if logical and host:
+        return logical, normalize_host_id(host)
+    return pipeline_id, ""
 
 
 def new_id(prefix: str) -> str:
@@ -304,11 +352,21 @@ def row_to_dict(row: Any) -> dict[str, Any]:
     return data
 
 
+def _resolve_pipeline_host(payload: dict[str, Any]) -> tuple[str, str]:
+    pipeline_id = str(payload["pipeline_id"]).strip()
+    host_id = resolve_host_id(payload)
+    logical_id, legacy_host = split_legacy_pipeline_id(pipeline_id)
+    if legacy_host and not host_id:
+        return logical_id, legacy_host
+    return pipeline_id, host_id
+
+
 def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     now = utcnow()
-    pipeline_id = str(payload["pipeline_id"]).strip()
+    pipeline_id, host_id = _resolve_pipeline_host(payload)
     values = {
         "pipeline_id": pipeline_id,
+        "host_id": host_id,
         "name": str(payload.get("name") or pipeline_id),
         "owner": str(payload.get("owner") or "unknown"),
         "criticality": str(payload.get("criticality") or "medium").lower(),
@@ -324,12 +382,16 @@ def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     edges = payload.get("edges") or []
     with get_engine().begin() as conn:
         existing = conn.execute(
-            select(pipelines_table.c.pipeline_id).where(pipelines_table.c.pipeline_id == pipeline_id)
+            select(pipelines_table.c.pipeline_id).where(
+                (pipelines_table.c.pipeline_id == pipeline_id) & (pipelines_table.c.host_id == host_id)
+            )
         ).first()
         if existing:
             conn.execute(
                 update(pipelines_table)
-                .where(pipelines_table.c.pipeline_id == pipeline_id)
+                .where(
+                    (pipelines_table.c.pipeline_id == pipeline_id) & (pipelines_table.c.host_id == host_id)
+                )
                 .values(**{k: v for k, v in values.items() if k != "created_at"})
             )
         else:
@@ -371,26 +433,39 @@ def normalize_runner(value: Any) -> str:
 
 
 def list_pipelines() -> list[dict[str, Any]]:
-    latest = (
-        select(runs_table.c.pipeline_id, func.max(runs_table.c.started_at).label("latest_at"))
-        .group_by(runs_table.c.pipeline_id)
-        .subquery()
-    )
+    ranked_runs = (
+        select(
+            runs_table.c.run_id,
+            runs_table.c.pipeline_id,
+            runs_table.c.host_id,
+            runs_table.c.status,
+            runs_table.c.started_at,
+            runs_table.c.ended_at,
+            runs_table.c.duration_sec,
+            func.row_number()
+            .over(
+                partition_by=(runs_table.c.pipeline_id, runs_table.c.host_id),
+                order_by=(runs_table.c.started_at.desc(), runs_table.c.run_id.desc()),
+            )
+            .label("rn"),
+        )
+    ).subquery()
     stmt = (
         select(
             pipelines_table,
-            runs_table.c.run_id.label("last_run_id"),
-            runs_table.c.status.label("last_status"),
-            runs_table.c.started_at.label("last_started_at"),
-            runs_table.c.ended_at.label("last_ended_at"),
+            ranked_runs.c.run_id.label("last_run_id"),
+            ranked_runs.c.status.label("last_status"),
+            ranked_runs.c.started_at.label("last_started_at"),
+            ranked_runs.c.ended_at.label("last_ended_at"),
+            ranked_runs.c.duration_sec.label("last_duration_sec"),
         )
-        .outerjoin(latest, latest.c.pipeline_id == pipelines_table.c.pipeline_id)
         .outerjoin(
-            runs_table,
-            (runs_table.c.pipeline_id == latest.c.pipeline_id)
-            & (runs_table.c.started_at == latest.c.latest_at),
+            ranked_runs,
+            (ranked_runs.c.pipeline_id == pipelines_table.c.pipeline_id)
+            & (ranked_runs.c.host_id == pipelines_table.c.host_id)
+            & (ranked_runs.c.rn == 1),
         )
-        .order_by(pipelines_table.c.pipeline_id)
+        .order_by(pipelines_table.c.pipeline_id, pipelines_table.c.host_id)
     )
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
@@ -400,11 +475,12 @@ def list_pipelines() -> list[dict[str, Any]]:
 def start_run(payload: dict[str, Any]) -> dict[str, Any]:
     now = utcnow()
     run_id = str(payload.get("run_id") or new_id("run"))
-    pipeline_id = str(payload["pipeline_id"]).strip()
-    pipeline = get_pipeline(pipeline_id) or {}
+    pipeline_id, host_id = _resolve_pipeline_host(payload)
+    pipeline = get_pipeline(pipeline_id, host_id) or get_pipeline(pipeline_id) or {}
     values = {
         "run_id": run_id,
         "pipeline_id": pipeline_id,
+        "host_id": host_id,
         "pipeline_name": payload.get("pipeline_name") or pipeline.get("name") or pipeline_id,
         "status": "running",
         "trigger_type": payload.get("trigger_type") or "manual",
@@ -453,9 +529,11 @@ def record_module(payload: dict[str, Any]) -> dict[str, Any]:
     duration = payload.get("duration_sec")
     if duration is None and started and ended:
         duration = max(0.0, (ended - started).total_seconds())
+    pipeline_id, host_id = _resolve_pipeline_host(payload)
     values = {
         "run_id": payload["run_id"],
-        "pipeline_id": payload["pipeline_id"],
+        "pipeline_id": pipeline_id,
+        "host_id": host_id,
         "module_id": payload["module_id"],
         "parent_module_id": payload.get("parent_module_id"),
         "status": normalize_status(payload.get("status"), running=ended is None),
@@ -474,9 +552,14 @@ def record_module(payload: dict[str, Any]) -> dict[str, Any]:
 
 def record_log(payload: dict[str, Any]) -> dict[str, Any]:
     now = parse_dt(payload.get("created_at")) or utcnow()
+    if payload.get("pipeline_id"):
+        pipeline_id, host_id = _resolve_pipeline_host(payload)
+    else:
+        pipeline_id, host_id = None, resolve_host_id(payload)
     values = {
         "run_id": payload.get("run_id"),
-        "pipeline_id": payload.get("pipeline_id"),
+        "pipeline_id": pipeline_id,
+        "host_id": host_id,
         "module_id": payload.get("module_id"),
         "level": str(payload.get("level") or "info").lower(),
         "event_type": str(payload.get("event_type") or "log"),
@@ -492,10 +575,15 @@ def record_log(payload: dict[str, Any]) -> dict[str, Any]:
 
 def record_heartbeat(payload: dict[str, Any]) -> dict[str, Any]:
     now = parse_dt(payload.get("seen_at")) or utcnow()
+    host_id = resolve_host_id(payload)
+    if not host_id and payload.get("pipeline_id"):
+        _, legacy_host = split_legacy_pipeline_id(str(payload["pipeline_id"]))
+        host_id = legacy_host
     values = {
         "source_id": payload.get("source_id") or payload.get("hostname") or socket.gethostname(),
         "source_type": payload.get("source_type") or "runner",
         "pipeline_id": payload.get("pipeline_id"),
+        "host_id": host_id,
         "run_id": payload.get("run_id"),
         "hostname": payload.get("hostname") or socket.gethostname(),
         "status": normalize_status(payload.get("status")),
@@ -511,9 +599,11 @@ def record_heartbeat(payload: dict[str, Any]) -> dict[str, Any]:
 def enqueue_trigger(payload: dict[str, Any]) -> dict[str, Any]:
     now = utcnow()
     trigger_id = str(payload.get("trigger_id") or new_id("trg"))
+    pipeline_id, host_id = _resolve_pipeline_host(payload)
     values = {
         "trigger_id": trigger_id,
-        "pipeline_id": payload["pipeline_id"],
+        "pipeline_id": pipeline_id,
+        "host_id": host_id,
         "trigger_type": payload.get("trigger_type") or "run_now",
         "status": "queued",
         "requested_by": payload.get("requested_by"),
@@ -549,11 +639,12 @@ def complete_trigger(trigger_id: str, status: str = "done") -> dict[str, Any] | 
     return get_trigger(trigger_id)
 
 
-def get_pipeline(pipeline_id: str) -> dict[str, Any] | None:
+def get_pipeline(pipeline_id: str, host_id: str = "") -> dict[str, Any] | None:
+    stmt = select(pipelines_table).where(pipelines_table.c.pipeline_id == pipeline_id)
+    if host_id:
+        stmt = stmt.where(pipelines_table.c.host_id == host_id)
     with get_engine().connect() as conn:
-        row = conn.execute(
-            select(pipelines_table).where(pipelines_table.c.pipeline_id == pipeline_id)
-        ).mappings().first()
+        row = conn.execute(stmt).mappings().first()
     return row_to_dict(row) if row else None
 
 
@@ -609,10 +700,16 @@ def get_trigger(trigger_id: str) -> dict[str, Any] | None:
     return row_to_dict(row) if row else None
 
 
-def list_runs(limit: int = 200, pipeline_id: str | None = None) -> list[dict[str, Any]]:
+def list_runs(
+    limit: int = 200,
+    pipeline_id: str | None = None,
+    host_id: str | None = None,
+) -> list[dict[str, Any]]:
     stmt = select(runs_table).order_by(runs_table.c.started_at.desc()).limit(max(1, min(limit, 1000)))
     if pipeline_id:
         stmt = stmt.where(runs_table.c.pipeline_id == pipeline_id)
+    if host_id is not None:
+        stmt = stmt.where(runs_table.c.host_id == host_id)
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
     return [row_to_dict(row) for row in rows]

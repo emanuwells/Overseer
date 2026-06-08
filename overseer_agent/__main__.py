@@ -10,21 +10,27 @@ from overseer_agent import __version__
 from overseer_sdk.client import OverseerClient, run_command
 from overseer_sdk.manifest_runner import load_manifest, register_catalog, run_manifest
 
-DEFAULT_API = os.getenv("OVERSEER_API_URL", "http://127.0.0.1:8090").rstrip("/")
-TOKEN = os.getenv("OVERSEER_API_TOKEN", "")
+
+def get_api_url() -> str:
+    return os.getenv("OVERSEER_API_URL", "http://127.0.0.1:8090").rstrip("/")
+
+
+def get_api_token() -> str:
+    return os.getenv("OVERSEER_API_TOKEN", "")
 
 
 def _headers() -> dict[str, str]:
     headers = {"Accept": "application/json"}
-    if TOKEN:
-        headers["Authorization"] = f"Bearer {TOKEN}"
+    token = get_api_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
 def _probe_api(api_url: str) -> bool:
     """Confirma que a API (e a sua DB) respondem a partir deste host/túnel."""
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=10.0, trust_env=False) as client:
             res = client.get(f"{api_url}/v1/read/database", headers=_headers())
             return res.status_code == 200
     except httpx.HTTPError:
@@ -32,8 +38,9 @@ def _probe_api(api_url: str) -> bool:
 
 
 def cmd_heartbeat(_: argparse.Namespace) -> int:
-    client = OverseerClient(api_url=DEFAULT_API, api_token=TOKEN)
-    api_reachable = _probe_api(DEFAULT_API)
+    api_url = get_api_url()
+    client = OverseerClient(api_url=api_url, api_token=get_api_token())
+    api_reachable = _probe_api(api_url)
     data = client.heartbeat(
         source_type="agent",
         status="ok" if api_reachable else "degraded",
@@ -52,8 +59,8 @@ def cmd_exec(args: argparse.Namespace) -> int:
         pipeline_id=args.pipeline,
         pipeline_name=args.name,
         requested_by=args.by,
-        api_url=DEFAULT_API,
-        api_token=TOKEN,
+        api_url=get_api_url(),
+        api_token=get_api_token(),
         cwd=args.cwd,
     )
 
@@ -66,8 +73,9 @@ def cmd_trigger(args: argparse.Namespace) -> int:
         "runner_host": args.runner,
         "payload": {},
     }
-    with httpx.Client(timeout=30.0) as client:
-        res = client.post(f"{DEFAULT_API}/v1/orchestrate/triggers", json=payload, headers=_headers())
+    api_url = get_api_url()
+    with httpx.Client(timeout=30.0, trust_env=False) as client:
+        res = client.post(f"{api_url}/v1/orchestrate/triggers", json=payload, headers=_headers())
         res.raise_for_status()
         print(res.json())
     return 0
@@ -75,7 +83,8 @@ def cmd_trigger(args: argparse.Namespace) -> int:
 
 def cmd_manifest(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.path)
-    client = OverseerClient(api_url=DEFAULT_API, api_token=TOKEN)
+    host_id = str(manifest.metadata.get("host_id") or "")
+    client = OverseerClient(api_url=get_api_url(), api_token=get_api_token(), host_id=host_id)
     if args.register_catalog:
         register_catalog(manifest, client)
         print(f"catálogo registado: {manifest.pipeline_id}")

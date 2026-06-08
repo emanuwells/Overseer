@@ -2,8 +2,8 @@
 """Provisiona manifests e wrappers de runner a partir do catálogo YAML.
 
 Suporta Linux (run.sh + crontab) e Windows (run.ps1 + Task Scheduler). Em
-ambientes multi-host, o ``host_id`` é aplicado como sufixo do ``pipeline_id``
-(ex.: ``forms_sync__WIN-ETL01``) para evitar colisões entre máquinas.
+ambientes multi-host, o ``host_id`` vai no manifest/metadata e na coluna
+``host_id`` da API — o ``pipeline_id`` mantém-se lógico (ex. ``medidata_pipeline``).
 """
 
 from __future__ import annotations
@@ -47,6 +47,11 @@ function Import-EnvFile {{
 
 Import-EnvFile (Join-Path $Here "..\\.env.overseer")
 Import-EnvFile (Join-Path $Here ".env.overseer")
+
+$env:NO_PROXY = "127.0.0.1,localhost"
+$env:HTTP_PROXY = ""
+$env:HTTPS_PROXY = ""
+$env:ALL_PROXY = ""
 
 $Venv = $env:OVERSEER_VENV
 if (-not $Venv) {{ $Venv = "{venv}" }}
@@ -238,17 +243,15 @@ def main() -> int:
 
     for item in pipelines:
         logical_id = str(item["id"])
-        pid = f"{logical_id}__{host_id}" if host_id else logical_id
-        dest = runners_root / pid
+        dest = runners_root / logical_id
         dest.mkdir(parents=True, exist_ok=True)
 
-        metadata = {"logical_id": logical_id}
+        metadata: dict = {"os": platform}
         if host_id:
             metadata["host_id"] = host_id
-        metadata["os"] = platform
 
         manifest = {
-            "pipeline_id": pid,
+            "pipeline_id": logical_id,
             "pipeline_name": item.get("name", logical_id),
             "owner": item.get("owner", "data"),
             "criticality": item.get("criticality", "medium"),
@@ -262,8 +265,8 @@ def main() -> int:
         )
 
         entry: dict = {
-            "id": pid,
-            "logical_id": logical_id,
+            "id": logical_id,
+            "host_id": host_id,
             "schedule": item.get("schedule"),
             "log": item.get("log"),
         }

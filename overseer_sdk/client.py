@@ -23,12 +23,20 @@ def _api_token(value: str | None = None) -> str:
 class OverseerClient:
     api_url: str | None = None
     api_token: str | None = None
+    host_id: str = ""
     timeout: float = 30.0
     hostname: str = field(default_factory=socket.gethostname)
 
     def __post_init__(self) -> None:
         self.api_url = _api_url(self.api_url)
         self.api_token = _api_token(self.api_token)
+        if not self.host_id:
+            self.host_id = str(os.getenv("OVERSEER_HOST_ID") or "").strip()
+
+    def _with_host(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.host_id:
+            payload["host_id"] = self.host_id
+        return payload
 
     def headers(self) -> dict[str, str]:
         headers = {"Accept": "application/json"}
@@ -36,8 +44,11 @@ class OverseerClient:
             headers["Authorization"] = f"Bearer {self.api_token}"
         return headers
 
+    def _http_client(self) -> httpx.Client:
+        return httpx.Client(timeout=self.timeout, trust_env=False)
+
     def post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        with httpx.Client(timeout=self.timeout) as client:
+        with self._http_client() as client:
             response = client.post(f"{self.api_url}{path}", json=payload, headers=self.headers())
             response.raise_for_status()
             return response.json()
@@ -56,16 +67,18 @@ class OverseerClient:
     ) -> dict[str, Any]:
         return self.post(
             "/v1/catalog/pipelines",
-            {
-                "pipeline_id": pipeline_id,
-                "name": name,
-                "owner": owner,
-                "criticality": criticality,
-                "schedule": schedule,
-                "metadata": metadata or {},
-                "nodes": nodes or [],
-                "edges": edges or [],
-            },
+            self._with_host(
+                {
+                    "pipeline_id": pipeline_id,
+                    "name": name,
+                    "owner": owner,
+                    "criticality": criticality,
+                    "schedule": schedule,
+                    "metadata": metadata or {},
+                    "nodes": nodes or [],
+                    "edges": edges or [],
+                }
+            ),
         )
 
     def start_run(
@@ -77,14 +90,16 @@ class OverseerClient:
         requested_by: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> str:
-        body = {
-            "pipeline_id": pipeline_id,
-            "pipeline_name": pipeline_name,
-            "trigger_type": trigger_type,
-            "requested_by": requested_by,
-            "hostname": self.hostname,
-            "metadata": metadata or {},
-        }
+        body = self._with_host(
+            {
+                "pipeline_id": pipeline_id,
+                "pipeline_name": pipeline_name,
+                "trigger_type": trigger_type,
+                "requested_by": requested_by,
+                "hostname": self.hostname,
+                "metadata": metadata or {},
+            }
+        )
         data = self.post("/v1/events/runs/start", body)
         return str(data["run"]["run_id"])
 
@@ -123,16 +138,18 @@ class OverseerClient:
     ) -> dict[str, Any]:
         return self.post(
             "/v1/events/modules",
-            {
-                "run_id": run_id,
-                "pipeline_id": pipeline_id,
-                "module_id": module_id,
-                "parent_module_id": parent_module_id,
-                "status": status,
-                "duration_sec": duration_sec,
-                "error_message": error_message,
-                "metadata": metadata or {},
-            },
+            self._with_host(
+                {
+                    "run_id": run_id,
+                    "pipeline_id": pipeline_id,
+                    "module_id": module_id,
+                    "parent_module_id": parent_module_id,
+                    "status": status,
+                    "duration_sec": duration_sec,
+                    "error_message": error_message,
+                    "metadata": metadata or {},
+                }
+            ),
         )
 
     def log(
@@ -148,15 +165,17 @@ class OverseerClient:
     ) -> dict[str, Any]:
         return self.post(
             "/v1/events/logs",
-            {
-                "run_id": run_id,
-                "pipeline_id": pipeline_id,
-                "module_id": module_id,
-                "level": level,
-                "event_type": event_type,
-                "message": message,
-                "metadata": metadata or {},
-            },
+            self._with_host(
+                {
+                    "run_id": run_id,
+                    "pipeline_id": pipeline_id,
+                    "module_id": module_id,
+                    "level": level,
+                    "event_type": event_type,
+                    "message": message,
+                    "metadata": metadata or {},
+                }
+            ),
         )
 
     def heartbeat(
@@ -171,15 +190,17 @@ class OverseerClient:
     ) -> dict[str, Any]:
         return self.post(
             "/v1/events/heartbeat",
-            {
-                "source_id": source_id or self.hostname,
-                "source_type": source_type,
-                "pipeline_id": pipeline_id,
-                "run_id": run_id,
-                "hostname": self.hostname,
-                "status": status,
-                "payload": payload or {},
-            },
+            self._with_host(
+                {
+                    "source_id": source_id or self.hostname,
+                    "source_type": source_type,
+                    "pipeline_id": pipeline_id,
+                    "run_id": run_id,
+                    "hostname": self.hostname,
+                    "status": status,
+                    "payload": payload or {},
+                }
+            ),
         )
 
     @contextmanager

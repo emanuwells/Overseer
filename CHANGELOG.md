@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.0.0] - 2026-06-08T18:00:00+01:00
+
+### host_id, runners fiáveis e frontend produtivo
+
+**Motivo:**
+Separar deployment por máquina (`host_id`) do `pipeline_id` lógico partilhado, corrigir agente Windows atrás de proxy corporativo, e alinhar dashboard/lineage com a última run por host.
+
+**Impacto (breaking):**
+- `pipeline_id` deixa de usar sufixo `__HOST` (ex. `medidata_pipeline__WS1207` → `medidata_pipeline` + `host_id=WS1207`).
+- Correr `python scripts/migrate_pipeline_host_suffix.py` em produção antes de re-provisionar runners.
+- Task Scheduler WS1207: `...\overseer-runners\medidata_pipeline\run.ps1`.
+
+**Alterações:**
+- Coluna `host_id` em pipelines, runs, modules, logs, heartbeats, triggers; DAG partilhado por `pipeline_id`.
+- SDK/agente: `httpx` com `trust_env=False`; env lido em runtime; `NO_PROXY` nos templates Windows.
+- `list_pipelines()` sem duplicados; `last_duration_sec`; lineage usa última run + nós blocked downstream.
+- Frontend: coluna Host, nomes legíveis, deploy nginx via `scripts/deploy-nginx-frontend.sh`.
+
+---
+
 ## [4.4.4] - 2026-06-08T15:30:00+01:00
 
 ### Migração Crontab e Windows Runner
