@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.4.4] - 2026-06-08T15:30:00+01:00
+
+### Migração Crontab e Windows Runner
+
+**Motivo:**
+Completar a migração Overseer no baze2 e estabilizar o wrapper Windows gerado (`run.ps1`).
+
+**Impacto:**
+- `provision-runners.sh` usa o Python do venv (evita `ModuleNotFoundError: yaml`).
+- `update-crontab-overseer.py` ignora linhas já migradas (`# overseer:`).
+- `run.ps1` gerado usa `python -m overseer_agent` (mesmo padrão que `heartbeat.ps1`).
+- Script `setup-medidata-overseer.ps1` para onboarding WS1207.
+
+**Alterações:**
+- `scripts/provision-runners.sh`, `scripts/update-crontab-overseer.py`, `scripts/provision_runners.py`.
+- `scripts/windows/setup-medidata-overseer.ps1`.
+
+---
+
 ## [4.4.3] - 2026-06-08T14:00:00+01:00
 
 ### Fix Scripts Windows (`RepoRoot` e helpers partilhados)

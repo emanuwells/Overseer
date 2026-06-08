@@ -50,9 +50,15 @@ Import-EnvFile (Join-Path $Here ".env.overseer")
 
 $Venv = $env:OVERSEER_VENV
 if (-not $Venv) {{ $Venv = "{venv}" }}
-$Agent = Join-Path $Venv "Scripts\\overseer-agent.exe"
+$Python = Join-Path $Venv "Scripts\\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) {{
+    throw "Python do venv não encontrado em $Python"
+}}
+if (-not $env:OVERSEER_API_URL) {{
+    throw "OVERSEER_API_URL em falta. Verifica ..\\.env.overseer"
+}}
 
-& $Agent manifest (Join-Path $Here "manifest.yaml") --by taskscheduler
+& $Python -m overseer_agent manifest (Join-Path $Here "manifest.yaml") --by taskscheduler
 exit $LASTEXITCODE
 """
 

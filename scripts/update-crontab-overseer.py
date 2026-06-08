@@ -48,6 +48,14 @@ def main() -> int:
             out.append(line)
             continue
 
+        if "# overseer:" in line:
+            out.append(line)
+            for item in pipelines:
+                pid = str(item.get("id") or "")
+                if pid and f"# overseer:{pid}" in line:
+                    replaced.add(pid)
+            continue
+
         matched = False
         for item in pipelines:
             cron_match = str(item.get("cron_match") or "")

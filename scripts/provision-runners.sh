@@ -31,7 +31,14 @@ for arg in "$@"; do
     esac
 done
 
-python3 "$REPO_ROOT/scripts/provision_runners.py" \
+PYTHON="$VENV/bin/python3"
+if [ ! -x "$PYTHON" ]; then
+    echo "ERRO: venv Python não encontrado em $PYTHON" >&2
+    echo "Cria o venv: python3 -m venv $VENV && $VENV/bin/pip install -e $REPO_ROOT" >&2
+    exit 1
+fi
+
+"$PYTHON" "$REPO_ROOT/scripts/provision_runners.py" \
     "${CATALOG_ARG[@]}" \
     --repo-root "$REPO_ROOT" \
     --runners-root "$RUNNERS_ROOT" \
@@ -41,7 +48,7 @@ python3 "$REPO_ROOT/scripts/provision_runners.py" \
     $REGISTER
 
 if [ "$CRONTAB" = "--crontab" ]; then
-    python3 "$REPO_ROOT/scripts/update-crontab-overseer.py" \
+    "$PYTHON" "$REPO_ROOT/scripts/update-crontab-overseer.py" \
         --catalog-json /tmp/overseer_runner_catalog.json \
         --backup-dir "$HOME/backups"
 fi
