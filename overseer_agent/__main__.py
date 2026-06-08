@@ -8,6 +8,7 @@ import httpx
 
 from overseer_agent import __version__
 from overseer_sdk.client import OverseerClient, run_command
+from overseer_sdk.manifest_runner import load_manifest, register_catalog, run_manifest
 
 DEFAULT_API = os.getenv("OVERSEER_API_URL", "http://127.0.0.1:8090").rstrip("/")
 TOKEN = os.getenv("OVERSEER_API_TOKEN", "")
@@ -20,10 +21,25 @@ def _headers() -> dict[str, str]:
     return headers
 
 
+def _probe_api(api_url: str) -> bool:
+    """Confirma que a API (e a sua DB) respondem a partir deste host/túnel."""
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            res = client.get(f"{api_url}/v1/read/database", headers=_headers())
+            return res.status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
 def cmd_heartbeat(_: argparse.Namespace) -> int:
     client = OverseerClient(api_url=DEFAULT_API, api_token=TOKEN)
-    data = client.heartbeat(source_type="agent", payload={"agent_version": __version__})
-    print(f"heartbeat ok: {data['heartbeat']['source_id']}")
+    api_reachable = _probe_api(DEFAULT_API)
+    data = client.heartbeat(
+        source_type="agent",
+        status="ok" if api_reachable else "degraded",
+        payload={"agent_version": __version__, "api_reachable": api_reachable},
+    )
+    print(f"heartbeat ok: {data['heartbeat']['source_id']} (api_reachable={api_reachable})")
     return 0
 
 
@@ -57,6 +73,17 @@ def cmd_trigger(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_manifest(args: argparse.Namespace) -> int:
+    manifest = load_manifest(args.path)
+    client = OverseerClient(api_url=DEFAULT_API, api_token=TOKEN)
+    if args.register_catalog:
+        register_catalog(manifest, client)
+        print(f"catálogo registado: {manifest.pipeline_id}")
+    if args.catalog_only:
+        return 0
+    return run_manifest(manifest, client=client, requested_by=args.by)
+
+
 def _strip_command_separator(command: list[str]) -> list[str]:
     return command[1:] if command and command[0] == "--" else command
 
@@ -81,6 +108,13 @@ def main() -> int:
     trigger.add_argument("--by", default="agent")
     trigger.add_argument("--runner", default="any")
     trigger.set_defaults(func=cmd_trigger)
+
+    manifest = sub.add_parser("manifest", help="Corre um pipeline a partir de um manifest YAML.")
+    manifest.add_argument("path")
+    manifest.add_argument("--register-catalog", action="store_true", help="Regista o DAG antes de correr.")
+    manifest.add_argument("--catalog-only", action="store_true", help="Só regista o DAG, sem executar passos.")
+    manifest.add_argument("--by", default="cron")
+    manifest.set_defaults(func=cmd_manifest)
 
     args = parser.parse_args()
     if hasattr(args, "command"):

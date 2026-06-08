@@ -19,6 +19,8 @@ function esc(value) {
 }
 
 function apiToken() {
+  const fromConfig = window.OVERSEER_CONFIG?.apiToken;
+  if (fromConfig) return String(fromConfig);
   return sessionStorage.getItem('overseer_api_token') || '';
 }
 
@@ -96,14 +98,6 @@ function emptyBlock(label) {
 }
 
 function bindChrome(refreshFn) {
-  const input = one('[data-token-input]');
-  if (input) input.value = apiToken();
-  one('[data-token-save]')?.addEventListener('click', () => {
-    const value = input?.value.trim() || '';
-    if (value) sessionStorage.setItem('overseer_api_token', value);
-    else sessionStorage.removeItem('overseer_api_token');
-    refreshFn();
-  });
   one('[data-refresh]')?.addEventListener('click', refreshFn);
 }
 

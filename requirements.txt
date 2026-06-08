@@ -9,3 +9,4 @@ requests==2.32.3
 paramiko==3.4.0
 sshtunnel==0.4.0
 colorlog==6.8.0
+PyYAML==6.0.2

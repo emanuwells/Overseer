@@ -1,5 +1,139 @@
 # Changelog
 
+## [4.4.2] - 2026-06-08T12:35:00+01:00
+
+### Catálogos Por Host (`deploy/runners/<host>.yaml`)
+
+**Motivo:**
+Diferenciar catálogos por máquina com nomes claros e eliminar paths fixos nos scripts; o provisionamento passa a resolver automaticamente o YAML correcto pelo hostname.
+
+**Impacto:**
+- Linux prod: `d4maia-pipelines.yaml` renomeado para `baze2.yaml`; `provision-runners.sh` sem `--catalog` encontra-o pelo hostname.
+- Windows: catálogo `deploy/runners/<hostname>.yaml`; template Medidata em `_medidata.yaml` + `new-host-catalog.ps1`.
+- Alterar YAML depois da migração: só `provision-runners --register`; Task Scheduler e crontab não se mexem.
+
+**Alterações:**
+- `scripts/provision_runners.py`: `resolve_runner_catalog()`, `--catalog` opcional, `--repo-root`.
+- `deploy/runners/baze2.yaml`, `_example.yaml`, `_medidata.yaml`, `README.md`.
+- `scripts/windows/show-host-catalog.ps1`, `new-host-catalog.ps1`; wrappers actualizados.
+- `tests/test_provision_runner_catalog.py`.
+
+---
+
+## [4.4.1] - 2026-06-08T12:25:00+01:00
+
+### Bootstrap Windows Com `.env.overseer` Automático
+
+**Motivo:**
+Reduzir o onboarding de uma máquina Windows a um único comando, gerando a configuração local (URL, host_id e token) sem edição manual e corrigindo o heartbeat agendado que não carregava a configuração.
+
+**Impacto:**
+`bootstrap-windows.ps1` instala o agente, cria o `.env.overseer` (URL do túnel, host_id pelo hostname, token via SSH do prod), regista o túnel SSH e o heartbeat, e arranca o túnel. O token nunca é versionado e o ficheiro fica com ACL restrita ao utilizador.
+
+**Alterações:**
+- `scripts/windows/Initialize-OverseerEnv.ps1`: gera o `.env.overseer` (idempotente, `-Force` para regravar, `-ApiToken` para override sem SSH).
+- `scripts/windows/heartbeat.ps1`: wrapper que carrega o `.env.overseer` antes de `overseer-agent heartbeat`.
+- `scripts/windows/bootstrap-windows.ps1`: onboarding completo num só comando.
+- `scripts/windows/register-infra-tasks.ps1`: a tarefa de heartbeat passa a usar `heartbeat.ps1` (corrige falta de token/URL no heartbeat agendado).
+- `scripts/windows/install-runner.ps1`: aceita `-SshTarget`/`-LocalPort` e, se presentes, gera o `.env.overseer` automaticamente.
+- `templates/runner-windows/` e `docs/pipeline-integration.md`: fluxo simplificado com bootstrap único e configuração automática.
+
+**Validação:**
+- `python -m pytest -q` — testes Python existentes (alterações apenas em PowerShell/docs).
+
+---
+
+## [4.4.0] - 2026-06-08T12:10:00+01:00
+
+### Runners Windows, Task Scheduler E Observabilidade Multi-host
+
+**Motivo:**
+Dar observabilidade completa e contínua a pipelines que correm em Windows (e em qualquer outro host), reportando ao Overseer central por túnel SSH, sem alterar o código dos pipelines e sem mudanças na API.
+
+**Impacto:**
+Cada máquina Windows liga-se à API central por túnel SSH em loopback (porta local `18090` -> `127.0.0.1:8090`), corre os pipelines via Task Scheduler com `run.ps1` e mantém heartbeats. Vários hosts podem reportar o mesmo pipeline lógico sem colidir, graças ao sufixo `__<host_id>` no `pipeline_id`.
+
+**Alterações:**
+- `templates/runner-windows/`: modelo de manifest, `run.ps1`, `.env.overseer` e README para máquinas Windows.
+- `scripts/provision_runners.py`: agora cross-platform (`--platform linux|windows|auto`, `--host-id`), gera `run.ps1` ou `run.sh`, escreve metadata (`logical_id`, `host_id`, `os`) no manifest e o `catalog.json` para migração do agendador. Mantém compatibilidade com o fluxo Linux existente.
+- `scripts/windows/`: `install-runner.ps1`, `ssh-tunnel.ps1`, `register-infra-tasks.ps1`, `provision-runners.ps1` e `migrate-taskscheduler.ps1`.
+- `overseer_agent/__main__.py`: `heartbeat` passa a sondar `/v1/read/database` e a reportar `api_reachable` (estado `degraded` quando o túnel ou a API estão em baixo).
+- `deploy/runners/windows-pipelines.yaml.example`: catálogo exemplo com `task_match` por pipeline.
+- `docs/pipeline-integration.md` e `templates/runner/README.md`: secção Windows / Task Scheduler / multi-host.
+
+**Validação:**
+- `python -m pytest -q` — 18 testes.
+- Provisionamento Windows e Linux validados localmente: manifests, wrappers e `catalog.json` gerados; compatibilidade do fluxo Linux (`run_sh`/`cron_match`) preservada.
+
+---
+
+## [4.3.1] - 2026-06-08T11:55:00+01:00
+
+### Token Automático, Pipelines D4MAIA E Remoção Do Legado
+
+**Motivo:**
+Eliminar o campo manual de token na UI, migrar todos os pipelines D4MAIA do crontab para runners por manifest e remover o Overseer legado no servidor de produção.
+
+**Alterações:**
+- Frontend: token injectado via `js/overseer-config.js` no deploy; removidos inputs de token das páginas.
+- `overseer-agent manifest --catalog-only` para registar DAG sem executar passos.
+- Catálogo `deploy/runners/d4maia-pipelines.yaml` e scripts `provision-runners.sh`, `provision_runners.py`, `update-crontab-overseer.py`, `remove-legacy-overseer.sh`.
+- Servidor `195.23.9.32`: 7 pipelines no crontab, legado arquivado, nginx `/apps/overseer/` removido, venv recriado em `~/overseer-py`.
+
+**Validação:**
+- `python -m pytest -q` — 18 testes.
+- Runs manuais: 6/7 pipelines `ok`; `wireforms_sync` excedeu timeout de teste (10 min) — verificar na UI.
+
+---
+
+## [4.3.0] - 2026-06-08T10:12:15+01:00
+
+### Runner Por Manifest E Deploy Em Docker + Nginx
+
+**Motivo:**
+Dar observabilidade por script sem alterar o código dos pipelines e preparar um caminho de deploy reprodutível com a API em Docker, o frontend em nginx e os pipelines ligados por crontab no servidor.
+
+**Impacto:**
+Passa a ser possível descrever um pipeline num manifest YAML externo ao repo e correr cada passo como um módulo no Overseer, com stdout/stderr e estado por passo. A primeira falha de um passo crítico interrompe a run. Em produção, a API corre isolada (sem MariaDB local), ligada ao schema `Overseer` do host, e o frontend é servido por nginx com proxy de `/v1`.
+
+**Alterações:**
+- `overseer_sdk/manifest_runner.py`: novo runner que lê manifests, regista o DAG linear e executa passos com telemetria por módulo.
+- `overseer_agent/__main__.py`: novo comando `overseer-agent manifest <path> [--register-catalog] [--by]`.
+- `overseer_sdk/__init__.py`: exporta `PipelineManifest`, `ManifestStep`, `load_manifest`, `register_catalog`, `run_manifest`.
+- `templates/runner/`: modelo de manifest, wrapper `run.sh` e `.env.overseer` para uso em `~/overseer-runners/`.
+- `docker-compose.prod.yml`: serviço único da API, bind em `127.0.0.1:8090`, `host.docker.internal` para a DB local.
+- `deploy/nginx/overseer.conf` e `scripts/deploy-nginx-frontend.sh`: publicação do frontend em `/usr/share/nginx/html/Overseer` e proxy de `/v1`.
+- `tests/test_manifest_runner.py`: cobertura do parsing, derivação do DAG e execução com sucesso/falha.
+
+**Dependências:**
+- Adicionada `PyYAML` em `requirements.txt` e `pyproject.toml` para leitura dos manifests.
+
+**Ferramentas, MCP E Skills:**
+- MCP servers: `user-time` para o carimbo temporal da entrada.
+- Skills relevantes: `backend-architecture`, `cicd-pipeline-guardian`, `docker-coolify-deploy`, `ssh-server-ops`, `documentation-keeper`, `changelog-semver`, `definition-of-done`, `security-secrets-audit`.
+
+**SSH / Servidores:**
+- Deploy previsto em `eferreira@195.23.9.32`: backup do crontab, API em Docker ligada ao schema `Overseer` local, frontend em nginx e pipelines migrados para o runner por manifest. Acesso externo apenas via SSH.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- N/A — apenas adições.
+
+**Testes:**
+- `python -m pytest -q` — passou com 18 testes.
+- `docker compose -f docker-compose.prod.yml config` — válido.
+
+**Validação:**
+- Runner valida manifests e regista módulos por passo com mocks do `OverseerClient`.
+- Compose de produção gera configuração com a API em loopback e `host.docker.internal`.
+
+**Refs:**
+- Pedido do utilizador: observabilidade por script sem estragar o código dos pipelines e deploy Docker/nginx no servidor.
+
+**Diff:**
+Adiciona runner por manifest, comando CLI, template de runner, compose de produção e publicação do frontend em nginx.
+
+---
+
 ## [4.2.1] - 2026-06-05T16:11:31+01:00
 
 ### Template Frontend Ligado A Dados Reais

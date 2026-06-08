@@ -1,0 +1,32 @@
+# Produção: apenas a API Overseer.
+# A base de dados é o schema Overseer já existente no host, acessível apenas em
+# 127.0.0.1:3306. Por isso o container usa a rede do host (network_mode: host) e
+# a API liga-se a 127.0.0.1. O uvicorn é forçado a escutar apenas em loopback,
+# pelo que o acesso externo continua a depender de SSH.
+#
+# Pré-requisitos no host:
+#   - schema Overseer acessível em 127.0.0.1:3306
+#   - .env com OVERSEER_DB_URL (host 127.0.0.1) e OVERSEER_API_TOKEN
+#
+# Arranque:
+#   docker compose -f docker-compose.prod.yml up --build -d
+services:
+  overseer-api:
+    build: .
+    network_mode: host
+    command:
+      - uvicorn
+      - src.overseer_api.main:app
+      - --host
+      - 127.0.0.1
+      - --port
+      - "8090"
+    environment:
+      OVERSEER_API_PORT: 8090
+      OVERSEER_API_URL: http://127.0.0.1:8090
+      OVERSEER_DB_URL: ${OVERSEER_DB_URL:?defina OVERSEER_DB_URL no .env}
+      OVERSEER_API_TOKEN: ${OVERSEER_API_TOKEN:-}
+      OVERSEER_CORS_ORIGINS: ${OVERSEER_CORS_ORIGINS:-*}
+    volumes:
+      - ./runtime:/app/runtime
+    restart: unless-stopped

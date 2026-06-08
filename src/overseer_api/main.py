@@ -20,7 +20,7 @@ from src.overseer_core.store import init_schema
 from .routers import catalog, events, health, orchestrate, read
 
 FRONTEND_DIR = ROOT / "frontend"
-API_VERSION = "4.2.0"
+API_VERSION = "4.3.0"
 
 
 @asynccontextmanager

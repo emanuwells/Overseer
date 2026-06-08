@@ -6,11 +6,11 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-05T16:11:31+01:00 |
+| Última atualização | 2026-06-08T10:12:15+01:00 |
 | Branch Git | `main` |
-| Estado | 4.2.1 implementado; template frontend ligado a dados reais do Overseer |
-| Responsável / Agente | Codex |
-| Última versão registada | 4.2.1 |
+| Estado | 4.3.0 implementado; runner por manifest, compose de produção e deploy nginx prontos no código |
+| Responsável / Agente | Cursor |
+| Última versão registada | 4.3.0 |
 
 ## Objetivo Atual
 
@@ -42,15 +42,26 @@ Manter o Overseer como núcleo Docker-first para observabilidade de pipelines ex
 - Template de pipeline atualizado para registo DAG por API.
 - README, PROJECT_CONTEXT, ADR, OpenAPI, tasks, Skill local e changelog atualizados.
 
+### Concluído (4.3.0)
+
+- `overseer_sdk/manifest_runner.py`: runner por manifest com observabilidade por passo (módulo por script, stdout/stderr, falha interrompe run crítica).
+- `overseer-agent manifest <path> [--register-catalog] [--by]` adicionado.
+- `templates/runner/`: manifest, `run.sh` e `.env.overseer` para `~/overseer-runners/`.
+- `docker-compose.prod.yml`: API isolada, bind `127.0.0.1:8090`, DB via `host.docker.internal`.
+- `deploy/nginx/overseer.conf` e `scripts/deploy-nginx-frontend.sh`: frontend em `/usr/share/nginx/html/Overseer` e proxy `/v1`.
+- `tests/test_manifest_runner.py`: 8 testes; suite total com 18 testes a passar.
+- `PyYAML` adicionado a `requirements.txt` e `pyproject.toml`; versões a 4.3.0.
+
 ### Em Curso
 
-- N/A.
+- Deploy em `eferreira@195.23.9.32` (SSH): backup do crontab, clone do repo, `.env`, compose de produção, nginx e migração dos pipelines do crontab.
 
 ### Por Fazer
 
-- Integrar pipelines reais usando `templates/pipeline-repo/`.
+- Concluir deploy e migração do crontab no servidor (uma entrada de cada vez, com dry-run).
+- Rodar a password sudo exposta na conversa e migrar para chave SSH.
 - Decidir licença real do projeto; documentação mantém `A confirmar`.
-- Se o volume MariaDB local antigo não for necessário, pedir confirmação explícita antes de limpar dados/volumes.
+- Fase seguinte: botão "Run" no frontend (triggers + daemon consumidor).
 
 ### Bloqueios / Perguntas Abertas
 

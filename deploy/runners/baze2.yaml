@@ -1,0 +1,74 @@
+# Catálogo de pipelines para o host baze2 (servidor prod Linux).
+# Cada entrada gera manifest.yaml + run.sh em ~/overseer-runners/.
+# Provisionar: bash scripts/provision-runners.sh --register
+
+pipelines:
+  - id: backup_baze2
+    name: Backup BaZe2 DB
+    schedule: "0 2 * * *"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_backups.txt
+    cron_match: "backup_baze2.py"
+    steps:
+      - module_id: backup_baze2
+        command: ["python3", "/home/eferreira/D4MAIA/BaZe_Management/backup_baze2.py"]
+
+  - id: baze2_info
+    name: BaZe2 Info
+    schedule: "0 2 * * 1"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_info.txt
+    cron_match: "baze2_info.py"
+    steps:
+      - module_id: baze2_info
+        command: ["python3", "/home/eferreira/D4MAIA/BaZe_Management/baze2_info.py"]
+
+  - id: backup_webserver
+    name: Backup Webserver NGINX
+    schedule: "0 3 * * *"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_nginx.txt
+    cron_match: "backup_webserver.py"
+    steps:
+      - module_id: backup_webserver
+        command: ["python3", "/home/eferreira/D4MAIA/BaZe_Management/backup_webserver.py"]
+
+  - id: weatherapi_4_maia
+    name: WeatherAPI 4 Maia
+    schedule: "15,45 * * * *"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_weather.txt
+    cron_match: "weatherapi"
+    steps:
+      - module_id: weatherapi
+        command: ["python3", "/home/eferreira/D4MAIA/WeatherAPI_4_Maia/weatherapi_4_maia.py"]
+        cwd: /home/eferreira
+
+  - id: traffic_flow
+    name: Yunex Traffic Flow
+    schedule: "*/15 * * * *"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_traffic.txt
+    cron_match: "traffic_flow.py"
+    steps:
+      - module_id: traffic_flow
+        command: ["python3", "/home/eferreira/D4MAIA/Traffic_Flow/traffic_flow.py"]
+
+  - id: wireforms_sync
+    name: Wireforms Sync
+    schedule: "0 23 * * 0"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_wireforms.txt
+    cron_match: "wireforms_sync.py"
+    steps:
+      - module_id: wireforms_sync
+        command: ["python3", "/home/eferreira/D4MAIA/Wireforms/wireforms_sync.py", "--sync"]
+
+  - id: p_monitor_recent
+    name: Performance Monitor Recent
+    schedule: "*/15 * * * *"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_p_monitor_recent.txt
+    cron_match: "p_monitor.py"
+    steps:
+      - module_id: p_monitor_recent
+        command:
+          - python3
+          - /home/eferreira/D4MAIA/Performance_Monitor/p_monitor.py
+          - --config
+          - /home/eferreira/D4MAIA/Performance_Monitor/config/dashboard_recent.json
+          - --secrets
+          - /home/eferreira/D4MAIA/Performance_Monitor/secrets/database.json

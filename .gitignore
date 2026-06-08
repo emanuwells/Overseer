@@ -38,6 +38,7 @@ runtime/triggers/schedule/**/*.json
 # Frontend generated payload
 frontend/pm_payload.json
 frontend/pm_details.json
+frontend/js/overseer-config.js
 
 # Environment local
 .env

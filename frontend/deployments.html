@@ -4,7 +4,7 @@
 <body data-view="deployments">
   <div class="app-shell">
     <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>ambiente API</span></div></a><nav class="nav"><a href="dashboard.html">Ops</a><a href="run-detail.html">Runs</a><a href="lineage.html">DAG</a><a aria-current="page" href="deployments.html">Ambiente</a></nav><div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div></aside>
-    <main class="main"><header class="topbar"><div class="crumb">Overseer / Ambiente</div><div class="actions" data-tabs><button class="btn primary" data-tab="#prod">DB</button><button class="btn" data-tab="#staging">Heartbeats</button><button class="btn" data-tab="#dev">Triggers</button><label class="search"><input data-token-input type="password" placeholder="Token API"></label><button class="btn" data-token-save>Guardar token</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
+    <main class="main"><header class="topbar"><div class="crumb">Overseer / Ambiente</div><div class="actions" data-tabs><button class="btn primary" data-tab="#prod">DB</button><button class="btn" data-tab="#staging">Heartbeats</button><button class="btn" data-tab="#dev">Triggers</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
       <section class="content"><div class="hero-row"><div><h1>Ambiente Overseer</h1><p class="subhead">Estado da API, base de dados, catálogo DAG, heartbeats e triggers operacionais.</p></div><span class="pill" data-sync-state>A carregar</span></div>
         <div data-alert></div>
         <section id="prod" data-panel><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Modo DB</span><span class="metric" data-db-mode>--</span></div><div class="card card-pad kpi"><span class="label">Pipelines</span><span class="metric" data-table-count="pipelines">--</span></div><div class="card card-pad kpi"><span class="label">Nodes</span><span class="metric" data-table-count="pipeline_nodes">--</span></div><div class="card card-pad kpi"><span class="label">Edges</span><span class="metric" data-table-count="pipeline_edges">--</span></div></div></section>
@@ -17,5 +17,6 @@
       </section>
     </main>
   </div>
+  <script src="js/overseer-config.js"></script>
   <script src="js/app.js"></script>
 </body></html>

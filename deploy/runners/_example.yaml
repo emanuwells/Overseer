@@ -1,0 +1,18 @@
+# Template genérico — NÃO é auto-detectado (prefixo _).
+# Criar deploy/runners/<hostname>.yaml a partir deste ficheiro ou de _medidata.yaml:
+#   .\scripts\windows\new-host-catalog.ps1 -Template _example.yaml
+
+pipelines:
+  - id: forms_sync
+    name: Forms Sync
+    owner: data
+    criticality: medium
+    schedule: "0 6 * * *"
+    task_match: "forms_sync.py"
+    log: "C:\\logs\\forms_sync.txt"
+    steps:
+      - module_id: extract
+        command: ["python", "C:\\Dev\\Repos\\emanuwells\\forms\\extract.py"]
+        cwd: C:\Dev\Repos\emanuwells\forms
+      - module_id: load
+        command: ["python", "C:\\Dev\\Repos\\emanuwells\\forms\\load.py"]

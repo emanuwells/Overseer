@@ -93,6 +93,104 @@ Também é possível envolver um comando inteiro a partir do repo do pipeline:
 python -m overseer_agent exec --pipeline my_pipeline -- python src/main.py
 ```
 
+## Observabilidade Por Script Sem Alterar O Código (Manifest)
+
+Quando não se quer instrumentar o código do pipeline, descreve-se o pipeline num
+manifest YAML fora do repo (por exemplo em `~/overseer-runners/<pipeline_id>/manifest.yaml`).
+Cada passo vira um módulo no Overseer, com stdout/stderr e estado `ok`/`failed`.
+
+```yaml
+pipeline_id: forms_to_lake
+pipeline_name: Forms to Lake
+steps:
+  - module_id: extract
+    command: ["python3", "/caminho/extract.py"]
+  - module_id: load
+    command: ["python3", "/caminho/load.py"]
+```
+
+Registar o DAG (uma vez) e correr:
+
+```bash
+overseer-agent manifest ~/overseer-runners/forms_to_lake/manifest.yaml --register-catalog
+overseer-agent manifest ~/overseer-runners/forms_to_lake/manifest.yaml --by cron
+```
+
+O modelo completo está em `templates/runner/`. A primeira falha de um passo
+crítico interrompe a run; um passo com `critical: false` é marcado mas não
+interrompe.
+
+## Windows, Task Scheduler E Multi-host
+
+Pipelines em Windows seguem o mesmo contrato, mas usam `run.ps1` e o Task
+Scheduler em vez de `run.sh` e crontab. A máquina Windows não liga à base de
+dados: liga à API por túnel SSH em loopback (porta local `18090` ->
+`127.0.0.1:8090` no servidor de prod), por isso `OVERSEER_API_URL` é
+`http://127.0.0.1:18090`.
+
+O modelo está em `templates/runner-windows/`. O onboarding completo de uma
+máquina é um único comando, que instala o agente, gera o `.env.overseer`
+automaticamente (URL, host_id e token via SSH do prod) e regista o túnel SSH +
+heartbeat:
+
+```powershell
+# Pré-requisito: SSH por chave (sem password) para o prod, com
+# ~/overseer-runners/.env.overseer já existente lá (contém o token).
+.\scripts\windows\bootstrap-windows.ps1 -RepoPath "C:\Dev\Repos\emanuwells\Overseer" -SshTarget eferreira@195.23.9.32
+```
+
+Depois, por cada conjunto de pipelines (catálogo `deploy/runners/<hostname>.yaml`):
+
+```powershell
+# Ver o nome do catálogo esperado nesta máquina
+.\scripts\windows\show-host-catalog.ps1
+
+# Se ainda não existir no repo (ex. Medidata):
+.\scripts\windows\new-host-catalog.ps1 -Template _medidata.yaml
+
+# Provisionar manifests + run.ps1 (auto-detecta deploy/runners/<hostname>.yaml)
+.\scripts\windows\provision-runners.ps1 -Register
+
+# Apontar as tarefas existentes para os run.ps1 (só na 1.ª vez; backup XML)
+.\scripts\windows\migrate-taskscheduler.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"
+```
+
+No servidor Linux prod (`baze2`), o catálogo é `deploy/runners/baze2.yaml`:
+
+```bash
+bash scripts/provision-runners.sh --register
+```
+
+### Configuração Automática (.env.overseer)
+
+`bootstrap-windows.ps1` (ou `Initialize-OverseerEnv.ps1` à parte) preenche o
+`.env.overseer` sem intervenção manual:
+
+- `OVERSEER_API_URL` -> `http://127.0.0.1:18090` (porta do túnel).
+- `OVERSEER_HOST_ID` -> hostname local normalizado.
+- `OVERSEER_API_TOKEN` -> lido por SSH de `~/overseer-runners/.env.overseer` no
+  prod (ou passado em `-ApiToken`).
+
+O ficheiro fica com ACL restrita ao utilizador e nunca é versionado.
+
+### Convenção Multi-host
+
+Quando o mesmo pipeline lógico corre em várias máquinas, o `pipeline_id`
+efetivo recebe o sufixo do host: `{id}__{host_id}` (ex.: `forms_sync__WIN-ETL01`).
+O `host_id` vem de `OVERSEER_HOST_ID` no `.env.overseer` (ou do hostname
+normalizado) e é aplicado pelo provisionamento com `--host-id auto`. Assim, os
+runners Linux (`~/overseer-runners/`) e Windows reportam ao mesmo Overseer
+central sem colidir.
+
+### Observabilidade Sempre Ligada
+
+Duas tarefas de infraestrutura garantem visibilidade contínua:
+
+- **Overseer SSH Tunnel** (`At logon`, reinicia se cair): mantém o canal para a API.
+- **Overseer Heartbeat** (cada 5 min): envia `heartbeat` com `api_reachable`. Se
+  o túnel ou a API caírem, o heartbeat fica `degraded`, visível no painel
+  Ambiente do frontend.
+
 ## Validação De Fluxo
 
 Com o Overseer arrancado:
