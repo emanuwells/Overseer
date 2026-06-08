@@ -1,0 +1,17 @@
+# Catálogo Medidata — máquina WS1207 (Windows).
+# Gerado a partir de _medidata.yaml; paths específicos deste host.
+
+pipelines:
+  - id: medidata_pipeline
+    name: Medidata Pipeline
+    owner: data
+    criticality: medium
+    schedule: manual
+    task_match: "run_pipeline.py"
+    log: "C:\\MAIATRON\\Medidata_Pipeline\\pipeline\\overseer_run.log"
+    steps:
+      - module_id: run_pipeline
+        command:
+          - "C:\\Users\\DQSI\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
+          - "run_pipeline.py"
+        cwd: "C:\\MAIATRON\\Medidata_Pipeline\\pipeline"

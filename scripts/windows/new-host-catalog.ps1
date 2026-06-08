@@ -11,11 +11,13 @@
 #>
 param(
     [string]$Template = "_medidata.yaml",
-    [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
+    [string]$RepoRoot = "",
     [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "_common.ps1")
+if (-not $RepoRoot) { $RepoRoot = $OverseerRepoRoot }
 
 $raw = $env:COMPUTERNAME
 $normalized = ($raw -replace '[^A-Za-z0-9_-]+', '-').Trim('-')

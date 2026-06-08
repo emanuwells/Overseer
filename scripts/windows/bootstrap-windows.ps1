@@ -21,14 +21,18 @@ param(
     [int]$LocalPort = 18090,
     [int]$HeartbeatMinutes = 5,
     [string]$VenvPath = (Join-Path $env:LOCALAPPDATA "overseer-venv"),
+    [string]$PythonPath = "",
+    [string]$IdentityFile = "",
     [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $PSScriptRoot "_common.ps1")
 
 Write-Host "== 1/4 Instalar agente =="
-& (Join-Path $ScriptDir "install-runner.ps1") -RepoPath $RepoPath -VenvPath $VenvPath
+$installArgs = @{ RepoPath = $RepoPath; VenvPath = $VenvPath }
+if ($PythonPath) { $installArgs["PythonPath"] = $PythonPath }
+& (Join-Path $OverseerScriptDir "install-runner.ps1") @installArgs
 
 Write-Host "== 2/4 Configurar .env.overseer =="
 $initArgs = @{
@@ -36,11 +40,18 @@ $initArgs = @{
     LocalPort = $LocalPort
 }
 if ($Force) { $initArgs["Force"] = $true }
-& (Join-Path $ScriptDir "Initialize-OverseerEnv.ps1") @initArgs
+if ($IdentityFile) { $initArgs["IdentityFile"] = $IdentityFile }
+& (Join-Path $OverseerScriptDir "Initialize-OverseerEnv.ps1") @initArgs
 
 Write-Host "== 3/4 Registar túnel SSH + heartbeat =="
-& (Join-Path $ScriptDir "register-infra-tasks.ps1") `
-    -SshTarget $SshTarget -LocalPort $LocalPort -HeartbeatMinutes $HeartbeatMinutes -VenvPath $VenvPath
+$infraArgs = @{
+    SshTarget = $SshTarget
+    LocalPort = $LocalPort
+    HeartbeatMinutes = $HeartbeatMinutes
+    VenvPath = $VenvPath
+}
+if ($IdentityFile) { $infraArgs["IdentityFile"] = $IdentityFile }
+& (Join-Path $OverseerScriptDir "register-infra-tasks.ps1") @infraArgs
 
 Write-Host "== 4/4 Arrancar túnel SSH =="
 Start-ScheduledTask -TaskName "Overseer SSH Tunnel"

@@ -16,13 +16,16 @@ param(
     [Parameter(Mandatory = $true)][string]$SshTarget,
     [int]$LocalPort = 18090,
     [int]$HeartbeatMinutes = 5,
-    [string]$VenvPath = (Join-Path $env:LOCALAPPDATA "overseer-venv")
+    [string]$VenvPath = (Join-Path $env:LOCALAPPDATA "overseer-venv"),
+    [string]$IdentityFile = "",
+    [string]$TaskUser = $env:USERNAME
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TunnelScript = Join-Path $ScriptDir "ssh-tunnel.ps1"
-$HeartbeatScript = Join-Path $ScriptDir "heartbeat.ps1"
+. (Join-Path $PSScriptRoot "_common.ps1")
+
+$TunnelScript = Join-Path $OverseerScriptDir "ssh-tunnel.ps1"
+$HeartbeatScript = Join-Path $OverseerScriptDir "heartbeat.ps1"
 $Agent = Join-Path $VenvPath "Scripts\overseer-agent.exe"
 
 if (-not (Test-Path -LiteralPath $TunnelScript)) { throw "Não encontrei $TunnelScript" }
@@ -33,6 +36,7 @@ $pwsh = (Get-Command powershell.exe).Source
 
 # --- Tarefa 1: túnel SSH (At logon, reinicia se cair) ---
 $tunnelArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$TunnelScript`" -SshTarget $SshTarget -LocalPort $LocalPort"
+if ($IdentityFile) { $tunnelArgs += " -IdentityFile `"$IdentityFile`"" }
 $tunnelAction = New-ScheduledTaskAction -Execute $pwsh -Argument $tunnelArgs
 $tunnelTrigger = New-ScheduledTaskTrigger -AtLogOn
 $tunnelSettings = New-ScheduledTaskSettingsSet `
@@ -44,6 +48,7 @@ $tunnelSettings = New-ScheduledTaskSettingsSet `
 
 Register-ScheduledTask -TaskName "Overseer SSH Tunnel" `
     -Action $tunnelAction -Trigger $tunnelTrigger -Settings $tunnelSettings `
+    -User $TaskUser -RunLevel Limited `
     -Description "Túnel SSH em loopback para a API central do Overseer." -Force | Out-Null
 Write-Host "Tarefa 'Overseer SSH Tunnel' registada."
 
@@ -58,6 +63,7 @@ $hbSettings = New-ScheduledTaskSettingsSet `
 
 Register-ScheduledTask -TaskName "Overseer Heartbeat" `
     -Action $hbAction -Trigger $hbTrigger -Settings $hbSettings `
+    -User $TaskUser -RunLevel Limited `
     -Description "Heartbeat periódico do agente Overseer." -Force | Out-Null
 Write-Host "Tarefa 'Overseer Heartbeat' registada (cada $HeartbeatMinutes min)."
 

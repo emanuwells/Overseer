@@ -18,23 +18,24 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$venvPython = Join-Path $VenvPath "Scripts\python.exe"
-$python = if (Test-Path -LiteralPath $venvPython) { $venvPython } else { "python" }
+. (Join-Path $PSScriptRoot "_common.ps1")
 
-$provision = Join-Path $RepoRoot "scripts\provision_runners.py"
+$python = Get-OverseerPython -VenvPath $VenvPath
+$provision = Join-Path $OverseerRepoRoot "scripts\provision_runners.py"
 
 $pyArgs = @(
     $provision,
     "--platform", "windows",
     "--host-id", $HostId,
     "--venv", $VenvPath,
-    "--repo-root", $RepoRoot,
+    "--repo-root", $OverseerRepoRoot,
     "--catalog-json-out", $CatalogJsonOut
 )
 if ($Catalog) { $pyArgs += @("--catalog", $Catalog) }
 if ($Register) { $pyArgs += "--register" }
 
 & $python @pyArgs
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "Catálogo gerado: $CatalogJsonOut"
 Write-Host "Migrar o Task Scheduler (1.ª vez): .\scripts\windows\migrate-taskscheduler.ps1 -CatalogJson `"$CatalogJsonOut`""

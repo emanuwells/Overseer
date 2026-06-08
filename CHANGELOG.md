@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.4.3] - 2026-06-08T14:00:00+01:00
+
+### Fix Scripts Windows (`RepoRoot` e helpers partilhados)
+
+**Motivo:**
+`provision-runners.ps1` calculava mal a raiz do repo (`scripts\scripts\provision_runners.py`), impedindo o provisionamento no Windows após pull.
+
+**Impacto:**
+Pull + `provision-runners.ps1 -Register` funciona sem workaround manual. Heartbeat usa `python -m overseer_agent` com env carregado no mesmo processo.
+
+**Alterações:**
+- `scripts/windows/_common.ps1`: `OverseerRepoRoot`, `Import-OverseerEnvFile`, `Write-OverseerEnvFile` (UTF-8 sem BOM), `Get-OverseerPython`.
+- `provision-runners.ps1`: fix `RepoRoot`, exit em falha do Python.
+- `heartbeat.ps1`, `Initialize-OverseerEnv.ps1`, `install-runner.ps1`, `register-infra-tasks.ps1`, `bootstrap-windows.ps1`, `ssh-tunnel.ps1`, `new-host-catalog.ps1`, `show-host-catalog.ps1`: alinhados com `_common.ps1`.
+- `-PythonPath`, `-IdentityFile`, `-TaskUser` onde aplicável.
+- `deploy/runners/WS1207.yaml`: catálogo Medidata para a máquina WS1207.
+
+---
+
 ## [4.4.2] - 2026-06-08T12:35:00+01:00
 
 ### Catálogos Por Host (`deploy/runners/<host>.yaml`)

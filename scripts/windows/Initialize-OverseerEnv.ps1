@@ -23,11 +23,13 @@ param(
     [string]$ApiToken = "",
     [int]$LocalPort = 18090,
     [string]$HostId = "",
+    [string]$IdentityFile = "",
     [string]$RunnersRoot = (Join-Path $env:USERPROFILE "overseer-runners"),
     [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "_common.ps1")
 
 function Get-NormalizedHostId {
     param([string]$Value)
@@ -58,7 +60,10 @@ if (-not $token) {
     }
     Write-Host "A obter o token via SSH de $SshTarget ..."
     $remoteCmd = "grep '^OVERSEER_API_TOKEN=' ~/overseer-runners/.env.overseer | cut -d= -f2-"
-    $token = (& ssh -o BatchMode=yes $SshTarget $remoteCmd | Select-Object -First 1)
+    $sshArgs = @("-o", "BatchMode=yes")
+    if ($IdentityFile) { $sshArgs += @("-i", $IdentityFile) }
+    $sshArgs += @($SshTarget, $remoteCmd)
+    $token = (& ssh @sshArgs | Select-Object -First 1)
     if ($LASTEXITCODE -ne 0 -or -not $token) {
         throw "Não foi possível ler o token via SSH. Confirma a chave SSH e ~/overseer-runners/.env.overseer no servidor."
     }
@@ -66,14 +71,12 @@ if (-not $token) {
 }
 
 $apiUrl = "http://127.0.0.1:$LocalPort"
-$content = @(
-    "# Gerado automaticamente por Initialize-OverseerEnv.ps1. Não versionar.",
+Write-OverseerEnvFile -Path $envFile -Lines @(
+    "# Gerado automaticamente por Initialize-OverseerEnv.ps1. Nao versionar.",
     "OVERSEER_API_URL=$apiUrl",
     "OVERSEER_API_TOKEN=$token",
     "OVERSEER_HOST_ID=$HostId"
-) -join "`n"
-
-Set-Content -LiteralPath $envFile -Value $content -Encoding UTF8 -NoNewline
+)
 
 # ACL restrita ao utilizador atual.
 & icacls $envFile /inheritance:r /grant:r "$($env:USERNAME):(R,W)" | Out-Null

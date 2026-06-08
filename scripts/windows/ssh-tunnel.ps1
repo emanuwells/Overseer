@@ -19,6 +19,7 @@ param(
     [string]$RemoteHost = "127.0.0.1",
     [int]$RemotePort = 8090,
     [int]$RetrySeconds = 10,
+    [string]$IdentityFile = "",
     [string]$LogFile = (Join-Path $env:USERPROFILE "overseer-runners\ssh-tunnel.log")
 )
 
@@ -40,12 +41,17 @@ Write-Log "Túnel SSH a iniciar: $forward via $SshTarget"
 
 while ($true) {
     try {
-        & ssh -N `
-            -o ServerAliveInterval=30 `
-            -o ServerAliveCountMax=3 `
-            -o ExitOnForwardFailure=yes `
-            -o StrictHostKeyChecking=accept-new `
-            -L $forward $SshTarget
+        $sshArgs = @(
+            "-N",
+            "-o", "ServerAliveInterval=30",
+            "-o", "ServerAliveCountMax=3",
+            "-o", "ExitOnForwardFailure=yes",
+            "-o", "StrictHostKeyChecking=accept-new",
+            "-L", $forward
+        )
+        if ($IdentityFile) { $sshArgs = @("-i", $IdentityFile) + $sshArgs }
+        $sshArgs += $SshTarget
+        & ssh @sshArgs
         Write-Log "Túnel terminou (exit=$LASTEXITCODE). A reconectar em ${RetrySeconds}s."
     }
     catch {

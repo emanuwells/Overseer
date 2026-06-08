@@ -21,6 +21,7 @@ Ficheiros com prefixo `_` (ex.: `_example.yaml`, `_medidata.yaml`) são
 | Ficheiro | Host | Uso |
 |----------|------|-----|
 | `baze2.yaml` | Servidor prod Linux | Pipelines D4MAIA |
+| `WS1207.yaml` | Máquina Medidata Windows | Pipeline Medidata |
 | `_medidata.yaml` | Template | Copiar para `<hostname>.yaml` na máquina Medidata |
 | `_example.yaml` | Template | Exemplo genérico Windows |
 

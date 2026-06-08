@@ -13,21 +13,22 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepoPath,
     [string]$VenvPath = (Join-Path $env:LOCALAPPDATA "overseer-venv"),
+    [string]$PythonPath = "",
     [string]$SshTarget = "",
-    [int]$LocalPort = 18090
+    [int]$LocalPort = 18090,
+    [string]$IdentityFile = ""
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $PSScriptRoot "_common.ps1")
 
 if (-not (Test-Path -LiteralPath $RepoPath)) {
     throw "Repositório não encontrado: $RepoPath"
 }
 
-$python = Get-Command python -ErrorAction SilentlyContinue
-if (-not $python) { throw "Python não encontrado no PATH." }
+$pythonExe = Get-OverseerPython -VenvPath $VenvPath -PythonPath $PythonPath
 
-$versionRaw = & python -c "import sys; print('%d.%d' % sys.version_info[:2])"
+$versionRaw = & $pythonExe -c "import sys; print('%d.%d' % sys.version_info[:2])"
 $parts = $versionRaw.Split(".")
 $major = [int]$parts[0]
 $minor = [int]$parts[1]
@@ -38,7 +39,7 @@ Write-Host "Python $versionRaw OK."
 
 if (-not (Test-Path -LiteralPath $VenvPath)) {
     Write-Host "A criar venv em $VenvPath ..."
-    & python -m venv $VenvPath
+    & $pythonExe -m venv $VenvPath
 }
 
 $venvPython = Join-Path $VenvPath "Scripts\python.exe"
@@ -52,7 +53,9 @@ if (-not (Test-Path -LiteralPath $agent)) {
 
 if ($SshTarget) {
     Write-Host "A configurar .env.overseer automaticamente ..."
-    & (Join-Path $ScriptDir "Initialize-OverseerEnv.ps1") -SshTarget $SshTarget -LocalPort $LocalPort
+    $initArgs = @{ SshTarget = $SshTarget; LocalPort = $LocalPort }
+    if ($IdentityFile) { $initArgs["IdentityFile"] = $IdentityFile }
+    & (Join-Path $OverseerScriptDir "Initialize-OverseerEnv.ps1") @initArgs
     Write-Host "Instalado e configurado. Próximos passos:"
     Write-Host "  1. .\scripts\windows\register-infra-tasks.ps1 -SshTarget $SshTarget"
     Write-Host "  2. Smoke test (com túnel ativo): .\scripts\windows\heartbeat.ps1"

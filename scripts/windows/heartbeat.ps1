@@ -8,27 +8,25 @@
     para o heartbeat agendado ter as credenciais corretas.
 #>
 param(
-    [string]$RunnersRoot = (Join-Path $env:USERPROFILE "overseer-runners")
+    [string]$RunnersRoot = (Join-Path $env:USERPROFILE "overseer-runners"),
+    [string]$VenvPath = (Join-Path $env:LOCALAPPDATA "overseer-venv")
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "_common.ps1")
 
-function Import-EnvFile {
-    param([string]$Path)
-    if (-not (Test-Path -LiteralPath $Path)) { return }
-    foreach ($raw in Get-Content -LiteralPath $Path) {
-        $line = $raw.Trim()
-        if (-not $line -or $line.StartsWith("#") -or ($line -notmatch "=")) { continue }
-        $key, $value = $line.Split("=", 2)
-        [Environment]::SetEnvironmentVariable($key.Trim(), $value.Trim(), "Process")
-    }
+Import-OverseerEnvFile (Join-Path $RunnersRoot ".env.overseer")
+
+if (-not $env:OVERSEER_API_URL) {
+    throw "OVERSEER_API_URL em falta. Corre Initialize-OverseerEnv.ps1 ou define $RunnersRoot\.env.overseer"
 }
 
-Import-EnvFile (Join-Path $RunnersRoot ".env.overseer")
-
 $Venv = $env:OVERSEER_VENV
-if (-not $Venv) { $Venv = Join-Path $env:LOCALAPPDATA "overseer-venv" }
-$Agent = Join-Path $Venv "Scripts\overseer-agent.exe"
+if (-not $Venv) { $Venv = $VenvPath }
+$Python = Join-Path $Venv "Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) {
+    throw "Python do venv não encontrado em $Python. Corre install-runner.ps1 primeiro."
+}
 
-& $Agent heartbeat
+& $Python -m overseer_agent heartbeat
 exit $LASTEXITCODE
