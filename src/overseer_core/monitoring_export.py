@@ -372,6 +372,199 @@ def _build_orchestrator_triggers(triggers: list[dict[str, Any]]) -> list[dict[st
     ]
 
 
+def _module_event_level(status: str | None) -> str:
+    bucket = _status_bucket(status)
+    if bucket == "failed":
+        return "error"
+    if bucket == "warning":
+        return "warning"
+    if bucket == "ok":
+        return "ok"
+    return "unknown"
+
+
+def _node_metadata(node: dict[str, Any]) -> dict[str, Any]:
+    meta = node.get("metadata")
+    return meta if isinstance(meta, dict) else {}
+
+
+def _script_path_from_node(node: dict[str, Any]) -> str:
+    meta = _node_metadata(node)
+    command = meta.get("command")
+    if isinstance(command, list) and command:
+        if len(command) == 1:
+            return str(command[0])
+        return " ".join(str(part) for part in command[:3])
+    module_id = str(node.get("module_id") or node.get("id") or "").strip()
+    return module_id or "-"
+
+
+def _iso_dt(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value)
+
+
+def _build_lineage_blocks(
+    runs: list[dict[str, Any]],
+    pipelines: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    grouped = _group_runs_by_pipeline(runs)
+    module_lineage: dict[str, Any] = {}
+    pipeline_scripts: dict[str, Any] = {}
+
+    catalog = _pipeline_lookup(pipelines)
+    pipeline_ids: set[str] = set(grouped.keys())
+    for row in pipelines:
+        pid = store.logical_pipeline_id(str(row.get("pipeline_id") or ""))
+        if pid and row.get("active", True):
+            pipeline_ids.add(pid)
+
+    for pipeline_id in sorted(pipeline_ids):
+        cat = catalog.get(pipeline_id) or {}
+        if cat and cat.get("active") is False and pipeline_id not in grouped:
+            continue
+        latest_runs = grouped.get(pipeline_id, [])
+        latest = latest_runs[0] if latest_runs else None
+        latest_run_id = str(latest.get("run_id") or "") if latest else ""
+        row_id = _run_row_id(latest_run_id, 0) if latest_run_id else None
+
+        modules_by_id: dict[str, dict[str, Any]] = {}
+        if latest_run_id:
+            for mod in store.list_modules(run_id=latest_run_id):
+                mid = str(mod.get("module_id") or "").strip()
+                if mid:
+                    modules_by_id[mid] = mod
+
+        dag = store.get_pipeline_dag(pipeline_id)
+        catalog_nodes = list(dag.get("nodes") or [])
+        catalog_edges = list(dag.get("edges") or [])
+        if not catalog_nodes and modules_by_id:
+            catalog_nodes = [
+                {"module_id": mid, "label": mid, "metadata": {}}
+                for mid in sorted(modules_by_id.keys())
+            ]
+
+        export_nodes: list[dict[str, Any]] = []
+        scripts: list[dict[str, Any]] = []
+        seen_modules: set[str] = set()
+
+        for node in catalog_nodes:
+            mid = str(node.get("module_id") or "").strip()
+            if not mid:
+                continue
+            seen_modules.add(mid)
+            label = str(node.get("label") or mid)
+            meta = _node_metadata(node)
+            critical = meta.get("critical", True)
+            path = _script_path_from_node(node)
+            mod = modules_by_id.get(mid)
+
+            if mod:
+                level = _module_event_level(mod.get("status"))
+                mod_meta = mod.get("metadata") if isinstance(mod.get("metadata"), dict) else {}
+                when = _iso_dt(mod.get("ended_at") or mod.get("started_at"))
+                message = mod.get("error_message") or mod_meta.get("message")
+                export_nodes.append(
+                    {
+                        "id": mid,
+                        "label": label,
+                        "script": path,
+                        "status": mod.get("status"),
+                        "lastEventLevel": level,
+                        "lastSeenAt": when,
+                        "lastMessage": message,
+                        "critical": critical is not False,
+                        "duration_sec": mod.get("duration_sec"),
+                    }
+                )
+                scripts.append(
+                    {
+                        "path": path,
+                        "executed": True,
+                        "lastStatus": _status_bucket(mod.get("status")).upper(),
+                        "lastEventLevel": level,
+                        "lastRunId": row_id,
+                        "lastSeenAt": when,
+                        "lastMessage": message,
+                        "source": "latest_run",
+                        "errorCount": 1 if level == "error" else 0,
+                        "warningCount": 1 if level == "warning" else 0,
+                        "lastErrorAt": when if level == "error" else None,
+                        "lastWarningAt": when if level == "warning" else None,
+                    }
+                )
+            else:
+                export_nodes.append(
+                    {
+                        "id": mid,
+                        "label": label,
+                        "script": path,
+                        "status": "inventory",
+                        "lastEventLevel": "inventory",
+                        "critical": critical is not False,
+                    }
+                )
+                scripts.append(
+                    {
+                        "path": path,
+                        "executed": False,
+                        "lastEventLevel": "inventory",
+                        "source": "catalog",
+                        "errorCount": 0,
+                        "warningCount": 0,
+                    }
+                )
+
+        for mid, mod in sorted(modules_by_id.items()):
+            if mid in seen_modules:
+                continue
+            level = _module_event_level(mod.get("status"))
+            when = _iso_dt(mod.get("ended_at") or mod.get("started_at"))
+            message = mod.get("error_message")
+            export_nodes.append(
+                {
+                    "id": mid,
+                    "label": mid,
+                    "script": mid,
+                    "status": mod.get("status"),
+                    "lastEventLevel": level,
+                    "lastSeenAt": when,
+                    "lastMessage": message,
+                    "critical": True,
+                }
+            )
+            scripts.append(
+                {
+                    "path": mid,
+                    "executed": True,
+                    "lastStatus": _status_bucket(mod.get("status")).upper(),
+                    "lastEventLevel": level,
+                    "lastRunId": row_id,
+                    "lastSeenAt": when,
+                    "lastMessage": message,
+                    "source": "latest_run",
+                    "errorCount": 1 if level == "error" else 0,
+                    "warningCount": 1 if level == "warning" else 0,
+                }
+            )
+
+        edges = [
+            {
+                "source": str(edge.get("from_module_id") or ""),
+                "target": str(edge.get("to_module_id") or ""),
+            }
+            for edge in catalog_edges
+            if edge.get("from_module_id") and edge.get("to_module_id")
+        ]
+
+        if export_nodes or scripts:
+            module_lineage[pipeline_id] = {"nodes": export_nodes, "edges": edges}
+            pipeline_scripts[pipeline_id] = scripts
+
+    return module_lineage, pipeline_scripts
+
+
 def build_details_map(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) -> dict[str, Any]:
     fields, rows, _ = _rows_and_index(runs, pipelines)
     details: dict[str, Any] = {}
@@ -417,6 +610,7 @@ def build_full_payload(*, run_limit: int = 5000) -> dict[str, Any]:
     fields, rows, _ = _rows_and_index(runs, pipelines)
     summary = _build_summary(runs, pipelines)
     overview = _build_overview(runs, summary)
+    module_lineage, pipeline_scripts = _build_lineage_blocks(runs, pipelines)
     return {
         "generated_at": _iso_now(),
         "source": "overseer_v5",
@@ -428,6 +622,8 @@ def build_full_payload(*, run_limit: int = 5000) -> dict[str, Any]:
         "pipeline_catalog": _build_pipeline_catalog(pipelines),
         "orchestrator_runs": _build_orchestrator_runs(runs),
         "orchestrator_triggers": _build_orchestrator_triggers(triggers),
+        "module_lineage": module_lineage,
+        "pipeline_scripts": pipeline_scripts,
     }
 
 
@@ -454,4 +650,6 @@ def build_ops_heavy_payload(*, run_limit: int = 5000) -> dict[str, Any]:
         "fields": full["fields"],
         "rows": full["rows"],
         "pipeline_catalog": full["pipeline_catalog"],
+        "module_lineage": full.get("module_lineage") or {},
+        "pipeline_scripts": full.get("pipeline_scripts") or {},
     }

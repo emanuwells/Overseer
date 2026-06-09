@@ -57,18 +57,3 @@ pipelines:
     steps:
       - module_id: wireforms_sync
         command: ["python3", "/home/eferreira/D4MAIA/Wireforms/wireforms_sync.py", "--sync"]
-
-  - id: p_monitor_recent
-    name: Performance Monitor Recent
-    schedule: "*/15 * * * *"
-    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_p_monitor_recent.txt
-    cron_match: "p_monitor.py"
-    steps:
-      - module_id: p_monitor_recent
-        command:
-          - python3
-          - /home/eferreira/D4MAIA/Performance_Monitor/p_monitor.py
-          - --config
-          - /home/eferreira/D4MAIA/Performance_Monitor/config/dashboard_recent.json
-          - --secrets
-          - /home/eferreira/D4MAIA/Performance_Monitor/secrets/database.json

@@ -24,6 +24,7 @@ from sqlalchemy import (
     func,
     inspect,
     insert,
+    or_,
     select,
     text,
     update,
@@ -535,21 +536,121 @@ def finish_run(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     duration = payload.get("duration_sec")
     if duration is None and started:
         duration = max(0.0, (ended - started).total_seconds())
+    existing_meta = run.get("metadata") if isinstance(run.get("metadata"), dict) else {}
+    incoming_meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+    merged_meta = {**existing_meta, **incoming_meta}
+    final_status = normalize_status(payload.get("status"))
     with get_engine().begin() as conn:
         conn.execute(
             update(runs_table)
             .where(runs_table.c.run_id == run_id)
             .values(
-                status=normalize_status(payload.get("status")),
+                status=final_status,
                 ended_at=ended,
                 duration_sec=duration,
                 exit_code=payload.get("exit_code"),
                 error_message=payload.get("error_message"),
-                metadata_json=json_dump(payload.get("metadata")),
+                metadata_json=json_dump(merged_meta),
                 updated_at=now,
             )
         )
-    return get_run(run_id) or {"run_id": run_id}
+    finished = get_run(run_id) or {"run_id": run_id}
+    if final_status == "failed" and not existing_meta.get("slack_notified"):
+        try:
+            from . import slack_alerts
+
+            if slack_alerts.notify_failed_run(finished):
+                patch_meta = {**merged_meta, "slack_notified": True}
+                with get_engine().begin() as conn:
+                    conn.execute(
+                        update(runs_table)
+                        .where(runs_table.c.run_id == run_id)
+                        .values(metadata_json=json_dump(patch_meta), updated_at=utcnow())
+                    )
+                finished = get_run(run_id) or finished
+        except Exception:
+            pass
+    return finished
+
+
+def purge_pipeline_data(
+    pipeline_id: str,
+    *,
+    deactivate: bool = True,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    logical_id = logical_pipeline_id(str(pipeline_id or "").strip())
+    if not logical_id:
+        raise ValueError("pipeline_id is required")
+
+    pipeline_filter = or_(
+        runs_table.c.pipeline_id == logical_id,
+        runs_table.c.pipeline_id.like(f"{logical_id}__%"),
+    )
+    with get_engine().connect() as conn:
+        run_ids = [
+            str(row[0])
+            for row in conn.execute(select(runs_table.c.run_id).where(pipeline_filter)).all()
+        ]
+
+    counts = {
+        "pipeline_id": logical_id,
+        "runs": len(run_ids),
+        "modules": 0,
+        "logs": 0,
+        "deactivated": False,
+        "dry_run": dry_run,
+    }
+    if not run_ids:
+        if deactivate and not dry_run:
+            with get_engine().begin() as conn:
+                result = conn.execute(
+                    update(pipelines_table)
+                    .where(
+                        or_(
+                            pipelines_table.c.pipeline_id == logical_id,
+                            pipelines_table.c.pipeline_id.like(f"{logical_id}__%"),
+                        )
+                    )
+                    .values(active=False, updated_at=utcnow())
+                )
+                counts["deactivated"] = bool(result.rowcount)
+        return counts
+
+    if dry_run:
+        with get_engine().connect() as conn:
+            counts["modules"] = int(
+                conn.execute(
+                    select(func.count()).select_from(modules_table).where(modules_table.c.run_id.in_(run_ids))
+                ).scalar_one()
+            )
+            counts["logs"] = int(
+                conn.execute(
+                    select(func.count()).select_from(logs_table).where(logs_table.c.run_id.in_(run_ids))
+                ).scalar_one()
+            )
+        return counts
+
+    with get_engine().begin() as conn:
+        mod_result = conn.execute(delete(modules_table).where(modules_table.c.run_id.in_(run_ids)))
+        log_result = conn.execute(delete(logs_table).where(logs_table.c.run_id.in_(run_ids)))
+        run_result = conn.execute(delete(runs_table).where(runs_table.c.run_id.in_(run_ids)))
+        counts["modules"] = int(mod_result.rowcount or 0)
+        counts["logs"] = int(log_result.rowcount or 0)
+        counts["runs"] = int(run_result.rowcount or 0)
+        if deactivate:
+            pipe_result = conn.execute(
+                update(pipelines_table)
+                .where(
+                    or_(
+                        pipelines_table.c.pipeline_id == logical_id,
+                        pipelines_table.c.pipeline_id.like(f"{logical_id}__%"),
+                    )
+                )
+                .values(active=False, updated_at=utcnow())
+            )
+            counts["deactivated"] = bool(pipe_result.rowcount)
+    return counts
 
 
 def record_module(payload: dict[str, Any]) -> dict[str, Any]:
