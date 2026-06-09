@@ -243,7 +243,7 @@ function renderDatabase(database) {
     text(`[data-table-count="${key}"]`, value);
   });
   const rows = Object.entries(database?.tables || {}).map(([name, value]) => `
-    <tr><td>${esc(name)}</td><td>${esc(value)}</td><td><span class="pill ${reachable ? 'ok' : 'danger'}">${reachable ? 'ok' : 'erro'}</span></td></tr>
+    <tr><td data-label="Tabela">${esc(name)}</td><td data-label="Registos">${esc(value)}</td><td data-label="Estado"><span class="pill ${reachable ? 'ok' : 'danger'}">${reachable ? 'ok' : 'erro'}</span></td></tr>
   `).join('');
   html('[data-db-tables]', rows || emptyRow(3, 'Sem contagens de tabelas.'));
 }
@@ -265,14 +265,14 @@ function renderOverview(overview) {
   const statusText = stale ? 'stale' : statusLabel(item.last_status);
     return `
     <tr data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
-      <td><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
-      <td>${esc(hostDisplay(item))}</td>
-      <td><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
-      <td>${esc(item.owner)}</td>
-      <td>${esc(item.schedule)}</td>
-      <td>${esc(formatDate(item.last_started_at))}</td>
-      <td>${esc(duration(item.last_duration_sec))}</td>
-      <td>${esc(item.criticality)}</td>
+      <td data-label="Pipeline"><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
+      <td data-label="Host">${esc(hostDisplay(item))}</td>
+      <td data-label="Estado"><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
+      <td data-label="Dono">${esc(item.owner)}</td>
+      <td data-label="Agenda">${esc(item.schedule)}</td>
+      <td data-label="Última run">${esc(formatDate(item.last_started_at))}</td>
+      <td data-label="Duração">${esc(duration(item.last_duration_sec))}</td>
+      <td data-label="Criticidade">${esc(item.criticality)}</td>
     </tr>`;
   }).join('') : emptyRow(8, 'Ainda não há pipelines registados por API.'));
 
@@ -349,12 +349,12 @@ function renderRunDetail(detail) {
   text('[data-count="modules"]', `${modules.length} módulo(s).`);
   html('[data-run-modules]', modules.length ? modules.map((item) => `
     <tr data-state="${stateBucket(item.status)}">
-      <td>${esc(item.module_id)}</td>
-      <td><span class="pill ${statusClass(item.status)}">${esc(statusLabel(item.status))}</span></td>
-      <td>${esc(formatDate(item.started_at))}</td>
-      <td>${esc(duration(item.duration_sec))}</td>
-      <td>${esc(item.pipeline_id)}</td>
-      <td>${esc(item.error_message || '--')}</td>
+      <td data-label="Módulo">${esc(item.module_id)}</td>
+      <td data-label="Estado"><span class="pill ${statusClass(item.status)}">${esc(statusLabel(item.status))}</span></td>
+      <td data-label="Início">${esc(formatDate(item.started_at))}</td>
+      <td data-label="Duração">${esc(duration(item.duration_sec))}</td>
+      <td data-label="Pipeline">${esc(item.pipeline_id)}</td>
+      <td data-label="Erro">${esc(item.error_message || '--')}</td>
     </tr>
   `).join('') : emptyRow(6, 'Sem módulos registados para esta run.'));
   html('[data-run-logs]', logs.length ? logs.slice(0, 50).map((item) => `

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Overseer API
-  version: 4.2.0
+  version: 5.1.0
   description: API canónica para observabilidade de pipelines e DAGs.
 paths:
   /:
@@ -66,6 +66,18 @@ paths:
                         type: string
                       metadata:
                         type: object
+  /v1/monitoring/full:
+    get:
+      summary: Payload legacy completo (MAIATRON/WELLS) com fields, rows, overview e pipelines.
+  /v1/monitoring/details:
+    get:
+      summary: Detalhe por run_id com módulos e logs (formato legacy).
+  /v1/monitoring/ops/fast:
+    get:
+      summary: Resumo público para dashboards (generated_at, summary, overview).
+  /v1/monitoring/ops/heavy:
+    get:
+      summary: Subset público de full (rows, pipelines, triggers).
   /v1/read/overview:
     get:
       summary: Snapshot operacional para o dashboard.

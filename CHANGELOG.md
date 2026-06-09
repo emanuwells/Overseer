@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.1.0] - 2026-06-08T20:00:00+01:00
+
+### Façade `/v1/monitoring/*` para WELLS_API e MAIATRON
+
+**Motivo:**
+WELLS_API Explorer, MAIATRON Overseer e Ops Center consomem `/v1/monitoring/*`; a API v5 expunha apenas `/v1/read/*`.
+
+**Alterações:**
+- `monitoring_export.py` — adaptador v5 → payload legacy (`fields`, `rows`, `overview`, `pipelines`, …).
+- Router `GET /v1/monitoring/full`, `/details`, `/ops/fast`, `/ops/heavy`.
+- Testes `tests/test_monitoring_export.py`.
+
+---
+
 ## [5.0.0] - 2026-06-08T18:00:00+01:00
 
 ### host_id, runners fiáveis e frontend produtivo

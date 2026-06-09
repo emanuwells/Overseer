@@ -17,10 +17,10 @@ if str(ROOT) not in sys.path:
 
 from src.overseer_core.store import init_schema
 
-from .routers import catalog, events, health, orchestrate, read
+from .routers import catalog, events, health, monitoring, orchestrate, read
 
 FRONTEND_DIR = ROOT / "frontend"
-API_VERSION = "5.0.0"
+API_VERSION = "5.1.0"
 
 
 @asynccontextmanager
@@ -47,6 +47,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(monitoring.router)
     app.include_router(read.router)
     app.include_router(events.router)
     app.include_router(catalog.router)

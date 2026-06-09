@@ -257,7 +257,8 @@ tr:hover, tr.is-selected { background: color-mix(in oklch, var(--accent), transp
 .lineage-canvas {
   min-height: 620px;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
   background-image:
     linear-gradient(var(--line) 1px, transparent 1px),
     linear-gradient(90deg, var(--line) 1px, transparent 1px);
@@ -369,6 +370,40 @@ tr:hover, tr.is-selected { background: color-mix(in oklch, var(--accent), transp
   .side-status { display: none; }
   .hero-row { grid-template-columns: 1fr; align-items: start; }
   .feature-grid, .screen-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .btn, .select, .nav a { min-height: 44px; }
+  .table-wrap { overflow: visible; }
+  table { display: block; min-width: 0; width: 100%; }
+  thead { display: none; }
+  tbody { display: grid; gap: 10px; }
+  tbody tr {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: color-mix(in oklch, var(--panel), transparent 4%);
+    padding: 8px 10px;
+    cursor: default;
+  }
+  tbody td {
+    display: grid;
+    grid-template-columns: minmax(96px, 38%) 1fr;
+    gap: 8px;
+    align-items: start;
+    border-bottom: 1px dashed var(--line);
+    padding: 7px 2px;
+    white-space: normal;
+    word-break: break-word;
+  }
+  tbody td:last-child { border-bottom: none; }
+  tbody td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
 }
 @media (max-width: 520px) {
   .topbar { align-items: flex-start; flex-direction: column; }
