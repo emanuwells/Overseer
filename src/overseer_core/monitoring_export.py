@@ -86,6 +86,34 @@ def _pipeline_lookup(pipelines: list[dict[str, Any]]) -> dict[str, dict[str, Any
     return lookup
 
 
+def _inactive_pipeline_ids(pipelines: list[dict[str, Any]]) -> set[str]:
+    ids: set[str] = set()
+    for row in pipelines:
+        if row.get("active") is False:
+            pid = store.logical_pipeline_id(str(row.get("pipeline_id") or ""))
+            if pid:
+                ids.add(pid)
+    return ids
+
+
+def _filter_runs_for_export(
+    runs: list[dict[str, Any]],
+    pipelines: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    inactive = _inactive_pipeline_ids(pipelines)
+    if not inactive:
+        return runs
+    return [
+        run
+        for run in runs
+        if store.logical_pipeline_id(str(run.get("pipeline_id") or "")) not in inactive
+    ]
+
+
+def _filter_pipelines_for_export(pipelines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in pipelines if row.get("active", True)]
+
+
 def _run_row_id(run_id: str, index: int) -> int:
   # Stable positive int for legacy UI (modulo keeps SQLite-scale ids).
     return abs(hash(f"{run_id}:{index}")) % 2_000_000_000 or index + 1
@@ -329,7 +357,7 @@ def _build_pipeline_catalog(pipelines: list[dict[str, Any]]) -> list[dict[str, A
             "updated_at": row.get("updated_at"),
             "host_id": row.get("host_id"),
         }
-        for row in pipelines
+        for row in _filter_pipelines_for_export(pipelines)
     ]
 
 
@@ -604,9 +632,15 @@ def build_details_map(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]
 
 
 def build_full_payload(*, run_limit: int = 5000) -> dict[str, Any]:
-    runs = store.list_runs(limit=run_limit)
-    pipelines = store.list_pipelines()
-    triggers = store.list_triggers(limit=500)
+    all_pipelines = store.list_pipelines()
+    pipelines = _filter_pipelines_for_export(all_pipelines)
+    runs = _filter_runs_for_export(store.list_runs(limit=run_limit), all_pipelines)
+    inactive = _inactive_pipeline_ids(all_pipelines)
+    triggers = [
+        row
+        for row in store.list_triggers(limit=500)
+        if store.logical_pipeline_id(str(row.get("pipeline_id") or "")) not in inactive
+    ]
     fields, rows, _ = _rows_and_index(runs, pipelines)
     summary = _build_summary(runs, pipelines)
     overview = _build_overview(runs, summary)
@@ -628,8 +662,9 @@ def build_full_payload(*, run_limit: int = 5000) -> dict[str, Any]:
 
 
 def build_ops_fast_payload(*, run_limit: int = 1000) -> dict[str, Any]:
-    runs = store.list_runs(limit=run_limit)
-    pipelines = store.list_pipelines()
+    all_pipelines = store.list_pipelines()
+    pipelines = _filter_pipelines_for_export(all_pipelines)
+    runs = _filter_runs_for_export(store.list_runs(limit=run_limit), all_pipelines)
     summary = _build_summary(runs, pipelines)
     return {
         "generated_at": _iso_now(),

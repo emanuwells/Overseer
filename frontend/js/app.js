@@ -100,6 +100,14 @@ function logicalPipelineId(pipelineId) {
   return raw;
 }
 
+const RETIRED_PIPELINE_IDS = new Set(['p_monitor_recent']);
+
+function isPipelineVisible(item) {
+  if (item?.active === false) return false;
+  const logicalId = logicalPipelineId(item?.pipeline_id);
+  return !RETIRED_PIPELINE_IDS.has(logicalId);
+}
+
 function pipelineRecencyScore(item) {
   const started = item?.last_started_at ? new Date(item.last_started_at).getTime() : 0;
   const cleanId = logicalPipelineId(item?.pipeline_id) === item?.pipeline_id ? 1 : 0;
@@ -110,6 +118,7 @@ function pipelineRecencyScore(item) {
 function dedupePipelines(pipelines) {
   const best = new Map();
   (pipelines || []).forEach((item) => {
+    if (!isPipelineVisible(item)) return;
     const logicalId = logicalPipelineId(item.pipeline_id);
     if (!logicalId) return;
     const candidate = { ...item, pipeline_id: logicalId };

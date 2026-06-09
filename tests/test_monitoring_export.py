@@ -128,6 +128,40 @@ def test_module_lineage_failed_module(sqlite_store) -> None:
     assert node["lastMessage"] == "boom"
 
 
+def test_inactive_pipeline_excluded_from_export(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "active_pipe",
+            "host_id": "local",
+            "name": "Active",
+            "nodes": [{"module_id": "a"}],
+            "edges": [],
+        }
+    )
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "p_monitor_recent",
+            "host_id": "local",
+            "name": "Performance Monitor",
+            "nodes": [{"module_id": "pm"}],
+            "edges": [],
+        }
+    )
+    active_run = store.start_run({"pipeline_id": "active_pipe", "host_id": "local"})
+    store.finish_run(active_run["run_id"], {"status": "ok"})
+    retired_run = store.start_run({"pipeline_id": "p_monitor_recent", "host_id": "local"})
+    store.finish_run(retired_run["run_id"], {"status": "ok"})
+    store.purge_pipeline_data("p_monitor_recent", deactivate=True)
+
+    full = monitoring_export.build_full_payload()
+    pipeline_ids = {row[full["fields"].index("pipelineId")] for row in full["rows"]}
+    assert "active_pipe" in pipeline_ids
+    assert "p_monitor_recent" not in pipeline_ids
+    catalog_ids = {row["pipeline_id"] for row in full["pipeline_catalog"]}
+    assert "p_monitor_recent" not in catalog_ids
+    assert "p_monitor_recent" not in full.get("module_lineage", {})
+
+
 def test_purge_pipeline_data(sqlite_store) -> None:
     run = store.start_run({"pipeline_id": "p_monitor_recent", "host_id": "local"})
     store.record_module(
