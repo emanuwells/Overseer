@@ -15,7 +15,3 @@ A confirmar.
 ## Consequências
 
 A confirmar.
-
-## Alternativas Consideradas
-
-A confirmar.

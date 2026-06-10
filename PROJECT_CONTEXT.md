@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Overseer
 
-Este ficheiro descreve o contexto específico do projeto Overseer. Deve ser lido em conjunto com `AGENTS.md`, `HANDOFF.md`, `SKILLS.md`, `CHANGELOG_POLICY.md` e `README.md`.
+Este ficheiro descreve o contexto específico do projeto Overseer. Deve ser lido em conjunto com `AGENTS.md`, `.agents/ops/HANDOFF.md`, `.agents/skills/README.md`, `.agents/policies/CHANGELOG_POLICY.md` e `README.md`.
 
 ## Identidade Do Projeto
 
@@ -105,7 +105,7 @@ Python local só é necessário para desenvolvimento e testes. Node.js deixou de
 
 ## Skills Do Projeto
 
-Skills locais inventariadas em `SKILLS.md`. Para alterações fullstack são relevantes: `repo-onboarding`, `skill-selector`, `fullstack-delivery`, `backend-architecture`, `frontend-architecture`, `api-contract-guardian`, `database-migration-safety`, `dependency-manager`, `file-pruner`, `documentation-keeper`, `handoff-maintainer`, `changelog-semver`, `definition-of-done`, `security-secrets-audit`, `prompt-injection-guard` e `stop-the-slop`.
+Skills inventariadas em `.agents/skills/README.md` (cópia Claude em `.claude/skills/`). Para alterações fullstack são relevantes: `repo-onboarding`, `fullstack-delivery`, `backend-architecture`, `frontend-skill-orchestrator`, `frontend-api-integration`, `api-contract-guardian`, `database-migration-safety`, `dependency-manager`, `docker-deploy`, `secrets-layout-guardian`, `quality-gate-runner`, `professional-documentation` e `stop-the-slop`.
 
 ## ADRs Do Projeto
 

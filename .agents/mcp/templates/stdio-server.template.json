@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "server-name": {
+      "command": "command-to-run",
+      "args": [
+        "arg1",
+        "arg2"
+      ],
+      "env": {
+        "EXAMPLE_ENV_VAR": "${EXAMPLE_ENV_VAR}"
+      }
+    }
+  }
+}

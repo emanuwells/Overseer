@@ -1,5 +1,41 @@
 # Changelog
 
+## [5.2.0] - 2026-06-10T14:30:00+01:00
+
+### Higiene do repositório e alinhamento com AGENTS.md
+
+**Motivo:**
+Consolidar estrutura `.agents/` como fonte canónica, remover duplicados na raiz e apagar artefactos obsoletos documentados como removidos.
+
+**Impacto:**
+Policies, skills e handoff passam a viver apenas em `.agents/`. Referências em documentação atualizadas. Sem alteração de código de runtime.
+
+**Alterações:**
+- Removidos `SKILLS.md`, `CHANGELOG_POLICY.md` e `HANDOFF.md` da raiz (canónicos em `.agents/`).
+- Removida pasta `skills/` legada (substituída por `.agents/skills/` e `.claude/skills/`).
+- Removidos `overseer_deploy.tgz`, `frontend/landing.html` e `frontend/bruinops-prototype.html`.
+- Removidas pastas vazias `config/` e `pipelines/` (shells sem ficheiros versionados).
+- `.agents/policies/CHANGELOG_POLICY.md`: política consolidada com paths atualizados.
+- `PROJECT_CONTEXT.md`, `README.md`, `.agents/skills/README.md`: referências corrigidas.
+- `pyproject.toml`: `testpaths` e `norecursedirs` para evitar recolha acidental em `pipelines/`.
+- Removidos scaffold templates: `README.template.md`, `PROJECT_CONTEXT.template.md`, `.gitignore.template`.
+- `COMMANDS.md`: comandos reais do Overseer (substitui placeholders genéricos).
+- `.gitignore`: `runtime/*.db` para artefactos locais de runtime.
+
+**Ferramentas, MCP E Skills:**
+- MCP: N/A — não aplicável.
+- Skills: `repo-hygiene`, `stop-the-slop`, `professional-documentation`.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- Duplicados na raiz, skills legadas, artefacto `.tgz`, frontend obsoleto, pastas vazias.
+
+**Validação:**
+- Auditoria manual contra `AGENTS.md` e `.agents/ops/STRUCTURE.md`.
+- Skills `.agents/skills/` e `.claude/skills/` com 23 entradas em sync.
+- `python -m pytest -q`: 36 passed.
+
+---
+
 ## [5.1.0] - 2026-06-08T20:00:00+01:00
 
 ### Façade `/v1/monitoring/*` para WELLS_API e MAIATRON

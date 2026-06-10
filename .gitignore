@@ -19,14 +19,15 @@ Thumbs.db
 
 # Runtime artifacts
 logs/
-webapp/node_modules/
-webapp/dist/
 pipelines/**/logs/
+*.tgz
+overseer_deploy.tgz
 *.log
 orch_log.txt
 run_log.txt
 runtime/logs/*.log
 runtime/*.json
+runtime/*.db
 runtime/*_status.json
 runtime/scheduler_state.json
 runtime/run_now_channel/**/*.json

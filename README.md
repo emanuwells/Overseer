@@ -189,7 +189,7 @@ Deploy remoto/produção: A confirmar. Não há configuração de produção val
 ## MCP Servers E Skills
 
 - MCP servers do projeto: N/A — não foi encontrada configuração `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json`.
-- Skills locais: inventariadas em [SKILLS.md](SKILLS.md).
+- Skills: inventariadas em [.agents/skills/README.md](.agents/skills/README.md) (compatibilidade Claude em `.claude/skills/`).
 
 ## Changelog
 

@@ -34,3 +34,7 @@ include = [
   "overseer_sdk*",
   "src*",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["pipelines", "templates", "deploy", "frontend", "runtime", ".agents", ".claude"]
