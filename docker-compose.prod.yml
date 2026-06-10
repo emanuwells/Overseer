@@ -16,7 +16,7 @@ services:
     network_mode: host
     command:
       - uvicorn
-      - src.overseer_api.main:app
+      - overseer_api.main:app
       - --host
       - 127.0.0.1
       - --port

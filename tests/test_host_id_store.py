@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.overseer_core import store
+from overseer_core import store
 
 
 @pytest.fixture()

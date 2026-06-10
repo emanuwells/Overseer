@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from src.overseer_core import monitoring_export
+from overseer_core import monitoring_export
 
 from ..auth import require_service_token
 
@@ -20,7 +20,7 @@ def monitoring_full() -> dict[str, Any]:
 
 @router.get("/details", dependencies=[Depends(require_service_token)])
 def monitoring_details() -> dict[str, Any]:
-    from src.overseer_core import store
+    from overseer_core import store
 
     runs = store.list_runs(limit=5000)
     pipelines = store.list_pipelines()

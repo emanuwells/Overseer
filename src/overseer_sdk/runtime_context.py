@@ -121,7 +121,7 @@ class RuntimeContext:
         ----------
         overseer_root :
             Raiz do projecto. Se ``None``, usa a env var ``OVERSEER_ROOT``
-            ou calcula 1 nível acima de ``overseer_sdk/``.
+            ou calcula a raiz do repositório a partir de ``src/overseer_sdk/``.
         db_local_hosts :
             Conjunto de IPs/hostnames onde a DB corre localmente.
             Default: conjunto vazio, configurável por ``OVERSEER_DB_LOCAL_HOSTS``.
@@ -132,7 +132,7 @@ class RuntimeContext:
             if env_root:
                 overseer_root = Path(env_root)
             else:
-                overseer_root = Path(__file__).resolve().parents[1]
+                overseer_root = Path(__file__).resolve().parents[2]
 
         # DB local hosts
         if db_local_hosts is None:

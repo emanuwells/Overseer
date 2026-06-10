@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from src.overseer_api.main import create_app
-from src.overseer_core import monitoring_export, store
+from overseer_api.main import create_app
+from overseer_core import monitoring_export, store
 
 
 @pytest.fixture()

@@ -5,7 +5,7 @@ from datetime import timezone
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from src.overseer_core.store import get_db_url, get_engine, utcnow
+from overseer_core.store import get_db_url, get_engine, utcnow
 
 router = APIRouter(tags=["health"])
 

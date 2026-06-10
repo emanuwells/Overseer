@@ -45,33 +45,29 @@ flowchart LR
 
 ```text
 Overseer/
-  docs/
-  frontend/
-    css/
-    js/
-    dashboard.html
-    deployments.html
-    lineage.html
-    run-detail.html
-  openapi/
-  overseer_agent/
-  overseer_monitor/
-  overseer_sdk/
-  scripts/
   src/
     overseer_api/
     overseer_core/
-  templates/pipeline-repo/
+    overseer_agent/
+    overseer_sdk/
+    overseer_monitor/
+  frontend/
+  scripts/
+  templates/
+  deploy/
+  openapi/
   tests/
   docker-compose.yml
+  docker-compose.prod.yml
   Dockerfile
+  pyproject.toml
   requirements.txt
 ```
 
 ## Requisitos
 
 - Docker com Docker Compose para execução recomendada.
-- Python 3.11+ apenas para desenvolvimento local ou testes fora de Docker.
+- Python 3.11+ apenas para desenvolvimento local ou testes fora de Docker (`pip install -e .`).
 
 ## Instalação E Execução
 

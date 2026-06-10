@@ -57,21 +57,22 @@ flowchart LR
 
 ```text
 Overseer/
-  docs/
+  src/
+    overseer_api/
+    overseer_core/
+    overseer_agent/
+    overseer_sdk/
+    overseer_monitor/
   frontend/
-  openapi/
-  overseer_agent/
-  overseer_monitor/
-  overseer_sdk/
   scripts/
-  src/overseer_api/
-  src/overseer_core/
-  tasks/
-  templates/pipeline-repo/
+  templates/
+  deploy/
+  openapi/
   tests/
   docker-compose.yml
+  docker-compose.prod.yml
   Dockerfile
-  scripts/overseer-up.cmd
+  pyproject.toml
 ```
 
 ## Docker / Instalação

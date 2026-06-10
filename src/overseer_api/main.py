@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -11,11 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+from overseer_core.store import init_schema
 
-from src.overseer_core.store import init_schema
+ROOT = Path(__file__).resolve().parents[2]
 
 from .routers import catalog, events, health, monitoring, orchestrate, read
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## [5.3.0] - 2026-06-10T15:00:00+01:00
+
+### Código Python unificado em `src/` com layout instalável
+
+**Motivo:**
+Eliminar pacotes Python na raiz, simplificar imports e tornar Docker/CLI reprodutíveis com `pip install`.
+
+**Impacto (breaking interno):**
+- Imports `src.overseer_api` / `src.overseer_core` passam a `overseer_api` / `overseer_core`.
+- Pacotes movidos: `overseer_agent`, `overseer_sdk`, `overseer_monitor` → `src/`.
+- Uvicorn/Docker: `overseer_api.main:app` (em vez de `src.overseer_api.main:app`).
+- Desenvolvimento local: `pip install -e .` ou `pythonpath = src` via pytest.
+
+**Alterações:**
+- `pyproject.toml`: layout `src/`, versão 5.3.0, `pythonpath` para pytest.
+- `Dockerfile`: instala o pacote antes de copiar o resto do repo; imagem mais enxuta via `.dockerignore`.
+- Scripts de manutenção e instalador do agente ajustados para `src/`.
+- `README.md` e `PROJECT_CONTEXT.md`: estrutura actualizada.
+
+**Validação:**
+- `python -m pytest -q`: 36 passed.
+
+---
+
 ## [5.2.1] - 2026-06-10T14:40:00+01:00
 
 ### Raiz limpa e arranque Docker consolidado em scripts/

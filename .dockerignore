@@ -1,4 +1,7 @@
 .git
+.github
+.agents
+.claude
 .pytest_cache
 __pycache__
 *.pyc
@@ -10,10 +13,16 @@ secrets/*
 !secrets/*.example
 !secrets/*.example.json
 !secrets/README.md
+pipelines/
+_pipelines_removed/
 pipelines/**/secrets/*
-!pipelines/**/secrets/.gitkeep
-!pipelines/**/secrets/*.example
-!pipelines/**/secrets/*.example.json
 logs
 runtime/*.json
+runtime/*.db
 runtime/logs
+docs
+tasks
+*.tgz
+overseer_deploy.tgz
+README.template.md
+PROJECT_CONTEXT.template.md

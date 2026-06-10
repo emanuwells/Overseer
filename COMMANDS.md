@@ -6,7 +6,7 @@ Comandos rápidos do Overseer.
 
 | Ação | Comando |
 |---|---|
-| Instalar dependências (local) | `pip install -r requirements.txt` |
+| Instalar dependências (local) | `pip install -r requirements.txt && pip install -e .` |
 | Configurar ambiente | `cp .env.example .env` |
 | DB oficial (sem MariaDB local) | `cp .env.official.example .env` |
 
