@@ -22,6 +22,7 @@ services:
       - --port
       - "8090"
     environment:
+      OVERSEER_ROOT: /app
       OVERSEER_API_PORT: 8090
       OVERSEER_API_URL: http://127.0.0.1:8090
       OVERSEER_DB_URL: ${OVERSEER_DB_URL:?defina OVERSEER_DB_URL no .env}

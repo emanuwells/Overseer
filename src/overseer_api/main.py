@@ -12,7 +12,18 @@ from fastapi.staticfiles import StaticFiles
 
 from overseer_core.store import init_schema
 
-ROOT = Path(__file__).resolve().parents[2]
+
+def _repo_root() -> Path:
+    if env_root := os.getenv("OVERSEER_ROOT"):
+        return Path(env_root)
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "frontend").is_dir() and (parent / "pyproject.toml").is_file():
+            return parent
+    return here.parents[2]
+
+
+ROOT = _repo_root()
 
 from .routers import catalog, events, health, monitoring, orchestrate, read
 

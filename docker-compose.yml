@@ -2,6 +2,7 @@ services:
   overseer-api:
     build: .
     environment:
+      OVERSEER_ROOT: /app
       OVERSEER_API_HOST: 0.0.0.0
       OVERSEER_API_PORT: 8090
       OVERSEER_API_TOKEN: ${OVERSEER_API_TOKEN:-}

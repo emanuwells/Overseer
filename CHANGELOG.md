@@ -24,6 +24,19 @@ Eliminar pacotes Python na raiz, simplificar imports e tornar Docker/CLI reprodu
 
 ---
 
+## [5.3.1] - 2026-06-10T15:10:00+01:00
+
+### Corrigir resolução do frontend após `pip install` no Docker
+
+**Motivo:**
+Com o pacote instalado, `Path(__file__).parents[2]` apontava para `site-packages` e `/ui` devolvia 404.
+
+**Alterações:**
+- `overseer_api/main.py`: `_repo_root()` com `OVERSEER_ROOT` e deteção por `frontend/` + `pyproject.toml`.
+- `docker-compose.yml` e `docker-compose.prod.yml`: `OVERSEER_ROOT=/app`.
+
+---
+
 ## [5.2.1] - 2026-06-10T14:40:00+01:00
 
 ### Raiz limpa e arranque Docker consolidado em scripts/
