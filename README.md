@@ -91,7 +91,7 @@ Scripts equivalentes:
 
 | Sistema | Comando |
 |---|---|
-| Windows CMD | `overseer-up.cmd` |
+| Windows CMD | `scripts\overseer-up.cmd` |
 | PowerShell | `.\scripts\overseer-up.ps1` |
 | Linux/macOS | `sh scripts/overseer-up.sh` |
 

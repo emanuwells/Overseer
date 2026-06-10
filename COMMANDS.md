@@ -33,7 +33,7 @@ Comandos rápidos do Overseer.
 
 | Sistema | Comando |
 |---|---|
-| Windows CMD | `overseer-up.cmd` |
+| Windows CMD | `scripts\overseer-up.cmd` |
 | PowerShell | `.\scripts\overseer-up.ps1` |
 | Linux/macOS | `sh scripts/overseer-up.sh` |
 
@@ -53,6 +53,9 @@ Comandos rápidos do Overseer.
 |---|---|
 | Repo prod | `ssh eferreira@195.23.9.32 'cd ~/Dev/Repos/emanuwells/Overseer && git status --short --branch'` |
 | Pull prod | `ssh eferreira@195.23.9.32 'cd ~/Dev/Repos/emanuwells/Overseer && git pull origin main'` |
+| Docker prod | `ssh eferreira@195.23.9.32 'cd ~/Dev/Repos/emanuwells/Overseer && docker compose -f docker-compose.prod.yml up --build -d'` |
+| Frontend nginx | `ssh eferreira@195.23.9.32 'cd ~/Dev/Repos/emanuwells/Overseer && sudo bash scripts/deploy-nginx-frontend.sh'` |
+| Health prod | `ssh eferreira@195.23.9.32 'curl -sf http://127.0.0.1:8090/v1/health'` |
 
 ## Comandos Proibidos Sem Confirmação
 

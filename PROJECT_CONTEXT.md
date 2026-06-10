@@ -51,7 +51,7 @@ flowchart LR
 | Estado DB | Frontend/API client | `/v1/read/database` | URL mascarada, modo e contagens |
 | Escrita | SDK, agent ou pipeline | `/v1/events/*` | Tabelas `overseer_*` |
 | Triggers | UI/API client | `/v1/orchestrate/triggers` | Sinal operacional sem execução local |
-| Arranque | `overseer-up.cmd`, scripts ou Compose | Docker Compose | API + MariaDB + UI |
+| Arranque | `scripts/overseer-up.*` ou Compose | Docker Compose | API + MariaDB + UI |
 
 ## Estrutura Do Repositório
 
@@ -71,7 +71,7 @@ Overseer/
   tests/
   docker-compose.yml
   Dockerfile
-  overseer-up.cmd
+  scripts/overseer-up.cmd
 ```
 
 ## Docker / Instalação
@@ -80,7 +80,7 @@ O caminho oficial é Docker-first e deve funcionar em Windows, Linux e macOS com
 
 | Sistema | Comando |
 |---|---|
-| Windows CMD | `overseer-up.cmd` |
+| Windows CMD | `scripts\overseer-up.cmd` |
 | PowerShell | `.\scripts\overseer-up.ps1` |
 | Linux/macOS | `sh scripts/overseer-up.sh` |
 | Manual | `docker compose up --build -d` |

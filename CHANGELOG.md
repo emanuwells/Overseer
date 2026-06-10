@@ -1,5 +1,28 @@
 # Changelog
 
+## [5.2.1] - 2026-06-10T14:40:00+01:00
+
+### Raiz limpa e arranque Docker consolidado em scripts/
+
+**Motivo:**
+Fechar reorganização pendente, remover pasta `pipelines/` fantasma no Google Drive e alinhar documentação com paths reais.
+
+**Alterações:**
+- `overseer-up.cmd` movido para `scripts/overseer-up.cmd` (path interno corrigido).
+- Removido `overseer.py` da raiz (alias legado; usar `overseer_monitor.monitor`).
+- `.gitignore`: ignorar `pipelines/` e `_pipelines_removed/` na raiz.
+- `README.md`, `COMMANDS.md`, `PROJECT_CONTEXT.md`: paths de arranque atualizados.
+
+**Ficheiros Removidos Ou Obsoletos:**
+- `pipelines/` local (shell vazio bloqueado pelo Drive; removido via rename).
+- `overseer.py`, `overseer-up.cmd` na raiz.
+
+**Validação:**
+- `python -m pytest -q`: 36 passed.
+- `git status` sem warnings de `pipelines/`.
+
+---
+
 ## [5.2.0] - 2026-06-10T14:30:00+01:00
 
 ### Higiene do repositório e alinhamento com AGENTS.md
