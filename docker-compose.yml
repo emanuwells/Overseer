@@ -9,10 +9,19 @@ services:
       OVERSEER_DB_URL: ${OVERSEER_DB_URL:-mysql+pymysql://overseer:${MYSQL_PASSWORD:-overseer}@mysql:3306/Overseer?charset=utf8mb4}
       OVERSEER_CORS_ORIGINS: ${OVERSEER_CORS_ORIGINS:-*}
       OVERSEER_API_URL: http://127.0.0.1:8090
+      OVERSEER_SLACK_WEBHOOK_URL: ${OVERSEER_SLACK_WEBHOOK_URL:-}
+      OVERSEER_SLACK_CHANNEL: ${OVERSEER_SLACK_CHANNEL:-#overseer}
+      OVERSEER_SLACK_MENTION_CHANNEL: ${OVERSEER_SLACK_MENTION_CHANNEL:-true}
+      OVERSEER_SLACK_DIGEST_ENABLED: ${OVERSEER_SLACK_DIGEST_ENABLED:-true}
+      OVERSEER_SLACK_DIGEST_HOUR: ${OVERSEER_SLACK_DIGEST_HOUR:-8}
+      OVERSEER_SLACK_DIGEST_MINUTE: ${OVERSEER_SLACK_DIGEST_MINUTE:-30}
+      OVERSEER_SSH_SYNC_ENABLED: ${OVERSEER_SSH_SYNC_ENABLED:-1}
     ports:
       - "${OVERSEER_API_PORT:-8090}:8090"
     volumes:
       - ./runtime:/app/runtime
+      - ./deploy/runners:/app/deploy/runners:rw
+      - ./secrets:/app/secrets:ro
     depends_on:
       mysql:
         condition: service_healthy

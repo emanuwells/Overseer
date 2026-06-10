@@ -1,5 +1,37 @@
 # Changelog
 
+## [5.4.1] - 2026-06-10T19:00:00+01:00
+
+### Slack: @channel, lembretes diários e resolução imediata
+
+**Comportamento:**
+- Todas as alertas de falha e resolução incluem `<!channel>` (`OVERSEER_SLACK_MENTION_CHANNEL`, default `true`).
+- Digest diário às **08:30** (Europe/Lisbon) lista *falhas em aberto* (última run `failed`) até haver run `ok`.
+- Quando um pipeline passa de `failed` → `ok`, envia alerta de resolução **imediatamente** (sem esperar pelo digest).
+
+---
+
+## [5.4.0] - 2026-06-10T18:00:00+01:00
+
+### Slack, digest diário e edição de pipelines com sync SSH
+
+**Motivo:**
+Alertas operacionais no canal `#overseer`, resumo diário automático e edição de metadata de pipelines na UI com propagação para DB, YAML e runners remotos.
+
+**Alterações:**
+- `slack_alerts`: correcção de `repo_root` após layout `src/`; webhook via env ou `secrets/slack.json`.
+- `slack_digest` + agendamento asyncio no lifespan da API (`OVERSEER_SLACK_DIGEST_HOUR` + `OVERSEER_SLACK_DIGEST_MINUTE`, default 08:30 Europe/Lisbon).
+- `PATCH /v1/catalog/pipelines/{id}` com sync para `deploy/runners/<host>.yaml` e SSH (`OVERSEER_SSH_SYNC_ENABLED`).
+- `deploy/runners/hosts.yaml` — mapa de hosts para provisionamento remoto.
+- Frontend: formulário de edição (owner, schedule, criticality, name) no dashboard.
+- Docker: volume `deploy/runners`, env vars Slack e SSH sync.
+- Script CLI: `scripts/slack_daily_digest.py`.
+
+**Validação:**
+- `python -m pytest -q`
+
+---
+
 ## [5.3.0] - 2026-06-10T15:00:00+01:00
 
 ### Código Python unificado em `src/` com layout instalável

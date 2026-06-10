@@ -1,0 +1,11 @@
+# Mapa de hosts para sync remoto (sem credenciais — usar chave SSH do sistema).
+hosts:
+  baze2:
+    ssh: eferreira@195.23.9.32
+    platform: linux
+    repo_path: /home/eferreira/Dev/Repos/emanuwells/Overseer
+  WS1207:
+    ssh: DQSI@WS1207
+    platform: windows
+    # Caminho real no host Medidata (confirmar com Test-Path no WS1207)
+    repo_path: C:\MAIATRON\Overseer

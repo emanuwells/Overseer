@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from overseer_core import store
+from overseer_core import runner_catalog, runner_ssh, store
 
 from ..auth import require_service_token
 
 router = APIRouter(prefix="/v1/catalog", tags=["catalog"], dependencies=[Depends(require_service_token)])
+
+_CRON_RE = re.compile(r"^(\S+\s+){4}\S+$")
 
 
 class CatalogNode(BaseModel):
@@ -53,6 +56,35 @@ class PipelineCatalogBody(BaseModel):
         return self
 
 
+class PipelinePatchBody(BaseModel):
+    host_id: str
+    name: str | None = None
+    owner: str | None = None
+    criticality: str | None = None
+    schedule: str | None = None
+    sync_remote: bool = True
+
+    @field_validator("schedule")
+    @classmethod
+    def validate_schedule(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        raw = value.strip()
+        if not raw:
+            raise ValueError("schedule não pode ser vazio.")
+        if raw.lower() == "manual":
+            return "manual"
+        if not _CRON_RE.match(raw):
+            raise ValueError("schedule deve ser 'manual' ou cron de 5 campos.")
+        return raw
+
+    @model_validator(mode="after")
+    def validate_has_field(self) -> "PipelinePatchBody":
+        if not any([self.name, self.owner, self.criticality, self.schedule]):
+            raise ValueError("Indique pelo menos um campo a actualizar (name, owner, criticality, schedule).")
+        return self
+
+
 @router.post("/pipelines")
 def register_pipeline(body: PipelineCatalogBody) -> dict[str, Any]:
     try:
@@ -60,3 +92,42 @@ def register_pipeline(body: PipelineCatalogBody) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True, "dag": dag}
+
+
+@router.patch("/pipelines/{pipeline_id}")
+def patch_pipeline(pipeline_id: str, body: PipelinePatchBody) -> dict[str, Any]:
+    host_id = body.host_id.strip()
+    fields = {
+        "name": body.name,
+        "owner": body.owner,
+        "criticality": body.criticality,
+        "schedule": body.schedule,
+    }
+    schedule_changed = body.schedule is not None
+
+    try:
+        if host_id not in runner_ssh.list_known_hosts() and body.sync_remote:
+            available = ", ".join(runner_ssh.list_known_hosts()) or "(nenhum)"
+            raise ValueError(f"host_id desconhecido: {host_id}. Hosts disponíveis: {available}")
+        dag = store.patch_pipeline_catalog(pipeline_id, host_id, fields)
+        yaml_result: dict[str, Any] | None = None
+        try:
+            yaml_result = runner_catalog.patch_runner_catalog_yaml(host_id, pipeline_id, fields)
+        except (FileNotFoundError, ValueError) as exc:
+            raise ValueError(str(exc)) from exc
+
+        ssh_result: dict[str, Any] | None = None
+        if body.sync_remote:
+            ssh_result = runner_ssh.sync_remote_runner(host_id, schedule_changed=schedule_changed)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "ok": True,
+        "dag": dag,
+        "sync": {
+            "db": "ok",
+            "yaml": yaml_result,
+            "ssh": ssh_result,
+        },
+    }

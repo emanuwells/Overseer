@@ -7,6 +7,8 @@ const state = {
   pipelines: [],
   selectedDeploymentKey: sessionStorage.getItem('overseer_selected_deployment') || '',
   selectedNodeId: '',
+  selectedPipeline: null,
+  editOpen: false,
 };
 
 function esc(value) {
@@ -32,6 +34,124 @@ async function api(path) {
   if (response.status === 401) throw new Error('API devolveu 401. Confirma o token.');
   if (!response.ok) throw new Error(`API devolveu HTTP ${response.status}.`);
   return response.json();
+}
+
+async function apiWrite(method, path, body) {
+  const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+  if (apiToken()) headers.Authorization = `Bearer ${apiToken()}`;
+  const response = await fetch(path, { method, headers, body: JSON.stringify(body) });
+  if (response.status === 401) throw new Error('API devolveu 401. Confirma o token.');
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = payload?.detail;
+    const message = Array.isArray(detail)
+      ? detail.map((item) => item.msg || item).join('; ')
+      : (typeof detail === 'string' ? detail : `API devolveu HTTP ${response.status}.`);
+    throw new Error(message);
+  }
+  return payload;
+}
+
+function isValidSchedule(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+  if (raw.toLowerCase() === 'manual') return true;
+  return raw.split(/\s+/).length === 5;
+}
+
+function findPipelineRow(pipelineId, hostId) {
+  return (state.pipelines || []).find((item) => (
+    item.pipeline_id === pipelineId && String(item.host_id || '') === String(hostId || '')
+  )) || null;
+}
+
+function setInspectorSelection(item) {
+  state.selectedPipeline = item;
+  const inspector = one('#inspector');
+  if (!inspector || !item) return;
+  text('[data-inspector-title]', `${pipelineDisplayName(item)} · ${hostDisplay(item)}`, inspector);
+  text('[data-inspector-state]', statusLabel(item.last_status), inspector);
+  const copy = one('[data-copy]', inspector);
+  if (copy) copy.dataset.copy = item.last_run_id || '';
+  const editBtn = one('[data-edit-pipeline]', inspector);
+  if (editBtn) {
+    editBtn.hidden = !item.host_id;
+    editBtn.disabled = !apiToken();
+  }
+  if (!state.editOpen) hidePipelineEditForm();
+}
+
+function hidePipelineEditForm() {
+  state.editOpen = false;
+  const form = one('[data-pipeline-edit]');
+  if (form) form.hidden = true;
+}
+
+function showPipelineEditForm(item) {
+  const form = one('[data-pipeline-edit]');
+  if (!form || !item) return;
+  state.editOpen = true;
+  form.hidden = false;
+  form.elements.name.value = item.name || item.pipeline_id || '';
+  form.elements.owner.value = item.owner || '';
+  form.elements.schedule.value = item.schedule || 'manual';
+  form.elements.criticality.value = item.criticality || 'medium';
+}
+
+function formatSyncFeedback(sync) {
+  if (!sync) return 'Metadados actualizados na base de dados.';
+  const parts = ['DB: ok'];
+  if (sync.yaml?.path) parts.push(`YAML: ${sync.yaml.path}`);
+  const ssh = sync.ssh;
+  if (ssh?.skipped) parts.push(`SSH: ignorado (${ssh.reason || 'desactivado'})`);
+  else if (ssh) {
+    parts.push(`SSH (${ssh.mode || 'remote'}): exit ${ssh.exit_code}`);
+    if (ssh.schedule_note) parts.push(ssh.schedule_note);
+  }
+  return parts.join(' · ');
+}
+
+async function savePipelineEdit(event) {
+  event.preventDefault();
+  const item = state.selectedPipeline;
+  if (!item?.host_id) {
+    setAlert('Selecciona um pipeline com host para editar.', 'error');
+    return;
+  }
+  const form = event.currentTarget;
+  const schedule = form.elements.schedule.value.trim();
+  if (!isValidSchedule(schedule)) {
+    setAlert('Agenda inválida: use cron de 5 campos ou manual.', 'error');
+    return;
+  }
+  setSync('A guardar…');
+  try {
+    const body = {
+      host_id: item.host_id,
+      name: form.elements.name.value.trim() || undefined,
+      owner: form.elements.owner.value.trim() || undefined,
+      schedule,
+      criticality: form.elements.criticality.value,
+      sync_remote: true,
+    };
+    const result = await apiWrite('PATCH', `/v1/catalog/pipelines/${encodeURIComponent(item.pipeline_id)}`, body);
+    hidePipelineEditForm();
+    setAlert(formatSyncFeedback(result.sync), result.sync?.ssh?.ok === false ? 'warn' : 'ok');
+    await loadDashboard();
+    const refreshed = findPipelineRow(item.pipeline_id, item.host_id);
+    if (refreshed) setInspectorSelection(refreshed);
+  } catch (error) {
+    setSync('Erro', 'danger');
+    setAlert(error.message, 'error');
+  }
+}
+
+function bindPipelineEdit() {
+  one('[data-edit-pipeline]')?.addEventListener('click', () => {
+    if (state.selectedPipeline) showPipelineEditForm(state.selectedPipeline);
+  });
+  one('[data-cancel-edit]')?.addEventListener('click', hidePipelineEditForm);
+  one('[data-pipeline-edit]')?.addEventListener('submit', savePipelineEdit);
 }
 
 function text(selector, value, root = document) {
@@ -273,7 +393,7 @@ function renderOverview(overview) {
     const statusKlass = stale ? 'stale' : statusClass(item.last_status);
   const statusText = stale ? 'stale' : statusLabel(item.last_status);
     return `
-    <tr data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
+    <tr data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
       <td data-label="Pipeline"><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
       <td data-label="Host">${esc(hostDisplay(item))}</td>
       <td data-label="Estado"><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
@@ -286,12 +406,11 @@ function renderOverview(overview) {
   }).join('') : emptyRow(8, 'Ainda não há pipelines registados por API.'));
 
   const runs = overview?.recent_runs || [];
-  const inspector = one('#inspector');
-  if (inspector && pipelines[0]) {
-    text('[data-inspector-title]', `${pipelineDisplayName(pipelines[0])} · ${hostDisplay(pipelines[0])}`, inspector);
-    text('[data-inspector-state]', statusLabel(pipelines[0].last_status), inspector);
-    const copy = one('[data-copy]', inspector);
-    if (copy) copy.dataset.copy = pipelines[0].last_run_id || '';
+  if (pipelines[0] && !state.selectedPipeline) {
+    setInspectorSelection(pipelines[0]);
+  } else if (state.selectedPipeline) {
+    const refreshed = findPipelineRow(state.selectedPipeline.pipeline_id, state.selectedPipeline.host_id);
+    if (refreshed) setInspectorSelection(refreshed);
   }
   const recentByPipeline = new Map();
   runs.forEach((run) => {
@@ -313,10 +432,18 @@ function renderOverview(overview) {
     row.addEventListener('click', () => {
       by('[data-pipelines] tr').forEach((item) => item.classList.remove('is-selected'));
       row.classList.add('is-selected');
-      text('[data-inspector-title]', row.dataset.name);
-      text('[data-inspector-state]', row.dataset.stateLabel);
-      const copy = one('#inspector [data-copy]');
-      if (copy) copy.dataset.copy = row.dataset.lastRun || '';
+      const item = findPipelineRow(row.dataset.pipeline, row.dataset.host)
+        || {
+          pipeline_id: row.dataset.pipeline,
+          host_id: row.dataset.host,
+          name: row.dataset.name,
+          owner: row.dataset.owner,
+          schedule: row.dataset.schedule,
+          criticality: row.dataset.criticality,
+          last_status: row.dataset.stateLabel,
+          last_run_id: row.dataset.lastRun,
+        };
+      setInspectorSelection(item);
     });
   });
 }
@@ -612,6 +739,7 @@ function init() {
   bindSearch();
   bindCopy();
   bindTabs();
+  bindPipelineEdit();
   load();
 }
 

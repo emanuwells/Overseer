@@ -453,7 +453,43 @@ def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
                     created_at=now,
                 )
             )
-    return get_pipeline_dag(pipeline_id)
+    return get_pipeline_dag(pipeline_id, host_id)
+
+
+PATCHABLE_CATALOG_FIELDS = ("name", "owner", "criticality", "schedule", "runner_host")
+
+
+def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+    host_id = str(host_id or "").strip()
+    if not host_id:
+        raise ValueError("host_id é obrigatório para PATCH de catálogo.")
+    if not get_pipeline(pipeline_id, host_id):
+        raise ValueError(f"Pipeline não encontrado: {pipeline_id}@{host_id}")
+
+    updates: dict[str, Any] = {}
+    for key in PATCHABLE_CATALOG_FIELDS:
+        if key not in fields or fields[key] is None:
+            continue
+        if key == "runner_host":
+            updates[key] = normalize_runner(fields[key])
+        elif key == "criticality":
+            updates[key] = str(fields[key]).strip().lower()
+        else:
+            updates[key] = str(fields[key]).strip()
+
+    if not updates:
+        return get_pipeline_dag(pipeline_id, host_id)
+
+    updates["updated_at"] = utcnow()
+    with get_engine().begin() as conn:
+        conn.execute(
+            update(pipelines_table)
+            .where(
+                (pipelines_table.c.pipeline_id == pipeline_id) & (pipelines_table.c.host_id == host_id)
+            )
+            .values(**updates)
+        )
+    return get_pipeline_dag(pipeline_id, host_id)
 
 
 def normalize_runner(value: Any) -> str:
@@ -501,6 +537,22 @@ def list_pipelines() -> list[dict[str, Any]]:
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
     return dedupe_pipelines([row_to_dict(row) for row in rows])
+
+
+def previous_completed_run(
+    pipeline_id: str,
+    host_id: str = "",
+    *,
+    exclude_run_id: str = "",
+) -> dict[str, Any] | None:
+    """Última run terminada antes da run actual (ignora running)."""
+    for run in list_runs(limit=50, pipeline_id=pipeline_id, host_id=host_id or None):
+        if exclude_run_id and str(run.get("run_id") or "") == exclude_run_id:
+            continue
+        if str(run.get("status") or "").lower() == "running":
+            continue
+        return run
+    return None
 
 
 def start_run(payload: dict[str, Any]) -> dict[str, Any]:
@@ -555,10 +607,12 @@ def finish_run(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
             )
         )
     finished = get_run(run_id) or {"run_id": run_id}
-    if final_status == "failed" and not existing_meta.get("slack_notified"):
-        try:
-            from . import slack_alerts
+    pipeline_id = str(finished.get("pipeline_id") or "")
+    host_id = str(finished.get("host_id") or "")
+    try:
+        from . import slack_alerts
 
+        if final_status == "failed" and not existing_meta.get("slack_notified"):
             if slack_alerts.notify_failed_run(finished):
                 patch_meta = {**merged_meta, "slack_notified": True}
                 with get_engine().begin() as conn:
@@ -568,8 +622,25 @@ def finish_run(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
                         .values(metadata_json=json_dump(patch_meta), updated_at=utcnow())
                     )
                 finished = get_run(run_id) or finished
-        except Exception:
-            pass
+
+        if final_status == "ok" and not existing_meta.get("slack_resolved_notified"):
+            prev_failed = previous_completed_run(
+                pipeline_id,
+                host_id,
+                exclude_run_id=run_id,
+            )
+            if prev_failed and str(prev_failed.get("status") or "").lower() == "failed":
+                if slack_alerts.notify_resolved_run(finished, prev_failed):
+                    patch_meta = {**merged_meta, "slack_resolved_notified": True}
+                    with get_engine().begin() as conn:
+                        conn.execute(
+                            update(runs_table)
+                            .where(runs_table.c.run_id == run_id)
+                            .values(metadata_json=json_dump(patch_meta), updated_at=utcnow())
+                        )
+                    finished = get_run(run_id) or finished
+    except Exception:
+        pass
     return finished
 
 
@@ -779,8 +850,8 @@ def get_pipeline(pipeline_id: str, host_id: str = "") -> dict[str, Any] | None:
     return row_to_dict(row) if row else None
 
 
-def get_pipeline_dag(pipeline_id: str) -> dict[str, Any]:
-    pipeline = get_pipeline(pipeline_id)
+def get_pipeline_dag(pipeline_id: str, host_id: str = "") -> dict[str, Any]:
+    pipeline = get_pipeline(pipeline_id, host_id)
     with get_engine().connect() as conn:
         node_rows = conn.execute(
             select(pipeline_nodes_table)

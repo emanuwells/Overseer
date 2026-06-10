@@ -293,6 +293,29 @@ tr:hover, tr.is-selected { background: color-mix(in oklch, var(--accent), transp
   word-break: break-word;
 }
 .inspector { display: grid; gap: 10px; }
+.inspector-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.inspector-edit {
+  display: grid;
+  gap: 10px;
+  padding: 0 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.inspector-edit label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.inspector-edit input,
+.inspector-edit select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+}
+.inspector-edit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .kv {
   display: grid;
   grid-template-columns: 1fr auto;

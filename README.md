@@ -1,7 +1,7 @@
 # Overseer
 
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20HTML%2FCSS%2FJS%20%7C%20MariaDB-29b6f6)
-![Version](https://img.shields.io/badge/version-4.2.0-2ecc71)
+![Version](https://img.shields.io/badge/version-5.4.1-2ecc71)
 ![Docker](https://img.shields.io/badge/docker-first-2496ed)
 ![License](https://img.shields.io/badge/license-A%20confirmar-lightgrey)
 
@@ -15,6 +15,7 @@ Overseer é um núcleo local para observar pipelines e DAGs por API. Recebe cat�
 - Frontend em `/ui/dashboard.html` ligado aos endpoints reais.
 - SDK e agente Python para instrumentação em repositórios de pipelines externos.
 - Workflow Docker-first com API, UI e MariaDB local.
+- Alertas Slack (`#overseer`): falha imediata com `@channel`, digest diário às 08:30 e resolução imediata.
 
 ## Stack Técnica
 
@@ -102,6 +103,9 @@ Usar `.env.example` como referência e nunca versionar `.env` real.
 | `OVERSEER_DB_URL` | Não | URL SQLAlchemy para DB externa/oficial. |
 | `MYSQL_PASSWORD` | Não | Password local MariaDB do Compose. |
 | `MYSQL_ROOT_PASSWORD` | Não | Password root local MariaDB do Compose. |
+| `OVERSEER_SLACK_WEBHOOK_URL` | Não | Webhook Slack para alertas e digest (ou `secrets/slack.json`). |
+| `OVERSEER_SLACK_DIGEST_HOUR` / `MINUTE` | Não | Digest diário; default `08:30` Europe/Lisbon. |
+| `OVERSEER_SSH_SYNC_ENABLED` | Não | Sync remoto de runners após PATCH de pipeline (`1` em prod). |
 
 ## Uso Por API
 
@@ -164,7 +168,7 @@ Serviços:
 | `overseer-api` | FastAPI, SDK local e frontend estático. |
 | `mysql` | MariaDB local para desenvolvimento. |
 
-Deploy remoto/produção: A confirmar. Não há configuração de produção validada neste repositório.
+Produção: `docker compose -f docker-compose.prod.yml up --build -d` no host com DB em `127.0.0.1`. Ver `COMMANDS.md`.
 
 ## Troubleshooting
 
@@ -174,6 +178,9 @@ Deploy remoto/produção: A confirmar. Não há configuração de produção val
 | DB aparece indisponível | Verificar `docker compose ps`, `OVERSEER_DB_URL` e logs do serviço `mysql`. |
 | Dashboard vazio | Registar um DAG via `/v1/catalog/pipelines` ou executar `scripts/overseer_emit_demo.py`. |
 | `/ui/` não abre | Usar `/ui/dashboard.html` e confirmar que o container foi reconstruído. |
+| Runs pararam no MAIATRON | Reinstalar agent no host: `~/overseer-venv/bin/pip install -e ~/Dev/Repos/emanuwells/Overseer` (após refactor `src/`). |
+| `https://…/Overseer/` devolve 503 | O host expõe HTTP na porta 80; HTTPS pode terminar noutro proxy — usar `http://` ou corrigir o proxy SSL. |
+| UI nginx desactualizada | `bash scripts/deploy-nginx-frontend.sh` (sudo para `/etc/nginx/overseer-locations.conf`). |
 
 ## Segurança
 
@@ -184,8 +191,9 @@ Deploy remoto/produção: A confirmar. Não há configuração de produção val
 
 ## MCP Servers E Skills
 
-- MCP servers do projeto: N/A — não foi encontrada configuração `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json` ou `.claude/mcp.json`.
-- Skills: inventariadas em [.agents/skills/README.md](.agents/skills/README.md) (compatibilidade Claude em `.claude/skills/`).
+- MCP: exemplos e política em [.agents/mcp/](.agents/mcp/) (`MCP_POLICY.md`, `cursor.mcp.example.json`). Configs reais ficam no IDE e fora do Git.
+- Slack não usa MCP — integração nativa via webhook em `overseer_core/slack_alerts.py` e digest em `slack_digest.py`.
+- Skills: [.agents/skills/README.md](.agents/skills/README.md) (compatibilidade Claude em `.claude/skills/`).
 
 ## Changelog
 

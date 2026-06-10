@@ -18,6 +18,28 @@ Comandos rápidos do Overseer.
 | Validar Compose | `docker compose config` |
 | Build imagem | `docker compose build` |
 
+## Slack
+
+| Ação | Comando |
+|---|---|
+| Configurar webhook (prod) | Definir `OVERSEER_SLACK_WEBHOOK_URL` e `OVERSEER_SLACK_CHANNEL=#overseer` no `.env` |
+| Configurar webhook (local) | `cp secrets/slack.json.example secrets/slack.json` e editar (ficheiro gitignored) |
+| Digest manual | `docker compose exec overseer-api python scripts/slack_daily_digest.py` |
+| Digest horário | `OVERSEER_SLACK_DIGEST_HOUR=8` + `OVERSEER_SLACK_DIGEST_MINUTE=30` (Europe/Lisbon, **08:30** diário) |
+| @channel | `OVERSEER_SLACK_MENTION_CHANNEL=true` (falhas, resolução e digest com falhas em aberto) |
+| Falha | alerta imediato + relembrado no digest até run OK |
+| Resolvido | alerta imediato quando a run seguinte termina `ok` |
+| Desactivar digest | `OVERSEER_SLACK_DIGEST_ENABLED=false` |
+
+## Sync remoto de runners (SSH)
+
+| Ação | Comando |
+|---|---|
+| Activar sync na API | `OVERSEER_SSH_SYNC_ENABLED=1` no `.env` (requer chave SSH no host/container) |
+| Hosts registados | `deploy/runners/hosts.yaml` |
+| Editar pipeline (UI) | Dashboard → seleccionar linha → **Editar** → Guardar (DB + YAML + SSH) |
+| PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, etc. |
+
 ## Docker
 
 | Ação | Comando |
@@ -46,6 +68,31 @@ Comandos rápidos do Overseer.
 | Remotes | `git remote -v` |
 | Fetch | `git fetch origin` |
 | Pull | `git pull origin main` |
+
+## Medidata / WS1207 (Windows, Task Scheduler)
+
+Executar **na máquina WS1207** (PowerShell como DQSI), com repo actualizado e SSH para o prod:
+
+| Passo | Comando |
+|---|---|
+| 1. Pull repo | `cd C:\MAIATRON\Overseer` (ou o teu clone) → `git pull origin main` |
+| 2. Upgrade agente | `.\scripts\windows\upgrade-windows-runner.ps1 -SshTarget eferreira@195.23.9.32 -TestMedidata` |
+| 3. Túnel activo | `Get-ScheduledTask -TaskName "Overseer SSH Tunnel"` → `Start-ScheduledTask` se parado |
+| 4. Task Medidata | Programa: `powershell.exe` · Args: `-ExecutionPolicy Bypass -File "%USERPROFILE%\overseer-runners\medidata_pipeline\run.ps1"` |
+| 5. Migrar 1.ª vez | `.\scripts\windows\migrate-taskscheduler.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"` |
+
+Onboarding completo (máquina nova): `.\scripts\windows\bootstrap-windows.ps1 -RepoPath C:\MAIATRON\Overseer -SshTarget eferreira@195.23.9.32`
+
+Validar no prod: última run `medidata_pipeline` com `host_id=WS1207` em `/v1/read/runs?pipeline_id=medidata_pipeline`.
+
+## Agent no host Linux (após refactor `src/`)
+
+| Ação | Comando |
+|---|---|
+| Reinstalar agent no venv | `~/overseer-venv/bin/pip install -e ~/Dev/Repos/emanuwells/Overseer` |
+| Validar agent | `~/overseer-venv/bin/overseer-agent --help` |
+| Testar pipeline | `~/overseer-runners/traffic_flow/run.sh` |
+| Republicar UI nginx | `bash ~/Dev/Repos/emanuwells/Overseer/scripts/deploy-nginx-frontend.sh` (sudo para snippet `/etc/nginx`) |
 
 ## Produção (SSH)
 

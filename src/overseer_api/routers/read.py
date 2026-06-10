@@ -27,8 +27,8 @@ def read_pipelines() -> dict[str, Any]:
 
 
 @router.get("/pipelines/{pipeline_id}/dag")
-def read_pipeline_dag(pipeline_id: str) -> dict[str, Any]:
-    dag = store.get_pipeline_dag(pipeline_id)
+def read_pipeline_dag(pipeline_id: str, host_id: str | None = None) -> dict[str, Any]:
+    dag = store.get_pipeline_dag(pipeline_id, host_id or "")
     return {"ok": dag["pipeline"] is not None, "dag": dag}
 
 

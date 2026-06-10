@@ -45,7 +45,17 @@
             </div>
           </section>
           <aside class="card" id="inspector">
-            <div class="section-head"><div><h2 data-inspector-title>Sem pipeline selecionado</h2><p data-inspector-state>aguardar dados</p></div><button class="btn" data-copy="">Copiar run</button></div>
+            <div class="section-head"><div><h2 data-inspector-title>Sem pipeline selecionado</h2><p data-inspector-state>aguardar dados</p></div><div class="inspector-actions"><button class="btn" type="button" data-edit-pipeline hidden>Editar</button><button class="btn" data-copy="">Copiar run</button></div></div>
+            <form class="inspector-edit" data-pipeline-edit hidden>
+              <label>Nome<input name="name" type="text" autocomplete="off"></label>
+              <label>Dono<input name="owner" type="text" autocomplete="off"></label>
+              <label>Agenda (cron ou manual)<input name="schedule" type="text" placeholder="0 2 * * * ou manual" autocomplete="off"></label>
+              <label>Criticidade<select name="criticality"><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option></select></label>
+              <div class="inspector-edit-actions">
+                <button class="btn primary" type="submit">Guardar e sincronizar</button>
+                <button class="btn" type="button" data-cancel-edit>Cancelar</button>
+              </div>
+            </form>
             <p class="subhead" style="padding:0 1.25rem 0.5rem">Actividade recente (todas as runs)</p>
             <div class="alert-list" data-recent-runs>
               <div class="alert-item"><div><strong>A carregar runs</strong><p>Os dados serão preenchidos a partir de /v1/read/overview.</p></div><span class="pill">loading</span></div>
