@@ -353,7 +353,7 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
     ok = sum(1 for row in runs if _is_ok(row.get("status")))
     failed = sum(1 for row in runs if _is_failed(row.get("status")))
     warning = sum(1 for row in runs if _is_warning(row.get("status")))
-    avg_exec, _, _, _ = _run_resource_metrics(runs)
+    avg_exec, p95_exec, avg_cpu, avg_mem = _run_resource_metrics(runs)
     grouped = _group_runs_by_deployment(runs)
     filtered = _filter_pipelines_for_export(pipelines)
     at_risk = stale = regressions = 0
@@ -397,6 +397,9 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
         "warning": warning,
         "success_rate": round((ok / total) * 100, 2) if total else 100.0,
         "avg_exec_time": avg_exec,
+        "p95_exec_time": p95_exec,
+        "avg_cpu": avg_cpu,
+        "avg_mem": avg_mem,
         "pipeline_count": pipeline_count or len(filtered),
         "at_risk": at_risk,
         "stale": stale,

@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.5.4] - 2026-06-11T24:30:00+01:00
+
+### Summary monitoring com telemetria agregada
+
+**Alterações:**
+- `_build_summary`: expõe `avg_cpu`, `avg_mem` e `p95_exec_time` no fast path (`ops/fast`).
+
+---
+
 ## [5.5.3] - 2026-06-11T23:30:00+01:00
 
 ### Telemetria CPU/Mem, schedule paused e export
