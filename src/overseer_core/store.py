@@ -438,84 +438,48 @@ def repair_deployment_data() -> None:
                     .values(**updates)
                 )
 
-        canonical: set[tuple[str, str]] = set()
-        for row in conn.execute(select(pipelines_table)).mappings().all():
-            data = row_to_dict(row)
+        pipe_rows = [row_to_dict(row) for row in conn.execute(select(pipelines_table)).mappings().all()]
+        now = utcnow()
+        for data in pipe_rows:
             raw_pid = str(data.get("pipeline_id") or "")
             raw_host = str(data.get("host_id") or "")
-            logical_id = logical_pipeline_id(raw_pid)
-            host = effective_host_id(data) or host_key(split_legacy_pipeline_id(raw_pid)[1])
-            if not logical_id or not host:
+            logical_id, _ = split_legacy_pipeline_id(raw_pid)
+            if raw_pid == logical_id:
                 continue
-            target = (logical_id, host)
-            if target in canonical:
-                conn.execute(
-                    update(pipelines_table)
-                    .where(
-                        (pipelines_table.c.pipeline_id == raw_pid)
-                        & (pipelines_table.c.host_id == raw_host)
-                    )
-                    .values(active=False, updated_at=utcnow())
-                )
-                continue
-
-            existing = conn.execute(
-                select(pipelines_table.c.pipeline_id).where(
-                    (pipelines_table.c.pipeline_id == logical_id)
-                    & (pipelines_table.c.host_id == host)
-                )
-            ).first()
-
-            if existing:
-                canonical.add(target)
-                if raw_pid != logical_id or raw_host != host:
-                    conn.execute(
-                        update(pipelines_table)
-                        .where(
-                            (pipelines_table.c.pipeline_id == raw_pid)
-                            & (pipelines_table.c.host_id == raw_host)
-                        )
-                        .values(active=False, updated_at=utcnow())
-                    )
-                continue
-
-            now = utcnow()
             conn.execute(
-                insert(pipelines_table).values(
-                    pipeline_id=logical_id,
-                    host_id=host,
-                    name=data.get("name") or logical_id,
-                    owner=data.get("owner") or "unknown",
-                    criticality=data.get("criticality") or "medium",
-                    schedule=data.get("schedule") or "manual",
-                    entrypoint=data.get("entrypoint"),
-                    runner_host=data.get("runner_host") or "any",
-                    active=True,
-                    metadata_json=json_dump(data.get("metadata") or {}),
-                    created_at=parse_dt(data.get("created_at")) or now,
-                    updated_at=now,
+                update(pipelines_table)
+                .where(
+                    (pipelines_table.c.pipeline_id == raw_pid)
+                    & (pipelines_table.c.host_id == raw_host)
                 )
+                .values(active=False, updated_at=now)
             )
-            canonical.add(target)
-            if raw_pid != logical_id or raw_host != host:
+            conn.execute(
+                update(pipeline_nodes_table)
+                .where(pipeline_nodes_table.c.pipeline_id == raw_pid)
+                .values(pipeline_id=logical_id, updated_at=now)
+            )
+            conn.execute(
+                update(pipeline_edges_table)
+                .where(pipeline_edges_table.c.pipeline_id == raw_pid)
+                .values(pipeline_id=logical_id)
+            )
+
+        for data in pipe_rows:
+            raw_pid = str(data.get("pipeline_id") or "")
+            raw_host = str(data.get("host_id") or "")
+            logical_id, _ = split_legacy_pipeline_id(raw_pid)
+            if raw_pid != logical_id:
+                continue
+            host = effective_host_id(data)
+            if host and not raw_host:
                 conn.execute(
                     update(pipelines_table)
                     .where(
                         (pipelines_table.c.pipeline_id == raw_pid)
                         & (pipelines_table.c.host_id == raw_host)
                     )
-                    .values(active=False, updated_at=utcnow())
-                )
-            if raw_pid != logical_id:
-                conn.execute(
-                    update(pipeline_nodes_table)
-                    .where(pipeline_nodes_table.c.pipeline_id == raw_pid)
-                    .values(pipeline_id=logical_id, updated_at=now)
-                )
-                conn.execute(
-                    update(pipeline_edges_table)
-                    .where(pipeline_edges_table.c.pipeline_id == raw_pid)
-                    .values(pipeline_id=logical_id)
+                    .values(host_id=host, updated_at=now)
                 )
 
 
