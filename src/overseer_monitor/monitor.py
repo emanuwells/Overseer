@@ -8,8 +8,7 @@ from contextlib import ContextDecorator
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-import psutil
-
+from overseer_core.run_telemetry import TelemetryTracker, enrich_finish_metadata
 from overseer_sdk.client import OverseerClient
 
 
@@ -39,9 +38,7 @@ class OverseerMonitor:
         self.run_id = os.getenv("OVERSEER_RUN_ID") or None
         self.pipeline_id = os.getenv("OVERSEER_PIPELINE_ID") or script_name
         self.start_time: datetime | None = None
-        self.process: psutil.Process | None = None
-        self.peak_rss = 0
-        self.peak_cpu = 0.0
+        self.telemetry: TelemetryTracker | None = None
 
     @staticmethod
     def from_env(script_name: str) -> "OverseerMonitor":
@@ -58,12 +55,7 @@ class OverseerMonitor:
         if self.start_time is not None:
             return
         self.start_time = datetime.now()
-        self.process = psutil.Process()
-        self.peak_rss = self.process.memory_info().rss
-        try:
-            self.process.cpu_percent()
-        except Exception:
-            pass
+        self.telemetry = TelemetryTracker()
         if not self.run_id:
             try:
                 self.run_id = self.client.start_run(
@@ -88,35 +80,24 @@ class OverseerMonitor:
         pipeline_id = context_map.get("pipeline_id") or self.pipeline_id
         run_id = self.run_id or os.getenv("OVERSEER_RUN_ID")
         duration = max(0.0, (datetime.now() - self.start_time).total_seconds())
-        usage_mem_mb = None
-        usage_cpu = None
-        try:
-            if self.process:
-                self.peak_rss = max(self.peak_rss, self.process.memory_info().rss)
-                usage_mem_mb = round(self.peak_rss / (1024 * 1024), 2)
-                cpu_sample = self.process.cpu_percent(interval=0.05)
-                if cpu_sample is not None:
-                    self.peak_cpu = max(self.peak_cpu, float(cpu_sample))
-                usage_cpu = round(self.peak_cpu, 2) if self.peak_cpu > 0 else None
-        except Exception:
-            pass
-
-        payload = {
-            "status": status,
-            "duration_sec": round(duration, 3),
-            "error_message": error_message,
-            "metadata": {
+        metadata = enrich_finish_metadata(
+            {
                 **context_map,
                 "script_name": self.script_name,
                 "hostname": self.hostname,
                 "os_name": self.os_name,
                 "os_release": self.os_release,
                 "os_platform": self.os_platform,
-                "usage_cpu": usage_cpu,
-                "usage_memoria": usage_mem_mb,
-                "usage_mem_mb": usage_mem_mb,
                 "extra_tags": self.extra_tags,
             },
+            tracker=self.telemetry,
+        )
+
+        payload = {
+            "status": status,
+            "duration_sec": round(duration, 3),
+            "error_message": error_message,
+            "metadata": metadata,
         }
 
         if not run_id:

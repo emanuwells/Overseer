@@ -199,6 +199,40 @@ def test_metadata_memory_aliases_usage_mem_mb(sqlite_store) -> None:
     assert kpis["avgMem"] == 256.0
 
 
+def test_export_runner_host_without_any_fallback(sqlite_store) -> None:
+    run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
+    store.finish_run(
+        run["run_id"],
+        {
+            "status": "ok",
+            "duration_sec": 1.0,
+            "metadata": {"usage_cpu": 0, "usage_memoria": 128},
+        },
+    )
+    full = monitoring_export.build_full_payload()
+    runner_idx = full["fields"].index("runnerHost")
+    assert full["rows"][0][runner_idx] not in (None, "", "any")
+    assert str(full["rows"][0][runner_idx]).lower() == "h1"
+    orch = full["orchestrator_runs"][0]
+    assert orch["runnerHost"] not in (None, "", "any")
+    assert str(orch["runnerHost"]).lower() == "h1"
+
+
+def test_avg_cpu_includes_zero_when_memory_present(sqlite_store) -> None:
+    run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
+    store.finish_run(
+        run["run_id"],
+        {
+            "status": "ok",
+            "duration_sec": 2.0,
+            "metadata": {"usage_cpu": 0, "usage_memoria": 256},
+        },
+    )
+    fast = monitoring_export.build_ops_fast_payload()
+    assert fast["summary"]["avg_mem"] == 256.0
+    assert fast["summary"]["avg_cpu"] == 0.0
+
+
 def test_summary_first_run_label_and_p95(sqlite_store) -> None:
     run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
     store.finish_run(

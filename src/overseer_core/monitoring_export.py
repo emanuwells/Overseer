@@ -25,6 +25,17 @@ def _metadata_memory(metadata: dict[str, Any]) -> float:
     return 0.0
 
 
+def _export_runner_host(run: dict[str, Any], host_id: str = "") -> str | None:
+    for candidate in (run.get("runner_host"), run.get("host_id"), host_id):
+        if candidate is None:
+            continue
+        text = str(candidate).strip()
+        if not text or text.lower() in {"any", "unknown"}:
+            continue
+        return text
+    return None
+
+
 def _catalog_prev_schedule(cat: dict[str, Any]) -> str | None:
     if cat.get("prev_schedule"):
         return str(cat["prev_schedule"])
@@ -188,7 +199,7 @@ def _run_to_values(
         run.get("trigger_type") or "manual",
         run.get("run_id"),
         run.get("requested_by"),
-        run.get("runner_host") or host_id or "any",
+        _export_runner_host(run, host_id),
         metadata.get("attempt_id"),
         run.get("requested_by"),
     ]
@@ -248,10 +259,11 @@ def _run_resource_metrics(runs: list[dict[str, Any]]) -> tuple[float, float, flo
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
         cpu = _metadata_cpu(metadata)
         memory = _metadata_memory(metadata)
-        if cpu > 0:
-            cpus.append(cpu)
         if memory > 0:
             mems.append(memory)
+            cpus.append(cpu)
+        elif cpu > 0:
+            cpus.append(cpu)
     avg_exec = round(sum(durations) / len(durations), 3) if durations else 0.0
     p95_exec = round(_percentile(durations, 0.95), 3) if durations else 0.0
     avg_cpu = round(sum(cpus) / len(cpus), 2) if cpus else 0.0
@@ -578,7 +590,7 @@ def _build_orchestrator_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]
             "source": run.get("trigger_type") or "manual",
             "requestedBy": run.get("requested_by"),
             "requestedBySso": run.get("requested_by"),
-            "runnerHost": run.get("runner_host") or run.get("host_id") or "any",
+            "runnerHost": _export_runner_host(run),
             "pipelineName": run.get("pipeline_name"),
             "startedAt": run.get("started_at"),
             "finishedAt": run.get("ended_at"),
@@ -599,7 +611,7 @@ def _build_orchestrator_triggers(triggers: list[dict[str, Any]]) -> list[dict[st
             "requestedBySso": row.get("requested_by"),
             "requestedAt": row.get("created_at"),
             "source": "api",
-            "runnerHost": row.get("runner_host") or row.get("host_id") or "any",
+            "runnerHost": _export_runner_host(row),
             "status": row.get("status"),
             "notes": "",
             "createdAt": row.get("created_at"),

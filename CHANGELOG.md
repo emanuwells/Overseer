@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.5.5] - 2026-06-11T26:00:00+01:00
+
+### Telemetria end-to-end nos runners e export
+
+**Alterações:**
+- Novo `run_telemetry`: CPU/RSS partilhado entre monitor, SDK (`run_command`, `run()`) e `manifest_runner`.
+- `finish_run` enriquece metadata automaticamente quando CPU/Mem não vêm no payload.
+- Export: `runnerHost` sem fallback `any`; médias CPU incluem amostras com memória e CPU zero.
+
+---
+
 ## [5.5.4] - 2026-06-11T24:30:00+01:00
 
 ### Summary monitoring com telemetria agregada

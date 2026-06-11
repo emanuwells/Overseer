@@ -25,9 +25,10 @@ O código dos pipelines não é alterado: o manifest vive fora dos repos
 
 from __future__ import annotations
 
-import subprocess
 import time
 from dataclasses import dataclass, field
+
+from overseer_core.run_telemetry import TelemetryTracker, run_subprocess_with_telemetry
 from pathlib import Path
 from typing import Any
 
@@ -175,17 +176,16 @@ def run_manifest(
         requested_by=requested_by,
         metadata={"runner": "manifest", "steps": [step.module_id for step in manifest.steps]},
     )
+    tracker = TelemetryTracker()
 
     overall_exit = 0
     failed = False
     for step in manifest.steps:
         step_started = time.monotonic()
-        proc = subprocess.run(
+        proc = run_subprocess_with_telemetry(
             step.command,
             cwd=step.cwd,
-            text=True,
-            capture_output=True,
-            check=False,
+            tracker=tracker,
         )
         duration = round(time.monotonic() - step_started, 3)
 
@@ -227,5 +227,6 @@ def run_manifest(
         status="failed" if failed else "ok",
         exit_code=overall_exit,
         duration_sec=round(time.monotonic() - started, 3),
+        telemetry_tracker=tracker,
     )
     return int(overall_exit)

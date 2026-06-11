@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import os
 import socket
-import subprocess
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 import httpx
+
+from overseer_core.run_telemetry import TelemetryTracker, enrich_finish_metadata, run_subprocess_with_telemetry
 
 
 def _api_url(value: str | None = None) -> str:
@@ -112,7 +113,9 @@ class OverseerClient:
         error_message: str | None = None,
         duration_sec: float | None = None,
         metadata: dict[str, Any] | None = None,
+        telemetry_tracker: TelemetryTracker | None = None,
     ) -> dict[str, Any]:
+        enriched = enrich_finish_metadata(metadata, tracker=telemetry_tracker)
         return self.post(
             f"/v1/events/runs/{run_id}/finish",
             {
@@ -120,7 +123,7 @@ class OverseerClient:
                 "exit_code": exit_code,
                 "error_message": error_message,
                 "duration_sec": duration_sec,
-                "metadata": metadata or {},
+                "metadata": enriched,
             },
         )
 
@@ -206,6 +209,7 @@ class OverseerClient:
     @contextmanager
     def run(self, pipeline_id: str, **kwargs: Any) -> Iterator[str]:
         started = time.monotonic()
+        tracker = TelemetryTracker()
         run_id = self.start_run(pipeline_id, **kwargs)
         try:
             yield run_id
@@ -215,10 +219,16 @@ class OverseerClient:
                 status="failed",
                 error_message=str(exc),
                 duration_sec=round(time.monotonic() - started, 3),
+                telemetry_tracker=tracker,
             )
             raise
         else:
-            self.finish_run(run_id, status="ok", duration_sec=round(time.monotonic() - started, 3))
+            self.finish_run(
+                run_id,
+                status="ok",
+                duration_sec=round(time.monotonic() - started, 3),
+                telemetry_tracker=tracker,
+            )
 
     @contextmanager
     def step(self, *, run_id: str, pipeline_id: str, module_id: str, parent_module_id: str | None = None) -> Iterator[None]:
@@ -259,6 +269,7 @@ def run_command(
 ) -> int:
     client = OverseerClient(api_url=api_url, api_token=api_token)
     started = time.monotonic()
+    tracker = TelemetryTracker()
     run_id = client.start_run(
         pipeline_id,
         pipeline_name=pipeline_name,
@@ -266,7 +277,7 @@ def run_command(
         requested_by=requested_by,
         metadata={"command": command},
     )
-    proc = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+    proc = run_subprocess_with_telemetry(command, cwd=cwd, tracker=tracker)
     if proc.stdout:
         client.log(proc.stdout[-60000:], run_id=run_id, pipeline_id=pipeline_id, level="info")
     if proc.stderr:
@@ -277,5 +288,6 @@ def run_command(
         exit_code=proc.returncode,
         error_message=proc.stderr[-4000:] if proc.returncode else None,
         duration_sec=round(time.monotonic() - started, 3),
+        telemetry_tracker=tracker,
     )
     return int(proc.returncode)
