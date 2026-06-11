@@ -53,6 +53,26 @@ def test_reconcile_registers_yaml_pipelines(sqlite_store, tmp_path: Path) -> Non
     assert row["owner"] == "data"
 
 
+def test_reconcile_updates_legacy_pipeline_row(sqlite_store, tmp_path: Path) -> None:
+    _write_catalog(tmp_path)
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "demo_pipe",
+            "host_id": "",
+            "name": "Legacy",
+            "owner": "old",
+            "nodes": [{"module_id": "demo_pipe"}],
+            "edges": [],
+        }
+    )
+    result = store.reconcile_catalog_from_yaml()
+    assert result["updated"]
+    row = store.get_pipeline("demo_pipe", "BAZE2") or store.get_pipeline("demo_pipe", "")
+    assert row is not None
+    assert row["owner"] == "data"
+    assert row["host_id"] == "BAZE2"
+
+
 def test_reconcile_api_endpoint(sqlite_store, tmp_path: Path) -> None:
     _write_catalog(tmp_path)
     client = TestClient(app)

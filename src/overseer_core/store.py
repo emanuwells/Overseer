@@ -533,16 +533,22 @@ def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     edges = payload.get("edges") or []
     with get_engine().begin() as conn:
         existing = conn.execute(
-            select(pipelines_table.c.pipeline_id).where(
+            select(pipelines_table.c.pipeline_id, pipelines_table.c.host_id).where(
                 (pipelines_table.c.pipeline_id == pipeline_id) & (pipelines_table.c.host_id == host_id)
             )
         ).first()
+        if not existing:
+            legacy = conn.execute(
+                select(pipelines_table.c.pipeline_id, pipelines_table.c.host_id).where(
+                    pipelines_table.c.pipeline_id == pipeline_id
+                )
+            ).first()
+            if legacy:
+                existing = legacy
         if existing:
             conn.execute(
                 update(pipelines_table)
-                .where(
-                    (pipelines_table.c.pipeline_id == pipeline_id) & (pipelines_table.c.host_id == host_id)
-                )
+                .where(pipelines_table.c.pipeline_id == pipeline_id)
                 .values(**{k: v for k, v in values.items() if k != "created_at"})
             )
         else:
@@ -698,7 +704,7 @@ def reconcile_catalog_from_yaml() -> dict[str, Any]:
         for entry in entries:
             pipeline_id = str(entry["pipeline_id"])
             payload = _catalog_payload_from_yaml_entry(entry, host_db, catalog_host)
-            existing = get_pipeline(pipeline_id, host_db)
+            existing = find_pipeline_catalog(pipeline_id, host_db)
             if not existing:
                 register_pipeline_catalog(payload)
                 created.append({"pipeline_id": pipeline_id, "host_id": host_db})
@@ -1111,6 +1117,24 @@ def get_pipeline(pipeline_id: str, host_id: str = "") -> dict[str, Any] | None:
     with get_engine().connect() as conn:
         row = conn.execute(stmt).mappings().first()
     return row_to_dict(row) if row else None
+
+
+def find_pipeline_catalog(pipeline_id: str, host_id: str = "") -> dict[str, Any] | None:
+    """Resolve catálogo por deployment; em PK legacy só por ``pipeline_id``."""
+    logical_id = logical_pipeline_id(pipeline_id)
+    host_db = host_key(host_id) if host_id else ""
+    row = get_pipeline(logical_id, host_db) if host_db else None
+    if row:
+        return row
+    if host_db:
+        row = get_pipeline(logical_id, "")
+        if row:
+            return row
+    with get_engine().connect() as conn:
+        legacy = conn.execute(
+            select(pipelines_table).where(pipelines_table.c.pipeline_id == logical_id)
+        ).mappings().first()
+    return row_to_dict(legacy) if legacy else None
 
 
 def get_pipeline_dag(pipeline_id: str, host_id: str = "") -> dict[str, Any]:

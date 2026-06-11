@@ -20,6 +20,9 @@ A tabela de Operações mostrava apenas pipelines registados na DB (ex.: 1 Medid
 **Pós-deploy prod:**
 - `POST /v1/catalog/reconcile` para alinhar DB com `baze2.yaml` e `WS1207.yaml`.
 
+**Hotfix prod (PK legacy `pipeline_id`):**
+- `register_pipeline_catalog` e `reconcile` fazem UPDATE quando a linha já existe só por `pipeline_id` (MariaDB sem PK composto).
+
 ---
 
 ## [5.4.3] - 2026-06-11T14:00:00+01:00
