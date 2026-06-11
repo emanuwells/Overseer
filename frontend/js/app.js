@@ -140,7 +140,7 @@ function setInspectorSelection(item) {
   const inspector = one('#inspector');
   if (!inspector || !item) return;
   text('[data-inspector-title]', `${pipelineDisplayName(item)} · ${hostDisplay(item)}`, inspector);
-  text('[data-inspector-state]', `${statusLabel(item.last_status)} · ${catalogSourceLabel(item.catalog_source)}`, inspector);
+  text('[data-inspector-state]', statusLabel(item.last_status), inspector);
   const copy = one('[data-copy]', inspector);
   if (copy) copy.dataset.copy = item.last_run_id || '';
   const editBtn = one('[data-edit-pipeline]', inspector);
@@ -180,6 +180,13 @@ function showPipelineEditForm(item) {
   if (form.elements.sync_remote) form.elements.sync_remote.checked = true;
   const feedback = one('[data-sync-feedback]');
   if (feedback) feedback.hidden = true;
+  const hint = one('[data-edit-hint]');
+  if (hint) {
+    const isWindows = String(item.runner_platform || '').toLowerCase() === 'windows';
+    hint.textContent = isWindows
+      ? 'Host Windows: com sync remoto activo, a agenda actualiza o Task Scheduler após guardar (git pull + provision + triggers).'
+      : 'Com sync remoto activo, hosts Linux actualizam crontab quando a agenda muda.';
+  }
   form.elements.name.focus();
 }
 
@@ -361,7 +368,7 @@ function logicalPipelineId(pipelineId) {
   return raw;
 }
 
-const RETIRED_PIPELINE_IDS = new Set(['p_monitor_recent']);
+const RETIRED_PIPELINE_IDS = new Set(['p_monitor_recent', 'health_probe']);
 
 function isPipelineVisible(item) {
   if (item?.active === false) return false;
@@ -584,12 +591,10 @@ function renderOverview(overview) {
     const stale = isStaleRun(item.last_started_at, item.last_status);
     const statusKlass = stale ? 'stale' : statusClass(item.last_status);
     const statusText = stale ? 'stale' : statusLabel(item.last_status);
-    const source = catalogSourceLabel(item.catalog_source);
     return `
-    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(effectiveHostId(item))}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-source="${esc(item.catalog_source || '')}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
+    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(effectiveHostId(item))}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-platform="${esc(item.runner_platform || '')}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
       <td data-label="Pipeline"><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
       <td data-label="Host">${esc(hostDisplay(item))}</td>
-      <td data-label="Fonte"><span class="pill" title="${esc(item.catalog_source || '')}">${esc(source)}</span></td>
       <td data-label="Estado"><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
       <td data-label="Dono">${esc(item.owner)}</td>
       <td data-label="Agenda"><span class="mono">${esc(item.schedule)}</span></td>
@@ -597,7 +602,7 @@ function renderOverview(overview) {
       <td data-label="Duração">${esc(duration(item.last_duration_sec))}</td>
       <td data-label="Criticidade"><span class="pill ${criticalityClass(item.criticality)}">${esc(item.criticality)}</span></td>
     </tr>`;
-  }).join('') : emptyRow(9, 'Ainda não há deployments. Verifica o catálogo YAML ou telemetria.'));
+  }).join('') : emptyRow(8, 'Ainda não há deployments. Verifica o catálogo YAML ou telemetria.'));
 
   bindHostFilters();
   applyPipelineFilters();
@@ -622,7 +627,7 @@ function renderOverview(overview) {
           owner: row.dataset.owner,
           schedule: row.dataset.schedule,
           criticality: row.dataset.criticality,
-          catalog_source: row.dataset.source,
+          runner_platform: row.dataset.platform,
           last_status: row.dataset.stateLabel,
           last_run_id: row.dataset.lastRun,
         };

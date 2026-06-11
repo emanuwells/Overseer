@@ -38,6 +38,24 @@ def test_build_digest_text_includes_summary(sqlite_store) -> None:
     assert "<!channel>" in text
 
 
+def test_build_digest_always_mentions_channel_without_failures(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "demo",
+            "host_id": "baze2",
+            "name": "Demo",
+            "nodes": [{"module_id": "a"}],
+            "edges": [],
+        }
+    )
+    run = store.start_run({"pipeline_id": "demo", "host_id": "baze2"})
+    store.finish_run(run["run_id"], {"status": "ok"})
+
+    text = slack_digest.build_digest_text()
+    assert "<!channel>" in text
+    assert "em aberto" not in text.lower() or "sem falhas" in text.lower()
+
+
 def test_next_digest_at_0830(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OVERSEER_SLACK_DIGEST_HOUR", "8")
     monkeypatch.setenv("OVERSEER_SLACK_DIGEST_MINUTE", "30")

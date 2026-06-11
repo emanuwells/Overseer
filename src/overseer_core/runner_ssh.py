@@ -181,9 +181,11 @@ def build_sync_command(
             ),
         ]
         if schedule_changed:
+            catalog_json = "%USERPROFILE%\\overseer-runners\\catalog.json"
             commands.append(
                 f'powershell -NoProfile -ExecutionPolicy Bypass '
-                f'-File "{repo_win}\\scripts\\migrate-taskscheduler.ps1"'
+                f'-File "{repo_win}\\scripts\\windows\\update-taskscheduler-schedule.ps1" '
+                f'-CatalogJson "{catalog_json}"'
             )
         return " && ".join(commands)
 
@@ -240,8 +242,8 @@ def sync_remote_runner(
 
     if platform == "windows" and schedule_changed:
         result["schedule_note"] = (
-            "Windows: o Task Scheduler pode exigir migrate-taskscheduler.ps1 "
-            "para reflectir triggers actualizados."
+            "Windows: triggers do Task Scheduler actualizados via "
+            "update-taskscheduler-schedule.ps1 (após git pull + provision)."
         )
 
     if not result["ok"]:

@@ -129,10 +129,7 @@ def build_digest_text() -> str:
             host = row.get("host_id") or row.get("hostname") or "-"
             lines.append(f"• `{pid}` @ `{host}`")
 
-    body = "\n".join(lines)
-    if unresolved:
-        return with_channel_mention(body)
-    return body
+    return with_channel_mention("\n".join(lines))
 
 
 def send_daily_digest() -> bool:

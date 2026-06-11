@@ -63,6 +63,12 @@ def test_list_deployments_merges_yaml_and_runs(sqlite_store, tmp_path: Path) -> 
     assert traffic["catalog_source"] in {"yaml", "db", "runs_only"}
 
 
+def test_list_deployments_excludes_health_probe(sqlite_store, tmp_path: Path) -> None:
+    store.start_run({"pipeline_id": "health_probe", "host_id": "baze2"})
+    rows = store.list_deployments()
+    assert not any(row["pipeline_id"] == "health_probe" for row in rows)
+
+
 def test_list_deployments_db_overrides_yaml_metadata(sqlite_store, tmp_path: Path) -> None:
     _write_baze2_catalog(tmp_path)
     store.register_pipeline_catalog(

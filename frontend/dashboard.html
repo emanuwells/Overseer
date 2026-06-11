@@ -85,7 +85,6 @@
                   <tr>
                     <th>Pipeline</th>
                     <th>Host</th>
-                    <th>Fonte</th>
                     <th>Estado</th>
                     <th>Dono</th>
                     <th>Agenda</th>
@@ -95,7 +94,7 @@
                   </tr>
                 </thead>
                 <tbody data-pipelines>
-                  <tr><td colspan="9">A carregar dados do Overseer.</td></tr>
+                  <tr><td colspan="8">A carregar dados do Overseer.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -156,7 +155,7 @@
         <input name="sync_remote" type="checkbox" checked>
         <span>Sincronizar YAML e runner remoto (SSH)</span>
       </label>
-      <p class="edit-hint">Alterações ao cron em Windows podem exigir actualização do Task Scheduler no host.</p>
+      <p class="edit-hint" data-edit-hint>Com sync remoto activo, hosts Windows actualizam o Task Scheduler automaticamente quando a agenda muda.</p>
       <div class="inspector-edit-actions">
         <button class="btn primary" type="submit">Guardar</button>
         <button class="btn" type="button" data-cancel-edit>Cancelar</button>

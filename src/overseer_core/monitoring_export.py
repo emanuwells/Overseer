@@ -110,11 +110,16 @@ def _filter_runs_for_export(
         run
         for run in runs
         if store.logical_pipeline_id(str(run.get("pipeline_id") or "")) not in inactive
+        and not store.is_excluded_pipeline(str(run.get("pipeline_id") or ""))
     ]
 
 
 def _filter_pipelines_for_export(pipelines: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [row for row in pipelines if row.get("active", True)]
+    return [
+        row
+        for row in pipelines
+        if row.get("active", True) and not store.is_excluded_pipeline(str(row.get("pipeline_id") or ""))
+    ]
 
 
 def _run_row_id(run_id: str, index: int) -> int:

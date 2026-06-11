@@ -269,10 +269,40 @@ def database_status() -> dict[str, Any]:
     return result
 
 
+EXCLUDED_PIPELINE_IDS = frozenset({"health_probe", "p_monitor_recent"})
+
+
+def is_excluded_pipeline(pipeline_id: str) -> bool:
+    return logical_pipeline_id(str(pipeline_id or "").strip()) in EXCLUDED_PIPELINE_IDS
+
+
 def init_schema() -> None:
     metadata.create_all(get_engine())
     ensure_schema_columns()
     repair_deployment_data()
+    deactivate_excluded_pipelines()
+
+
+def deactivate_excluded_pipelines() -> None:
+    """Marca pipelines de teste/sonda como inactivos na DB."""
+    if not EXCLUDED_PIPELINE_IDS:
+        return
+    engine = get_engine()
+    if not inspect(engine).has_table("overseer_pipelines"):
+        return
+    now = utcnow()
+    with engine.begin() as conn:
+        for pipeline_id in sorted(EXCLUDED_PIPELINE_IDS):
+            conn.execute(
+                update(pipelines_table)
+                .where(
+                    or_(
+                        pipelines_table.c.pipeline_id == pipeline_id,
+                        pipelines_table.c.pipeline_id.like(f"{pipeline_id}__%"),
+                    )
+                )
+                .values(active=False, updated_at=now)
+            )
 
 
 _HOST_ID_TABLES: dict[str, str] = {
@@ -787,12 +817,24 @@ def list_deployments() -> list[dict[str, Any]]:
             "catalog_source": "runs_only",
         }
 
+    from . import runner_ssh
+
+    hosts_cfg = runner_ssh.load_hosts_config()
     enriched: list[dict[str, Any]] = []
     for key, item in merged.items():
+        if is_excluded_pipeline(str(item.get("pipeline_id") or "")):
+            continue
         for field, value in defaults.items():
             item.setdefault(field, value)
         if not item.get("name"):
             item["name"] = item["pipeline_id"]
+        catalog_host = str(item.get("catalog_host") or item.get("host_id") or "")
+        try:
+            canonical = runner_ssh.resolve_catalog_host_id(catalog_host)
+            host_cfg = hosts_cfg.get(canonical) if isinstance(hosts_cfg.get(canonical), dict) else {}
+            item["runner_platform"] = str(host_cfg.get("platform") or "")
+        except ValueError:
+            item["runner_platform"] = ""
         latest = latest_runs.get(key)
         if latest:
             item["last_run_id"] = latest.get("run_id")

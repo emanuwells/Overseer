@@ -121,3 +121,35 @@ def test_sync_remote_runner_local(mock_run: object, tmp_path: Path, monkeypatch:
     assert result["mode"] == "local"
     assert result["ok"] is True
     mock_run.assert_called_once()
+
+
+@patch("overseer_core.runner_ssh._run_ssh")
+def test_windows_sync_runs_schedule_script(mock_ssh: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OVERSEER_ROOT", str(tmp_path))
+    monkeypatch.setenv("OVERSEER_SSH_SYNC_ENABLED", "1")
+    catalog_dir = tmp_path / "deploy" / "runners"
+    catalog_dir.mkdir(parents=True)
+    (catalog_dir / "WS1207.yaml").write_text("pipelines: []\n", encoding="utf-8")
+    hosts = catalog_dir / "hosts.yaml"
+    hosts.write_text(
+        yaml.dump(
+            {
+                "hosts": {
+                    "WS1207": {
+                        "ssh": "user@winhost",
+                        "platform": "windows",
+                        "repo_path": r"C:\MAIATRON\Overseer",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    mock_ssh.return_value = {"command": "x", "exit_code": 0, "stdout": "ok", "stderr": ""}
+
+    cfg = runner_ssh.get_host_config("WS1207", tmp_path)
+    command = runner_ssh.build_sync_command("WS1207", cfg, schedule_changed=True)
+    assert "update-taskscheduler-schedule.ps1" in command
+    runner_ssh.sync_remote_runner("WS1207", schedule_changed=True, root=tmp_path)
+    mock_ssh.assert_called_once()
+    assert "update-taskscheduler-schedule.ps1" in mock_ssh.call_args[0][1]

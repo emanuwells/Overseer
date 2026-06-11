@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.1] - 2026-06-11T20:00:00+01:00
+
+### health_probe, digest @channel, UI e Task Scheduler Windows
+
+**Alterações:**
+- Excluído `health_probe` (e `p_monitor_recent`) do catálogo, MAIATRON e UI; desactivação automática na DB.
+- Digest Slack inclui sempre `<!channel>`, mesmo sem falhas em aberto.
+- Removida coluna **Fonte** do dashboard.
+- Sync Windows: `update-taskscheduler-schedule.ps1` actualiza triggers do Task Scheduler quando a agenda muda (PATCH + SSH).
+
+---
+
 ## [5.5.0] - 2026-06-11T18:00:00+01:00
 
 ### Deployments unificados, edição com sync SSH/YAML e revamp do dashboard

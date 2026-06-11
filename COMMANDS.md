@@ -42,6 +42,7 @@ Comandos rápidos do Overseer.
 | Reconciliar catálogo (API) | `POST /v1/catalog/reconcile` com `{"sync_remote": false}` |
 | Hosts de sync (API) | `GET /v1/read/runner-hosts` |
 | PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, `sync_remote` |
+| Agenda Windows (Task Scheduler) | Após PATCH com `sync_remote`: `update-taskscheduler-schedule.ps1` no host (automático via SSH) |
 
 ## Docker
 
