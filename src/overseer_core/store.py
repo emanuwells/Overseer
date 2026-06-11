@@ -492,7 +492,7 @@ def repair_deployment_data() -> None:
                     runner_host=data.get("runner_host") or "any",
                     active=True,
                     metadata_json=json_dump(data.get("metadata") or {}),
-                    created_at=data.get("created_at") or now,
+                    created_at=parse_dt(data.get("created_at")) or now,
                     updated_at=now,
                 )
             )
