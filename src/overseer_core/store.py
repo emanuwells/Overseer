@@ -869,10 +869,22 @@ def list_deployments() -> list[dict[str, Any]]:
                 "catalog_source": "runs_only",
             },
         )
+        had_yaml = str(item.get("catalog_source") or "") == "yaml"
+        yaml_schedule = str(item.get("schedule") or "").strip() if had_yaml else ""
         item["catalog_source"] = "db"
         for field in ("name", "owner", "schedule", "criticality", "runner_host", "metadata", "active"):
-            if field in normalized and normalized[field] is not None:
-                item[field] = normalized[field]
+            if field not in normalized or normalized[field] is None:
+                continue
+            if field == "schedule":
+                db_schedule = str(normalized[field]).strip()
+                if (
+                    had_yaml
+                    and yaml_schedule
+                    and yaml_schedule.lower() not in {"", "manual"}
+                    and db_schedule.lower() == "manual"
+                ):
+                    continue
+            item[field] = normalized[field]
 
     for key, run in latest_runs.items():
         normalized = normalize_pipeline_row(run, from_run=True)

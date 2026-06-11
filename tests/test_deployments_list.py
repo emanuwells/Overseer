@@ -86,3 +86,22 @@ def test_list_deployments_db_overrides_yaml_metadata(sqlite_store, tmp_path: Pat
     row = next(item for item in store.list_deployments() if item["pipeline_id"] == "traffic_flow")
     assert row["owner"] == "platform"
     assert row["catalog_source"] == "db"
+    assert row["schedule"] == "*/15 * * * *"
+
+
+def test_list_deployments_db_schedule_overrides_yaml_when_explicit(sqlite_store, tmp_path: Path) -> None:
+    _write_baze2_catalog(tmp_path)
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "backup_baze2",
+            "host_id": "baze2",
+            "name": "Backup",
+            "owner": "ops",
+            "schedule": "0 8 * * *",
+            "criticality": "high",
+            "nodes": [{"module_id": "backup_baze2"}],
+            "edges": [],
+        }
+    )
+    row = next(item for item in store.list_deployments() if item["pipeline_id"] == "backup_baze2")
+    assert row["schedule"] == "0 8 * * *"
