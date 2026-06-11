@@ -36,7 +36,7 @@ def test_list_pipelines_one_row_per_deployment(sqlite_store) -> None:
     store.start_run({"pipeline_id": "demo", "host_id": "h1"})
     rows = store.list_pipelines()
     assert len(rows) == 1
-    assert rows[0]["host_id"] == "h1"
+    assert rows[0]["host_id"] == "H1"
     assert rows[0]["last_duration_sec"] is None or isinstance(rows[0]["last_duration_sec"], (int, float))
 
 
@@ -60,7 +60,7 @@ def test_list_runs_filters_host(sqlite_store) -> None:
     store.start_run({"pipeline_id": "p", "host_id": "a"})
     store.start_run({"pipeline_id": "p", "host_id": "b"})
     assert len(store.list_runs(pipeline_id="p", host_id="a")) == 1
-    assert store.list_runs(pipeline_id="p", host_id="a")[0]["host_id"] == "a"
+    assert store.list_runs(pipeline_id="p", host_id="a")[0]["host_id"] == "A"
 
 
 def test_list_pipelines_one_row_per_host(sqlite_store) -> None:
@@ -78,8 +78,39 @@ def test_list_pipelines_one_row_per_host(sqlite_store) -> None:
     rows = store.list_pipelines()
     assert len(rows) == 2
     hosts = {row["host_id"] for row in rows}
-    assert hosts == {"baze2", "WS1207"}
+    assert hosts == {"BAZE2", "WS1207"}
     assert all(row["pipeline_id"] == "medidata_pipeline" for row in rows)
+
+
+def test_list_pipelines_resolves_metadata_host_and_latest_run(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "medidata_pipeline",
+            "name": "Medidata Pipeline",
+            "owner": "data",
+            "metadata": {"host_id": "WS1207"},
+            "nodes": [{"module_id": "run", "label": "run"}],
+            "edges": [],
+        }
+    )
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "medidata_pipeline__WS1207",
+            "name": "Medidata Pipeline Legacy",
+            "nodes": [{"module_id": "run", "label": "run"}],
+            "edges": [],
+        }
+    )
+    old = store.start_run({"pipeline_id": "medidata_pipeline", "host_id": "", "hostname": "ws1207"})
+    store.finish_run(old["run_id"], {"status": "ok", "duration_sec": 10})
+    latest = store.start_run({"pipeline_id": "medidata_pipeline", "host_id": "WS1207"})
+    store.finish_run(latest["run_id"], {"status": "ok", "duration_sec": 20})
+
+    rows = store.list_pipelines()
+    medidata = [row for row in rows if row["pipeline_id"] == "medidata_pipeline"]
+    assert len(medidata) == 1
+    assert medidata[0]["host_id"] == "WS1207"
+    assert medidata[0]["last_run_id"] == latest["run_id"]
 
 
 def test_list_pipelines_merges_legacy_duplicate(sqlite_store) -> None:

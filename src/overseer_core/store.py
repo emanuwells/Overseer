@@ -272,6 +272,7 @@ def database_status() -> dict[str, Any]:
 def init_schema() -> None:
     metadata.create_all(get_engine())
     ensure_schema_columns()
+    repair_deployment_data()
 
 
 _HOST_ID_TABLES: dict[str, str] = {
@@ -306,13 +307,37 @@ def normalize_host_id(value: Any) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-")
 
 
+def host_key(value: Any) -> str:
+    return normalize_host_id(value).upper()
+
+
+def effective_host_id(row: dict[str, Any], *, from_run: bool = False) -> str:
+    explicit = str(row.get("host_id") or "").strip()
+    if explicit:
+        return host_key(explicit)
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    if metadata.get("host_id"):
+        return host_key(metadata["host_id"])
+    _, legacy_host = split_legacy_pipeline_id(str(row.get("pipeline_id") or ""))
+    if legacy_host:
+        return host_key(legacy_host)
+    if from_run:
+        hostname = str(row.get("hostname") or "").strip()
+        if hostname:
+            return host_key(hostname)
+    return ""
+
+
 def resolve_host_id(payload: dict[str, Any]) -> str:
     explicit = str(payload.get("host_id") or "").strip()
     if explicit:
-        return normalize_host_id(explicit)
-    metadata = payload.get("metadata") or {}
-    if isinstance(metadata, dict) and metadata.get("host_id"):
-        return normalize_host_id(metadata["host_id"])
+        return host_key(explicit)
+    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+    if metadata.get("host_id"):
+        return host_key(metadata["host_id"])
+    hostname = str(payload.get("hostname") or "").strip()
+    if hostname:
+        return host_key(hostname)
     return ""
 
 
@@ -330,26 +355,26 @@ def logical_pipeline_id(pipeline_id: str) -> str:
     return logical
 
 
-def normalize_pipeline_row(row: dict[str, Any]) -> dict[str, Any] | None:
-    """Normaliza pipeline_id lógico e host_id (inclui sufixos legacy ``__HOST``)."""
+def normalize_pipeline_row(row: dict[str, Any], *, from_run: bool = False) -> dict[str, Any] | None:
+    """Normaliza pipeline_id lógico e host_id (legacy, metadata ou hostname)."""
     raw_id = str(row.get("pipeline_id") or "").strip()
     logical_id = logical_pipeline_id(raw_id)
     if not logical_id:
         return None
     candidate = dict(row)
     candidate["pipeline_id"] = logical_id
-    legacy_host = split_legacy_pipeline_id(raw_id)[1]
-    if legacy_host and not str(candidate.get("host_id") or "").strip():
-        candidate["host_id"] = legacy_host
+    resolved_host = effective_host_id(row, from_run=from_run)
+    if resolved_host:
+        candidate["host_id"] = resolved_host
     return candidate
 
 
 def deployment_key(pipeline_id: str, host_id: str = "") -> str:
     logical_id = logical_pipeline_id(str(pipeline_id or "").strip())
-    host = str(host_id or "").strip()
+    host = host_key(host_id) if str(host_id or "").strip() else ""
     if not host:
         _, legacy_host = split_legacy_pipeline_id(str(pipeline_id or "").strip())
-        host = legacy_host
+        host = host_key(legacy_host) if legacy_host else ""
     return f"{logical_id}::{host}"
 
 
@@ -377,6 +402,8 @@ def dedupe_pipelines(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         candidate = normalize_pipeline_row(row)
         if not candidate:
             continue
+        if not str(candidate.get("host_id") or "").strip():
+            continue
         key = deployment_key_from_row(candidate)
         current = best.get(key)
         if not current or _pipeline_recency_key(candidate) > _pipeline_recency_key(current):
@@ -385,6 +412,111 @@ def dedupe_pipelines(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         best.values(),
         key=lambda item: (item.get("pipeline_id") or "", item.get("host_id") or ""),
     )
+
+
+def repair_deployment_data() -> None:
+    """Normaliza catálogo e runs legacy (``__HOST``, host vazio, metadata.host_id)."""
+    engine = get_engine()
+    if not inspect(engine).has_table("overseer_pipelines"):
+        return
+
+    with engine.begin() as conn:
+        for row in conn.execute(select(runs_table)).mappings().all():
+            data = row_to_dict(row)
+            logical_id, legacy_host = split_legacy_pipeline_id(str(data.get("pipeline_id") or ""))
+            host = effective_host_id(data, from_run=True) or host_key(legacy_host)
+            updates: dict[str, Any] = {}
+            if logical_id and logical_id != data.get("pipeline_id"):
+                updates["pipeline_id"] = logical_id
+            current_host = host_key(data.get("host_id") or "")
+            if host and current_host != host:
+                updates["host_id"] = host
+            if updates:
+                conn.execute(
+                    update(runs_table)
+                    .where(runs_table.c.run_id == data["run_id"])
+                    .values(**updates)
+                )
+
+        canonical: set[tuple[str, str]] = set()
+        for row in conn.execute(select(pipelines_table)).mappings().all():
+            data = row_to_dict(row)
+            raw_pid = str(data.get("pipeline_id") or "")
+            raw_host = str(data.get("host_id") or "")
+            logical_id = logical_pipeline_id(raw_pid)
+            host = effective_host_id(data) or host_key(split_legacy_pipeline_id(raw_pid)[1])
+            if not logical_id or not host:
+                continue
+            target = (logical_id, host)
+            if target in canonical:
+                conn.execute(
+                    update(pipelines_table)
+                    .where(
+                        (pipelines_table.c.pipeline_id == raw_pid)
+                        & (pipelines_table.c.host_id == raw_host)
+                    )
+                    .values(active=False, updated_at=utcnow())
+                )
+                continue
+
+            existing = conn.execute(
+                select(pipelines_table.c.pipeline_id).where(
+                    (pipelines_table.c.pipeline_id == logical_id)
+                    & (pipelines_table.c.host_id == host)
+                )
+            ).first()
+
+            if existing:
+                canonical.add(target)
+                if raw_pid != logical_id or raw_host != host:
+                    conn.execute(
+                        update(pipelines_table)
+                        .where(
+                            (pipelines_table.c.pipeline_id == raw_pid)
+                            & (pipelines_table.c.host_id == raw_host)
+                        )
+                        .values(active=False, updated_at=utcnow())
+                    )
+                continue
+
+            now = utcnow()
+            conn.execute(
+                insert(pipelines_table).values(
+                    pipeline_id=logical_id,
+                    host_id=host,
+                    name=data.get("name") or logical_id,
+                    owner=data.get("owner") or "unknown",
+                    criticality=data.get("criticality") or "medium",
+                    schedule=data.get("schedule") or "manual",
+                    entrypoint=data.get("entrypoint"),
+                    runner_host=data.get("runner_host") or "any",
+                    active=True,
+                    metadata_json=json_dump(data.get("metadata") or {}),
+                    created_at=data.get("created_at") or now,
+                    updated_at=now,
+                )
+            )
+            canonical.add(target)
+            if raw_pid != logical_id or raw_host != host:
+                conn.execute(
+                    update(pipelines_table)
+                    .where(
+                        (pipelines_table.c.pipeline_id == raw_pid)
+                        & (pipelines_table.c.host_id == raw_host)
+                    )
+                    .values(active=False, updated_at=utcnow())
+                )
+            if raw_pid != logical_id:
+                conn.execute(
+                    update(pipeline_nodes_table)
+                    .where(pipeline_nodes_table.c.pipeline_id == raw_pid)
+                    .values(pipeline_id=logical_id, updated_at=now)
+                )
+                conn.execute(
+                    update(pipeline_edges_table)
+                    .where(pipeline_edges_table.c.pipeline_id == raw_pid)
+                    .values(pipeline_id=logical_id)
+                )
 
 
 def new_id(prefix: str) -> str:
@@ -419,8 +551,8 @@ def _resolve_pipeline_host(payload: dict[str, Any]) -> tuple[str, str]:
     pipeline_id = str(payload["pipeline_id"]).strip()
     host_id = resolve_host_id(payload)
     logical_id, legacy_host = split_legacy_pipeline_id(pipeline_id)
-    if legacy_host and not host_id:
-        return logical_id, legacy_host
+    if legacy_host:
+        return logical_id, host_id or host_key(legacy_host)
     return pipeline_id, host_id
 
 
@@ -492,11 +624,15 @@ PATCHABLE_CATALOG_FIELDS = ("name", "owner", "criticality", "schedule", "runner_
 
 
 def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any]) -> dict[str, Any]:
-    host_id = str(host_id or "").strip()
+    logical_id = logical_pipeline_id(pipeline_id)
+    host_id = host_key(host_id)
     if not host_id:
         raise ValueError("host_id é obrigatório para PATCH de catálogo.")
-    if not get_pipeline(pipeline_id, host_id):
-        raise ValueError(f"Pipeline não encontrado: {pipeline_id}@{host_id}")
+    if not get_pipeline(logical_id, host_id):
+        repair_deployment_data()
+    if not get_pipeline(logical_id, host_id):
+        raise ValueError(f"Pipeline não encontrado: {logical_id}@{host_id}")
+    pipeline_id = logical_id
 
     updates: dict[str, Any] = {}
     for key in PATCHABLE_CATALOG_FIELDS:
@@ -532,43 +668,39 @@ def normalize_runner(value: Any) -> str:
 
 
 def list_pipelines() -> list[dict[str, Any]]:
-    ranked_runs = (
-        select(
-            runs_table.c.run_id,
-            runs_table.c.pipeline_id,
-            runs_table.c.host_id,
-            runs_table.c.status,
-            runs_table.c.started_at,
-            runs_table.c.ended_at,
-            runs_table.c.duration_sec,
-            func.row_number()
-            .over(
-                partition_by=(runs_table.c.pipeline_id, runs_table.c.host_id),
-                order_by=(runs_table.c.started_at.desc(), runs_table.c.run_id.desc()),
-            )
-            .label("rn"),
-        )
-    ).subquery()
-    stmt = (
-        select(
-            pipelines_table,
-            ranked_runs.c.run_id.label("last_run_id"),
-            ranked_runs.c.status.label("last_status"),
-            ranked_runs.c.started_at.label("last_started_at"),
-            ranked_runs.c.ended_at.label("last_ended_at"),
-            ranked_runs.c.duration_sec.label("last_duration_sec"),
-        )
-        .outerjoin(
-            ranked_runs,
-            (ranked_runs.c.pipeline_id == pipelines_table.c.pipeline_id)
-            & (ranked_runs.c.host_id == pipelines_table.c.host_id)
-            & (ranked_runs.c.rn == 1),
-        )
-        .order_by(pipelines_table.c.pipeline_id, pipelines_table.c.host_id)
-    )
+    latest_runs: dict[str, dict[str, Any]] = {}
+    for run in list_runs(limit=5000):
+        normalized = normalize_pipeline_row(run, from_run=True)
+        if not normalized:
+            continue
+        key = deployment_key_from_row(normalized)
+        if not key:
+            continue
+        current = latest_runs.get(key)
+        started = parse_dt(run.get("started_at")) or datetime.min
+        if not current or started > (parse_dt(current.get("started_at")) or datetime.min):
+            latest_runs[key] = run
+
     with get_engine().connect() as conn:
-        rows = conn.execute(stmt).mappings().all()
-    return dedupe_pipelines([row_to_dict(row) for row in rows])
+        pipeline_rows = conn.execute(
+            select(pipelines_table).where(pipelines_table.c.active.is_(True))
+        ).mappings().all()
+
+    enriched: list[dict[str, Any]] = []
+    for row in pipeline_rows:
+        normalized = normalize_pipeline_row(row_to_dict(row))
+        if not normalized or not str(normalized.get("host_id") or "").strip():
+            continue
+        item = dict(normalized)
+        latest = latest_runs.get(deployment_key_from_row(item))
+        if latest:
+            item["last_run_id"] = latest.get("run_id")
+            item["last_status"] = latest.get("status")
+            item["last_started_at"] = latest.get("started_at")
+            item["last_ended_at"] = latest.get("ended_at")
+            item["last_duration_sec"] = latest.get("duration_sec")
+        enriched.append(item)
+    return dedupe_pipelines(enriched)
 
 
 def previous_completed_run(
@@ -943,7 +1075,7 @@ def list_runs(
     if pipeline_id:
         stmt = stmt.where(runs_table.c.pipeline_id == pipeline_id)
     if host_id is not None:
-        stmt = stmt.where(runs_table.c.host_id == host_id)
+        stmt = stmt.where(runs_table.c.host_id == host_key(host_id))
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
     return [row_to_dict(row) for row in rows]

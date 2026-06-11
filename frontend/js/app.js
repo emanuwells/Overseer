@@ -59,9 +59,25 @@ function isValidSchedule(value) {
   return raw.split(/\s+/).length === 5;
 }
 
+function effectiveHostId(item) {
+  if (!item) return '';
+  const explicit = String(item.host_id || '').trim();
+  if (explicit && explicit.toLowerCase() !== 'any') return explicit;
+  const metaHost = String(item.metadata?.host_id || '').trim();
+  if (metaHost) return metaHost;
+  const legacy = String(item.pipeline_id || '').includes('__')
+    ? String(item.pipeline_id).split('__').pop()
+    : '';
+  if (legacy) return legacy;
+  return '';
+}
+
 function findPipelineRow(pipelineId, hostId) {
+  const logicalId = logicalPipelineId(pipelineId);
+  const hostKey = String(hostId || '').trim();
   return (state.pipelines || []).find((item) => (
-    item.pipeline_id === pipelineId && String(item.host_id || '') === String(hostId || '')
+    logicalPipelineId(item.pipeline_id) === logicalId
+    && String(effectiveHostId(item) || '') === hostKey
   )) || null;
 }
 
@@ -75,8 +91,9 @@ function setInspectorSelection(item) {
   if (copy) copy.dataset.copy = item.last_run_id || '';
   const editBtn = one('[data-edit-pipeline]', inspector);
   if (editBtn) {
-    editBtn.hidden = !item.host_id;
+    editBtn.hidden = !effectiveHostId(item);
     editBtn.disabled = !apiToken();
+    editBtn.title = apiToken() ? 'Editar owner, agenda e criticidade' : 'Configure o token API para editar';
   }
   if (!state.editOpen) hidePipelineEditForm();
 }
@@ -114,8 +131,9 @@ function formatSyncFeedback(sync) {
 async function savePipelineEdit(event) {
   event.preventDefault();
   const item = state.selectedPipeline;
-  if (!item?.host_id) {
-    setAlert('Selecciona um pipeline com host para editar.', 'error');
+  const hostId = effectiveHostId(item);
+  if (!hostId) {
+    setAlert('Selecciona um pipeline com host identificado para editar.', 'error');
     return;
   }
   const form = event.currentTarget;
@@ -127,7 +145,7 @@ async function savePipelineEdit(event) {
   setSync('A guardar…');
   try {
     const body = {
-      host_id: item.host_id,
+      host_id: hostId,
       name: form.elements.name.value.trim() || undefined,
       owner: form.elements.owner.value.trim() || undefined,
       schedule,
@@ -138,7 +156,7 @@ async function savePipelineEdit(event) {
     hidePipelineEditForm();
     setAlert(formatSyncFeedback(result.sync), result.sync?.ssh?.ok === false ? 'warn' : 'ok');
     await loadDashboard();
-    const refreshed = findPipelineRow(item.pipeline_id, item.host_id);
+    const refreshed = findPipelineRow(item.pipeline_id, hostId);
     if (refreshed) setInspectorSelection(refreshed);
   } catch (error) {
     setSync('Erro', 'danger');
@@ -232,10 +250,8 @@ function normalizePipelineRow(item) {
   const logicalId = logicalPipelineId(item?.pipeline_id);
   if (!logicalId) return null;
   const candidate = { ...item, pipeline_id: logicalId };
-  if (logicalPipelineId(item.pipeline_id) !== item.pipeline_id) {
-    const legacyHost = String(item.pipeline_id).split('__').pop();
-    if (legacyHost && !candidate.host_id) candidate.host_id = legacyHost;
-  }
+  const host = effectiveHostId(candidate);
+  if (host) candidate.host_id = host;
   return candidate;
 }
 
@@ -251,7 +267,7 @@ function dedupePipelines(pipelines) {
   (pipelines || []).forEach((item) => {
     if (!isPipelineVisible(item)) return;
     const candidate = normalizePipelineRow(item);
-    if (!candidate) return;
+    if (!candidate || !effectiveHostId(candidate)) return;
     const key = deploymentKey(candidate);
     const prev = best.get(key);
     if (!prev) {
@@ -316,7 +332,9 @@ function pipelineDisplayName(item) {
 }
 
 function hostDisplay(item) {
-  return item?.host_id || item?.runner_host || '--';
+  const host = effectiveHostId(item);
+  if (host) return host;
+  return '--';
 }
 
 function isStaleRun(startedAt, status) {
@@ -435,7 +453,7 @@ function renderOverview(overview) {
     const statusKlass = stale ? 'stale' : statusClass(item.last_status);
   const statusText = stale ? 'stale' : statusLabel(item.last_status);
     return `
-    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
+    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(effectiveHostId(item))}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
       <td data-label="Pipeline"><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
       <td data-label="Host">${esc(hostDisplay(item))}</td>
       <td data-label="Estado"><span class="pill ${statusKlass}">${esc(statusText)}</span></td>

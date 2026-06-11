@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.4.3] - 2026-06-11T14:00:00+01:00
+
+### Medidata: host real, última run e edição de agenda/owner
+
+**Motivo:**
+O catálogo legacy (`medidata_pipeline__WS1207`, `host_id` vazio) impedia o join com runs recentes (`host_id=WS1207`). O dashboard mostrava host `any` e data de 09/06; o botão Editar ficava oculto.
+
+**Alterações:**
+- `effective_host_id` + `repair_deployment_data()` no arranque: funde catálogo legacy, preenche `host_id` a partir de metadata/hostname e associa a última run por deployment.
+- `list_pipelines` passa a resolver runs por pipeline lógico + host efectivo.
+- Frontend: `effectiveHostId`, host visível como `WS1207`, edição de owner/agenda/criticidade activa com token.
+
+**Validação:**
+- `python -m pytest -q`
+
+---
+
 ## [5.4.2] - 2026-06-11T12:00:00+01:00
 
 ### Runs correctas por deployment e UI principal renovada
