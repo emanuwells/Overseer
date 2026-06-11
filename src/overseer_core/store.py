@@ -1322,9 +1322,12 @@ def find_pipeline_catalog(pipeline_id: str, host_id: str = "") -> dict[str, Any]
     return row_to_dict(legacy) if legacy else None
 
 
-def get_pipeline_dag(pipeline_id: str, host_id: str = "") -> dict[str, Any]:
-    from . import pipeline_inventory
-
+def get_pipeline_dag(
+    pipeline_id: str,
+    host_id: str = "",
+    *,
+    include_inventory: bool = False,
+) -> dict[str, Any]:
     pipeline = get_pipeline(pipeline_id, host_id)
     with get_engine().connect() as conn:
         node_rows = conn.execute(
@@ -1338,7 +1341,11 @@ def get_pipeline_dag(pipeline_id: str, host_id: str = "") -> dict[str, Any]:
             .order_by(pipeline_edges_table.c.from_module_id, pipeline_edges_table.c.to_module_id)
         ).mappings().all()
     nodes = [row_to_dict(row) for row in node_rows]
-    inventory_nodes = pipeline_inventory.discover_inventory_nodes(pipeline, nodes)
+    inventory_nodes: list[dict[str, Any]] = []
+    if include_inventory:
+        from . import pipeline_inventory
+
+        inventory_nodes = pipeline_inventory.discover_inventory_nodes(pipeline, nodes)
     return {
         "pipeline": pipeline,
         "nodes": nodes + inventory_nodes,
