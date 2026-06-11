@@ -41,7 +41,11 @@ Comandos rápidos do Overseer.
 | Reconciliar catálogo (UI) | Ambiente → separador **Sync** → **Reconciliar catálogo** |
 | Reconciliar catálogo (API) | `POST /v1/catalog/reconcile` com `{"sync_remote": false}` |
 | Hosts de sync (API) | `GET /v1/read/runner-hosts` |
-| PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, `sync_remote` |
+| PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, `suspended`, `sync_remote` |
+| Run now (API) | `POST /v1/orchestrate/triggers` com `pipeline_id`, `host_id` (requer `OVERSEER_SSH_SYNC_ENABLED=1`) |
+| Run now cross-host | API em baze2 faz SSH ao worker (`baze2` local ou `DQSI@WS1207`) |
+| Suspender manual | `PATCH` com `"suspended": true` (Medidata e outros `schedule: manual`) |
+| Pós-deploy DAG | `POST /v1/catalog/reconcile` com `{"sync_remote": false}` |
 | Agenda Windows (Task Scheduler) | Após PATCH com `sync_remote`: `update-taskscheduler-schedule.ps1` no host (automático via SSH) |
 
 ## Docker

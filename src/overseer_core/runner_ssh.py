@@ -251,3 +251,101 @@ def sync_remote_runner(
     if not result["ok"]:
         logger.warning("Sync remoto falhou para %s (exit %s)", host_id, result["exit_code"])
     return result
+
+
+def build_run_command(
+    host_id: str,
+    pipeline_id: str,
+    *,
+    requested_by: str = "run_now",
+    root: Path | None = None,
+) -> str:
+    """Comando remoto para arrancar um pipeline em background (Linux ou Windows)."""
+    canonical = resolve_catalog_host_id(host_id, root)
+    cfg = get_host_config(canonical, root)
+    platform = str(cfg.get("platform") or "linux").strip().lower()
+    logical_id = str(pipeline_id or "").strip()
+    if not logical_id:
+        raise ValueError("pipeline_id vazio")
+
+    if platform == "windows":
+        runners_root = "%USERPROFILE%\\overseer-runners"
+        run_ps = f"{runners_root}\\{logical_id}\\run.ps1"
+        by_esc = requested_by.replace("'", "''")
+        return (
+            "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+            f"\"$env:OVERSEER_REQUESTED_BY='{by_esc}'; "
+            f"Start-Process -FilePath powershell.exe "
+            f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{run_ps}' "
+            f"-WindowStyle Hidden\""
+        )
+
+    run_sh = f"$HOME/overseer-runners/{logical_id}/run.sh"
+    log_file = f"$HOME/overseer-runners/{logical_id}/trigger.log"
+    by_q = shlex.quote(requested_by)
+    return (
+        f"nohup env OVERSEER_REQUESTED_BY={by_q} bash {run_sh} "
+        f">> {log_file} 2>&1 </dev/null &"
+    )
+
+
+def execute_pipeline_run(
+    host_id: str,
+    pipeline_id: str,
+    *,
+    requested_by: str = "run_now",
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Dispara a execução de um pipeline no worker remoto via SSH ou subprocess local."""
+    if not ssh_sync_enabled():
+        return {
+            "enabled": False,
+            "ok": False,
+            "skipped": True,
+            "reason": "OVERSEER_SSH_SYNC_ENABLED não está activo",
+        }
+
+    canonical = resolve_catalog_host_id(host_id, root)
+    cfg = get_host_config(canonical, root)
+    ssh_target = str(cfg.get("ssh") or "").strip()
+    platform = str(cfg.get("platform") or "linux").strip().lower()
+    command = build_run_command(
+        canonical,
+        pipeline_id,
+        requested_by=requested_by,
+        root=root,
+    )
+
+    result: dict[str, Any] = {
+        "enabled": True,
+        "host": canonical,
+        "pipeline_id": pipeline_id,
+        "ssh": ssh_target,
+        "platform": platform,
+        "skipped": False,
+    }
+
+    if is_local_ssh_target(ssh_target):
+        result["mode"] = "local"
+        run = _run_local(command, timeout=120)
+    else:
+        result["mode"] = "ssh"
+        run = _run_ssh(ssh_target, command, timeout=120)
+
+    result["command"] = command
+    result["exit_code"] = run.get("exit_code", 1)
+    stdout = str(run.get("stdout") or "")
+    result["stdout_tail"] = stdout[-2000:] if len(stdout) > 2000 else stdout
+    stderr = str(run.get("stderr") or "")
+    if stderr:
+        result["stderr_tail"] = stderr[-1000:] if len(stderr) > 1000 else stderr
+    result["ok"] = result["exit_code"] == 0
+
+    if not result["ok"]:
+        logger.warning(
+            "Dispatch falhou para %s@%s (exit %s)",
+            pipeline_id,
+            canonical,
+            result["exit_code"],
+        )
+    return result

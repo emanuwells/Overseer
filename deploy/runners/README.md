@@ -41,6 +41,15 @@ Após atualizar o repo (layout `src/`), na WS1207 correr
 .\scripts\windows\provision-runners.ps1 -Register
 ```
 
+## Run now via API (Ambiente MAIATRON)
+
+Com `OVERSEER_SSH_SYNC_ENABLED=1` na API (baze2), o botão **Run now** envia
+`POST /v1/orchestrate/triggers` com `host_id`. A API faz SSH ao worker e arranca
+`~/overseer-runners/<pipeline_id>/run.sh` (Linux) ou `run.ps1` (Windows) em background.
+
+Pipelines `manual` (ex. Medidata) podem ser **suspensos** com `PATCH` e
+`suspended: true` sem alterar o schedule.
+
 ## Alterar pipelines (já migrado)
 
 Só re-provisionar — **não** mexer no Task Scheduler nem no crontab:

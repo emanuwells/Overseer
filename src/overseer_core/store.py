@@ -695,6 +695,12 @@ def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any
             else:
                 meta_updates["prev_schedule"] = schedule_patch["prev_schedule"]
 
+    if "suspended" in fields and fields["suspended"] is not None:
+        if fields["suspended"]:
+            meta_updates["suspended"] = True
+        else:
+            meta_updates["suspended"] = None
+
     if not updates and not meta_updates:
         return get_pipeline_dag(pipeline_id, host_id)
 
@@ -745,13 +751,35 @@ def _latest_runs_by_deployment() -> dict[str, dict[str, Any]]:
 def _catalog_payload_from_yaml_entry(entry: dict[str, Any], host_db: str, catalog_host: str) -> dict[str, Any]:
     pipeline_id = str(entry["pipeline_id"])
     steps = entry.get("steps") if isinstance(entry.get("steps"), list) else []
-    nodes = [
+    nodes: list[dict[str, Any]] = []
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        module_id = str(step.get("module_id") or "").strip()
+        if not module_id:
+            continue
+        meta: dict[str, Any] = {}
+        if step.get("command"):
+            meta["command"] = step["command"]
+        if step.get("cwd"):
+            meta["cwd"] = step["cwd"]
+        if "critical" in step:
+            meta["critical"] = bool(step["critical"])
+        if step.get("description"):
+            meta["description"] = str(step["description"])
+        nodes.append(
+            {
+                "module_id": module_id,
+                "label": str(step.get("label") or module_id),
+                "metadata": meta,
+            }
+        )
+    edges = [
         {
-            "module_id": str(step["module_id"]).strip(),
-            "label": str(step.get("module_id") or step["module_id"]),
+            "from_module_id": nodes[i]["module_id"],
+            "to_module_id": nodes[i + 1]["module_id"],
         }
-        for step in steps
-        if isinstance(step, dict) and str(step.get("module_id") or "").strip()
+        for i in range(len(nodes) - 1)
     ]
     return {
         "pipeline_id": pipeline_id,
@@ -765,7 +793,7 @@ def _catalog_payload_from_yaml_entry(entry: dict[str, Any], host_db: str, catalo
             **({"prev_schedule": str(entry["prev_schedule"])} if entry.get("prev_schedule") else {}),
         },
         "nodes": nodes,
-        "edges": [],
+        "edges": edges,
     }
 
 
@@ -909,6 +937,11 @@ def list_deployments() -> list[dict[str, Any]]:
             continue
         for field, value in defaults.items():
             item.setdefault(field, value)
+        meta = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        if meta.get("suspended"):
+            item["suspended"] = True
+        elif "suspended" not in item:
+            item["suspended"] = False
         if not item.get("name"):
             item["name"] = item["pipeline_id"]
         catalog_host = str(item.get("catalog_host") or item.get("host_id") or "")

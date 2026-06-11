@@ -64,14 +64,31 @@ def test_event_run_start(mock_start_run):
     assert response.json()["run"]["run_id"] == "run-1"
 
 
+@patch("overseer_api.routers.orchestrate.runner_ssh.execute_pipeline_run")
+@patch("overseer_api.routers.orchestrate.store.complete_trigger")
+@patch("overseer_api.routers.orchestrate.store.claim_trigger")
 @patch("overseer_api.routers.orchestrate.store.enqueue_trigger")
-@patch("overseer_api.routers.orchestrate.store.get_pipeline")
-def test_orchestrate_trigger(mock_get_pipeline, mock_enqueue):
-    mock_get_pipeline.return_value = {"pipeline_id": "demo"}
+@patch("overseer_api.routers.orchestrate.runner_ssh.ssh_sync_enabled", return_value=True)
+@patch("overseer_api.routers.orchestrate.store.find_pipeline_catalog")
+def test_orchestrate_trigger(
+    mock_find,
+    _mock_ssh_enabled,
+    mock_enqueue,
+    mock_claim,
+    mock_complete,
+    mock_dispatch,
+):
+    mock_find.return_value = {"pipeline_id": "demo", "host_id": "BAZE2", "metadata": {}}
     mock_enqueue.return_value = {"trigger_id": "trg-1", "pipeline_id": "demo", "status": "queued"}
-    response = client().post("/v1/orchestrate/triggers", json={"pipeline_id": "demo"})
+    mock_claim.return_value = {"trigger_id": "trg-1", "status": "claimed"}
+    mock_dispatch.return_value = {"ok": True, "host": "baze2", "exit_code": 0}
+    mock_complete.return_value = {"trigger_id": "trg-1", "status": "done"}
+    response = client().post(
+        "/v1/orchestrate/triggers",
+        json={"pipeline_id": "demo", "host_id": "BAZE2"},
+    )
     assert response.status_code == 200
-    assert response.json()["trigger"]["status"] == "queued"
+    assert response.json()["trigger"]["status"] == "done"
 
 
 def test_root_redirects_to_dashboard():

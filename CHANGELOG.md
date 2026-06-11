@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.7.0] - 2026-06-11T32:00:00+01:00
+
+### Orquestração transversal e lineage rico
+
+**Alterações:**
+- `POST /v1/orchestrate/triggers`: dispatch SSH imediato para `~/overseer-runners/{id}/run.sh` ou `run.ps1` em qualquer host (`baze2`, `WS1207`).
+- `runner_ssh.execute_pipeline_run()` e `OVERSEER_REQUESTED_BY` nos wrappers de provision.
+- `PATCH /v1/catalog/pipelines/{id}`: campo `suspended` para pipelines `manual`.
+- Reconcile YAML: nodes com `command`/`cwd`/`critical` e edges lineares entre `steps`.
+- Testes: `tests/test_trigger_dispatch.py`, enrich em `test_catalog_reconcile.py`.
+
+**Pós-deploy:** `POST /v1/catalog/reconcile` com `{"sync_remote": false}` para actualizar DAG na DB.
+
+---
+
 ## [5.6.2] - 2026-06-11T31:00:00+01:00
 
 ### Sequential run IDs and 7-day KPIs

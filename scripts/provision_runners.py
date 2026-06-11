@@ -28,7 +28,8 @@ set -a
 [ -f "$HERE/.env.overseer" ] && source "$HERE/.env.overseer"
 set +a
 OVERSEER_VENV="${{OVERSEER_VENV:-{venv}}}"
-"$OVERSEER_VENV/bin/overseer-agent" manifest "$HERE/manifest.yaml" --by cron
+REQUESTED_BY="${{OVERSEER_REQUESTED_BY:-cron}}"
+"$OVERSEER_VENV/bin/overseer-agent" manifest "$HERE/manifest.yaml" --by "$REQUESTED_BY"
 """
 
 RUN_PS1_TEMPLATE = """$ErrorActionPreference = "Stop"
@@ -63,7 +64,9 @@ if (-not $env:OVERSEER_API_URL) {{
     throw "OVERSEER_API_URL em falta. Verifica ..\\.env.overseer"
 }}
 
-& $Python -m overseer_agent manifest (Join-Path $Here "manifest.yaml") --by taskscheduler
+$RequestedBy = $env:OVERSEER_REQUESTED_BY
+if (-not $RequestedBy) {{ $RequestedBy = "taskscheduler" }}
+& $Python -m overseer_agent manifest (Join-Path $Here "manifest.yaml") --by $RequestedBy
 exit $LASTEXITCODE
 """
 

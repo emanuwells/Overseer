@@ -6,11 +6,19 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-11T28:00:00+01:00 |
+| Última atualização | 2026-06-11T32:00:00+01:00 |
 | Branch Git | `main` |
-| Estado | 5.6.0 — API read-first; monitoring removido; frontends Overseer + MAIATRON alinhados |
+| Estado | 5.7.0 — dispatch SSH transversal; lineage rico; suspend manual |
 | Responsável / Agente | Cursor |
-| Última versão registada | 5.6.0 |
+| Última versão registada | 5.7.0 |
+
+## Nota v5.7.0 (2026-06-11)
+
+- `POST /v1/orchestrate/triggers` faz dispatch SSH (`execute_pipeline_run`) para baze2 e WS1207.
+- `PATCH` com `suspended: true|false` para pipelines `manual`.
+- Reconcile YAML inclui `command`, `cwd` e edges entre steps.
+- MAIATRON-HUB: lineage por `pipeline_id::host_id`, inspector DAG, UX Ambiente (sem bolinha/hover jump).
+- **Pós-deploy:** `POST /v1/catalog/reconcile` + hard refresh (`v32`).
 
 ## Nota v5.6.0 (2026-06-11)
 
@@ -75,7 +83,7 @@ Manter o Overseer como núcleo Docker-first para observabilidade de pipelines ex
 - Concluir deploy e migração do crontab no servidor (uma entrada de cada vez, com dry-run).
 - Rodar a password sudo exposta na conversa e migrar para chave SSH.
 - Decidir licença real do projeto; documentação mantém `A confirmar`.
-- Fase seguinte: botão "Run" no frontend (triggers + daemon consumidor).
+- Validar Run now Medidata (`WS1207`) e Pause wireforms em prod após deploy 5.7.0.
 
 ### Bloqueios / Perguntas Abertas
 

@@ -44,6 +44,23 @@ def _write_catalog(root: Path) -> None:
     )
 
 
+def test_catalog_payload_from_yaml_includes_command_and_edges() -> None:
+    entry = {
+        "pipeline_id": "demo_pipe",
+        "name": "Demo",
+        "owner": "data",
+        "schedule": "manual",
+        "steps": [
+            {"module_id": "step_a", "command": ["python3", "/tmp/a.py"], "cwd": "/tmp"},
+            {"module_id": "step_b", "command": ["python3", "/tmp/b.py"]},
+        ],
+    }
+    payload = store._catalog_payload_from_yaml_entry(entry, "BAZE2", "baze2")
+    assert payload["nodes"][0]["metadata"]["command"] == ["python3", "/tmp/a.py"]
+    assert payload["nodes"][0]["metadata"]["cwd"] == "/tmp"
+    assert payload["edges"] == [{"from_module_id": "step_a", "to_module_id": "step_b"}]
+
+
 def test_reconcile_registers_yaml_pipelines(sqlite_store, tmp_path: Path) -> None:
     _write_catalog(tmp_path)
     result = store.reconcile_catalog_from_yaml()

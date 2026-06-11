@@ -50,7 +50,7 @@ flowchart LR
 | Leitura | Frontend/API client | `/v1/read/*` | JSON operacional |
 | Estado DB | Frontend/API client | `/v1/read/database` | URL mascarada, modo e contagens |
 | Escrita | SDK, agent ou pipeline | `/v1/events/*` | Tabelas `overseer_*` |
-| Triggers | UI/API client | `/v1/orchestrate/triggers` | Sinal operacional sem execução local |
+| Triggers | UI/API client | `/v1/orchestrate/triggers` | Enfileira, dispatch SSH ao worker e completa trigger |
 | Arranque | `scripts/overseer-up.*` ou Compose | Docker Compose | API + MariaDB + UI |
 
 ## Estrutura Do Repositório

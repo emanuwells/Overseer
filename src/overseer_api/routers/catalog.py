@@ -66,6 +66,7 @@ class PipelinePatchBody(BaseModel):
     owner: str | None = None
     criticality: str | None = None
     schedule: str | None = None
+    suspended: bool | None = None
     sync_remote: bool = True
 
     @field_validator("schedule")
@@ -86,8 +87,10 @@ class PipelinePatchBody(BaseModel):
 
     @model_validator(mode="after")
     def validate_has_field(self) -> "PipelinePatchBody":
-        if not any([self.name, self.owner, self.criticality, self.schedule]):
-            raise ValueError("Indique pelo menos um campo a actualizar (name, owner, criticality, schedule).")
+        if not any([self.name, self.owner, self.criticality, self.schedule, self.suspended is not None]):
+            raise ValueError(
+                "Indique pelo menos um campo a actualizar (name, owner, criticality, schedule, suspended)."
+            )
         return self
 
 
@@ -122,6 +125,7 @@ def patch_pipeline(pipeline_id: str, body: PipelinePatchBody) -> dict[str, Any]:
         "owner": body.owner,
         "criticality": body.criticality,
         "schedule": body.schedule,
+        "suspended": body.suspended,
     }
     schedule_changed = body.schedule is not None
 
