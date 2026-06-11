@@ -6,11 +6,18 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-11T18:00:00+01:00 |
+| Última atualização | 2026-06-11T28:00:00+01:00 |
 | Branch Git | `main` |
-| Estado | 5.5.0 implementado localmente; deployments unificados (YAML+DB+runs), reconcile API, revamp dashboard |
+| Estado | 5.6.0 — API read-first; monitoring removido; frontends Overseer + MAIATRON alinhados |
 | Responsável / Agente | Cursor |
-| Última versão registada | 5.5.0 |
+| Última versão registada | 5.6.0 |
+
+## Nota v5.6.0 (2026-06-11)
+
+- `/v1/monitoring/*` removido; contrato único em `/v1/read/*` + `/v1/catalog/*`.
+- `deployment_health.py` expõe `is_stale`, `risk_score`, telemetria em overview/deployments.
+- MAIATRON-HUB: `read_adapter.php` no BFF; 4 tabs; sem fallback MySQL.
+- Deploy coordenado: pull Overseer (Docker rebuild) + `baze2-maiatron-hub-pull.sh`.
 
 ## Nota v5.5.0 (2026-06-11)
 

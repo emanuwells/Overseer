@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.6.0] - 2026-06-11T28:00:00+01:00
+
+### API read-first e revamp dual-frontend
+
+**Alterações:**
+- Novo `deployment_health.py`: stale schedule-aware, risk score e telemetria agregada em `/v1/read/overview` e `list_deployments()`.
+- Removida a façade `/v1/monitoring/*` e `monitoring_export.py`; MAIATRON-HUB consome `/v1/read/*` via BFF PHP (`read_adapter.php`).
+- Frontend Overseer: `pipelineLabel` unificado, `is_stale` da API, tabs Ambiente renomeadas, responsivo tablet/mobile.
+- YAML `weatherapi_4_maia`: `module_id` alinhado ao `pipeline_id`.
+- MAIATRON Overseer: 4 tabs (Operações, Runs, DAG, Ambiente); fallback MySQL e derives client-side removidos.
+
+---
+
 ## [5.5.6] - 2026-06-11T27:00:00+01:00
 
 ### Stale schedule-aware

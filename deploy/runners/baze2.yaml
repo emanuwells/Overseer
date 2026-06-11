@@ -44,7 +44,7 @@ pipelines:
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_weather.txt
     cron_match: "weatherapi"
     steps:
-      - module_id: weatherapi
+      - module_id: weatherapi_4_maia
         command: ["python3", "/home/eferreira/D4MAIA/WeatherAPI_4_Maia/weatherapi_4_maia.py"]
         cwd: /home/eferreira
 

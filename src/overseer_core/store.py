@@ -852,8 +852,9 @@ def list_deployments() -> list[dict[str, Any]]:
             "catalog_source": "runs_only",
         }
 
-    from . import runner_ssh
+    from . import deployment_health, runner_ssh
 
+    runs_by_deployment = deployment_health.group_runs_by_deployment(list_runs(limit=5000))
     hosts_cfg = runner_ssh.load_hosts_config()
     enriched: list[dict[str, Any]] = []
     for key, item in merged.items():
@@ -877,7 +878,9 @@ def list_deployments() -> list[dict[str, Any]]:
             item["last_started_at"] = latest.get("started_at")
             item["last_ended_at"] = latest.get("ended_at")
             item["last_duration_sec"] = latest.get("duration_sec")
-        enriched.append(item)
+        enriched.append(
+            deployment_health.enrich_deployment(item, runs_by_deployment.get(key, []))
+        )
     return dedupe_pipelines(enriched)
 
 
@@ -1318,24 +1321,14 @@ def list_triggers(limit: int = 200) -> list[dict[str, Any]]:
 
 
 def overview() -> dict[str, Any]:
+    from . import deployment_health
+
     runs = list_runs(limit=1000)
     pipelines = list_pipelines()
-    total = len(runs)
-    running = sum(1 for row in runs if row.get("status") == "running")
-    ok = sum(1 for row in runs if row.get("status") == "ok")
-    failed = sum(1 for row in runs if row.get("status") == "failed")
-    warning = sum(1 for row in runs if row.get("status") == "warning")
+    summary = deployment_health.build_operational_summary(runs, pipelines)
     return {
         "generated_at": utcnow().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
-        "summary": {
-            "pipelines": len(pipelines),
-            "runs": total,
-            "running": running,
-            "ok": ok,
-            "failed": failed,
-            "warning": warning,
-            "success_rate": round((ok / total) * 100, 2) if total else 100.0,
-        },
+        "summary": summary,
         "pipelines": pipelines,
         "recent_runs": runs[:200],
         "heartbeats": list_heartbeats(limit=50),

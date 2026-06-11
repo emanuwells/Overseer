@@ -20,10 +20,10 @@ from overseer_core.store import init_schema
 
 ROOT = repo_root()
 
-from .routers import catalog, events, health, monitoring, orchestrate, read
+from .routers import catalog, events, health, orchestrate, read
 
 FRONTEND_DIR = ROOT / "frontend"
-API_VERSION = "5.5.6"
+API_VERSION = "5.6.0"
 
 logger = logging.getLogger("overseer.api")
 
@@ -77,7 +77,6 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
-    app.include_router(monitoring.router)
     app.include_router(read.router)
     app.include_router(events.router)
     app.include_router(catalog.router)

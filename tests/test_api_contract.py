@@ -14,6 +14,11 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def test_monitoring_routes_removed():
+    response = client().get("/v1/monitoring/ops/fast")
+    assert response.status_code == 404
+
+
 def test_health_shape():
     with patch("overseer_api.routers.health.get_engine") as mock_engine:
         mock_engine.return_value.connect.return_value.__enter__.return_value.execute.return_value.first.return_value = [1]

@@ -9,7 +9,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 _bearer = HTTPBearer(auto_error=False)
 
 PUBLIC_PATH_PREFIXES = (
-    "/v1/monitoring/ops/",
     "/v1/health",
     "/docs",
     "/openapi.json",

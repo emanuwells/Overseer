@@ -9,7 +9,7 @@ from typing import Any
 
 from overseer_sdk.slack_notifier import SlackNotifier
 
-from . import monitoring_export, store
+from . import deployment_health, store
 from .repo_paths import repo_root
 
 logger = logging.getLogger("overseer.slack")
@@ -42,7 +42,7 @@ def get_slack_notifier() -> SlackNotifier:
 
 def _run_row_id(run: dict[str, Any]) -> int:
     run_id = str(run.get("run_id") or "")
-    return monitoring_export._run_row_id(run_id, 0)
+    return deployment_health.run_row_id(run_id, 0)
 
 
 def _run_url(run: dict[str, Any]) -> str | None:
