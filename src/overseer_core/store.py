@@ -454,16 +454,8 @@ def repair_deployment_data() -> None:
                 )
                 .values(active=False, updated_at=now)
             )
-            conn.execute(
-                update(pipeline_nodes_table)
-                .where(pipeline_nodes_table.c.pipeline_id == raw_pid)
-                .values(pipeline_id=logical_id, updated_at=now)
-            )
-            conn.execute(
-                update(pipeline_edges_table)
-                .where(pipeline_edges_table.c.pipeline_id == raw_pid)
-                .values(pipeline_id=logical_id)
-            )
+            conn.execute(delete(pipeline_nodes_table).where(pipeline_nodes_table.c.pipeline_id == raw_pid))
+            conn.execute(delete(pipeline_edges_table).where(pipeline_edges_table.c.pipeline_id == raw_pid))
 
         for data in pipe_rows:
             raw_pid = str(data.get("pipeline_id") or "")
