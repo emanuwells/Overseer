@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.2] - 2026-06-11T22:00:00+01:00
+
+### Export monitoring para MAIATRON (deployments, volume, P95)
+
+**Alterações:**
+- `monitoring_export`: pipelines do catálogo sem runs (`lastStatus: no_run`, `deploymentKey`).
+- Volume operacional real (`runs24h` vs média diária da semana anterior).
+- `globalKpis`: `p95ExecTime`, `avgCpu`, `avgMem` a partir das runs exportadas.
+- `summary.first_run_label` para o Ops Center.
+
+---
+
 ## [5.5.1] - 2026-06-11T20:00:00+01:00
 
 ### health_probe, digest @channel, UI e Task Scheduler Windows

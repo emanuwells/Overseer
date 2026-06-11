@@ -204,30 +204,161 @@ def _lineage_export_key(deployment: str) -> str:
     return f"{pipeline_id}@{host_id}"
 
 
+def _percentile(values: list[float], quantile: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, int(len(ordered) * quantile)))
+    return float(ordered[index])
+
+
+def _run_resource_metrics(runs: list[dict[str, Any]]) -> tuple[float, float, float, float]:
+    durations: list[float] = []
+    cpus: list[float] = []
+    mems: list[float] = []
+    for row in runs:
+        if row.get("duration_sec") is not None:
+            durations.append(float(row["duration_sec"]))
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        cpu = metadata.get("usage_cpu") or metadata.get("cpu")
+        memory = metadata.get("usage_memoria") or metadata.get("memory_mb")
+        if cpu is not None and str(cpu).strip() != "":
+            cpus.append(float(cpu))
+        if memory is not None and str(memory).strip() != "":
+            mems.append(float(memory))
+    avg_exec = round(sum(durations) / len(durations), 3) if durations else 0.0
+    p95_exec = round(_percentile(durations, 0.95), 3) if durations else 0.0
+    avg_cpu = round(sum(cpus) / len(cpus), 2) if cpus else 0.0
+    avg_mem = round(sum(mems) / len(mems), 2) if mems else 0.0
+    return avg_exec, p95_exec, avg_cpu, avg_mem
+
+
+def _first_run_label(runs: list[dict[str, Any]]) -> str | None:
+    oldest: datetime | None = None
+    for row in runs:
+        started = _parse_dt(row.get("started_at"))
+        if started and (oldest is None or started < oldest):
+            oldest = started
+    return oldest.strftime("%Y-%m-%d") if oldest else None
+
+
+def _compute_volume(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    runs_24h = 0
+    prev_week = 0
+    for row in runs:
+        hours = _hours_since(row.get("started_at"))
+        if hours is None:
+            continue
+        if hours <= 24:
+            runs_24h += 1
+        elif hours <= 24 * 8:
+            prev_week += 1
+    baseline = round(prev_week / 7.0, 2) if prev_week else 0.0
+    if baseline <= 0:
+        return {
+            "status": "good",
+            "ratio": 1.0,
+            "runs24h": runs_24h,
+            "baseline": 0.0,
+        }
+    ratio = round(runs_24h / baseline, 3)
+    status = "good"
+    if ratio < 0.5 or ratio > 2.0:
+        status = "critical"
+    elif ratio < 0.7 or ratio > 1.5:
+        status = "warn"
+    return {
+        "status": status,
+        "ratio": ratio,
+        "runs24h": runs_24h,
+        "baseline": baseline,
+    }
+
+
+def _deployment_signal_counts(
+    deployment: str,
+    items: list[dict[str, Any]],
+) -> tuple[bool, bool, bool]:
+    if not items:
+        return True, False, False
+    latest = items[0]
+    stale_hours = _hours_since(latest.get("started_at"))
+    is_stale = stale_hours is None or stale_hours > _STALE_HOURS
+    recent = items[:7]
+    fail_rate = sum(1 for row in recent if _is_failed(row.get("status"))) / max(1, len(recent))
+    is_failed = _is_failed(latest.get("status"))
+    is_regression = fail_rate > 0.2
+    is_at_risk = is_failed or is_stale or is_regression
+    return is_stale, is_regression, is_at_risk
+
+
+def _risk_score_for_deployment(
+    latest: dict[str, Any] | None,
+    recent: list[dict[str, Any]],
+    *,
+    stale_hours: float | None,
+) -> int:
+    if latest is None:
+        return 25 if stale_hours is None or stale_hours > _STALE_HOURS else 0
+    failed_recent = sum(1 for row in recent if _is_failed(row.get("status")))
+    return min(
+        100,
+        max(
+            0,
+            (45 if _is_failed(latest.get("status")) else 20 if _is_warning(latest.get("status")) else 0)
+            + (25 if (stale_hours or 0) > _STALE_HOURS or stale_hours is None else 0)
+            + (20 if failed_recent / max(1, len(recent)) > 0.2 else 0),
+        ),
+    )
+
+
+def _risk_level(score: int) -> str:
+    if score >= 80:
+        return "critical"
+    if score >= 55:
+        return "high"
+    if score >= 30:
+        return "medium"
+    return "low"
+
+
 def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(runs)
     ok = sum(1 for row in runs if _is_ok(row.get("status")))
     failed = sum(1 for row in runs if _is_failed(row.get("status")))
     warning = sum(1 for row in runs if _is_warning(row.get("status")))
-    durations = [float(row["duration_sec"]) for row in runs if row.get("duration_sec") is not None]
-    avg_exec = round(sum(durations) / len(durations), 3) if durations else 0.0
+    avg_exec, _, _, _ = _run_resource_metrics(runs)
     grouped = _group_runs_by_deployment(runs)
+    filtered = _filter_pipelines_for_export(pipelines)
     at_risk = stale = regressions = 0
-    for items in grouped.values():
-        if not items:
+    seen: set[str] = set()
+
+    for row in filtered:
+        deployment = store.deployment_key_from_row(row)
+        if not deployment:
             continue
-        latest = items[0]
-        stale_hours = _hours_since(latest.get("started_at"))
-        is_stale = stale_hours is None or stale_hours > _STALE_HOURS
-        is_failed = _is_failed(latest.get("status"))
-        recent = items[:7]
-        fail_rate = sum(1 for row in recent if _is_failed(row.get("status"))) / max(1, len(recent))
+        seen.add(deployment)
+        items = grouped.get(deployment, [])
+        is_stale, is_regression, is_at_risk = _deployment_signal_counts(deployment, items)
         if is_stale:
             stale += 1
-        if fail_rate > 0.2:
+        if is_regression:
             regressions += 1
-        if is_failed or is_stale or fail_rate > 0.2:
+        if is_at_risk:
             at_risk += 1
+
+    for deployment, items in grouped.items():
+        if deployment in seen or not items:
+            continue
+        is_stale, is_regression, is_at_risk = _deployment_signal_counts(deployment, items)
+        if is_stale:
+            stale += 1
+        if is_regression:
+            regressions += 1
+        if is_at_risk:
+            at_risk += 1
+
+    pipeline_count = len(seen) + sum(1 for key in grouped if key not in seen)
     return {
         "total_runs": total,
         "totalRuns": total,
@@ -240,10 +371,11 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
         "warning": warning,
         "success_rate": round((ok / total) * 100, 2) if total else 100.0,
         "avg_exec_time": avg_exec,
-        "pipeline_count": len(grouped) or len(pipelines),
+        "pipeline_count": pipeline_count or len(filtered),
         "at_risk": at_risk,
         "stale": stale,
         "regressions": regressions,
+        "first_run_label": _first_run_label(runs),
     }
 
 
@@ -290,7 +422,8 @@ def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict
                     "when": latest.get("started_at"),
                 }
             )
-    runs_24h = sum(1 for row in runs if (_hours_since(row.get("started_at")) or 999) <= 24)
+    _, p95_exec, avg_cpu, avg_mem = _run_resource_metrics(runs)
+    volume = _compute_volume(runs)
     return {
         "generatedAt": _iso_now(),
         "globalKpis": {
@@ -301,9 +434,9 @@ def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict
             "nokRuns": summary["nok_runs"],
             "successRate": summary["success_rate"],
             "avgExecTime": summary["avg_exec_time"],
-            "avgCpu": 0,
-            "avgMem": 0,
-            "p95ExecTime": 0,
+            "avgCpu": avg_cpu,
+            "avgMem": avg_mem,
+            "p95ExecTime": p95_exec,
         },
         "operationalSignals": {
             "pipelineCount": summary["pipeline_count"],
@@ -312,12 +445,7 @@ def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict
             "regressions": summary["regressions"],
             "failed": failed_count,
             "warnings": summary["warning_runs"],
-            "volume": {
-                "status": "good",
-                "ratio": 1,
-                "runs24h": runs_24h,
-                "baseline": 0,
-            },
+            "volume": volume,
         },
         "topAlerts": {
             "immediate": immediate[:5],
@@ -326,45 +454,69 @@ def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict
     }
 
 
+def _pipeline_export_row(
+    deployment: str,
+    items_runs: list[dict[str, Any]],
+    cat: dict[str, Any],
+) -> dict[str, Any]:
+    pipeline_id, host_id = _split_deployment_key(deployment)
+    latest = items_runs[0] if items_runs else None
+    recent = items_runs[:7]
+    failed_recent = sum(1 for row in recent if _is_failed(row.get("status")))
+    if items_runs:
+        success_rate_7d = ((len(recent) - failed_recent) / len(recent) * 100) if recent else 100.0
+        stale_hours = _hours_since(latest.get("started_at") if latest else None)
+        last_run = latest.get("started_at") if latest else None
+        last_status = _status_bucket(latest.get("status")) if latest else "no_run"
+        display_name = (latest.get("pipeline_name") if latest else None) or cat.get("name") or pipeline_id
+    else:
+        success_rate_7d = 0.0
+        last_started = cat.get("last_started_at")
+        stale_hours = _hours_since(last_started) if last_started else None
+        last_run = last_started
+        last_status = "no_run"
+        display_name = cat.get("name") or pipeline_id
+
+    risk_score = _risk_score_for_deployment(latest, recent, stale_hours=stale_hours)
+    return {
+        "deploymentKey": deployment,
+        "pipelineId": pipeline_id,
+        "hostId": host_id or (latest.get("host_id") if latest else None) or cat.get("host_id"),
+        "name": display_name,
+        "owner": cat.get("owner") or "unknown",
+        "criticality": cat.get("criticality") or "medium",
+        "schedule": cat.get("schedule") or "manual",
+        "lastRun": last_run,
+        "lastStatus": last_status,
+        "successRate7d": round(success_rate_7d, 2),
+        "staleHours": int(stale_hours) if stale_hours is not None else None,
+        "riskScore": risk_score,
+        "riskLevel": _risk_level(risk_score),
+    }
+
+
 def _build_pipelines(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped = _group_runs_by_deployment(runs)
     catalog = _pipeline_lookup(pipelines)
     items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for row in _filter_pipelines_for_export(pipelines):
+        deployment = store.deployment_key_from_row(row)
+        if not deployment or deployment in seen:
+            continue
+        seen.add(deployment)
+        pipeline_id, _ = _split_deployment_key(deployment)
+        cat = catalog.get(deployment) or catalog.get(pipeline_id) or row
+        items.append(_pipeline_export_row(deployment, grouped.get(deployment, []), cat))
+
     for deployment, items_runs in grouped.items():
-        pipeline_id, host_id = _split_deployment_key(deployment)
-        latest = items_runs[0]
-        recent = items_runs[:7]
-        failed_recent = sum(1 for row in recent if _is_failed(row.get("status")))
-        success_rate_7d = ((len(recent) - failed_recent) / len(recent) * 100) if recent else 100.0
-        stale_hours = _hours_since(latest.get("started_at"))
-        risk_score = min(
-            100,
-            max(
-                0,
-                (45 if _is_failed(latest.get("status")) else 20 if _is_warning(latest.get("status")) else 0)
-                + (25 if (stale_hours or 0) > _STALE_HOURS else 0)
-                + (20 if failed_recent / max(1, len(recent)) > 0.2 else 0),
-            ),
-        )
-        risk_level = "critical" if risk_score >= 80 else "high" if risk_score >= 55 else "medium" if risk_score >= 30 else "low"
+        if deployment in seen or not items_runs:
+            continue
+        pipeline_id, _ = _split_deployment_key(deployment)
         cat = catalog.get(deployment) or catalog.get(pipeline_id) or {}
-        items.append(
-            {
-                "pipelineId": pipeline_id,
-                "hostId": host_id or latest.get("host_id"),
-                "name": latest.get("pipeline_name") or cat.get("name") or pipeline_id,
-                "owner": cat.get("owner") or "unknown",
-                "criticality": cat.get("criticality") or "medium",
-                "schedule": cat.get("schedule") or "manual",
-                "lastRun": latest.get("started_at"),
-                "lastStatus": _status_bucket(latest.get("status")),
-                "successRate7d": round(success_rate_7d, 2),
-                "regressionDelta": 0,
-                "staleHours": int(stale_hours) if stale_hours is not None else None,
-                "riskScore": risk_score,
-                "riskLevel": risk_level,
-            }
-        )
+        items.append(_pipeline_export_row(deployment, items_runs, cat))
+
     items.sort(key=lambda row: (-int(row.get("riskScore") or 0), str(row.get("lastRun") or "")), reverse=False)
     return items
 

@@ -162,6 +162,76 @@ def test_inactive_pipeline_excluded_from_export(sqlite_store) -> None:
     assert "p_monitor_recent" not in full.get("module_lineage", {})
 
 
+def test_pipelines_include_catalog_without_runs(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "idle_pipe",
+            "host_id": "h1",
+            "name": "Idle",
+            "owner": "ops",
+            "nodes": [{"module_id": "a"}],
+            "edges": [],
+        }
+    )
+    run = store.start_run({"pipeline_id": "active_pipe", "host_id": "h1"})
+    store.finish_run(run["run_id"], {"status": "ok"})
+
+    full = monitoring_export.build_full_payload()
+    idle = next((p for p in full["pipelines"] if p["pipelineId"] == "idle_pipe"), None)
+    assert idle is not None
+    assert idle["lastStatus"] == "no_run"
+    assert idle.get("deploymentKey", "").startswith("idle_pipe::")
+
+
+def test_summary_first_run_label_and_p95(sqlite_store) -> None:
+    run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
+    store.finish_run(
+        run["run_id"],
+        {
+            "status": "ok",
+            "duration_sec": 10.0,
+            "metadata": {"usage_cpu": 40, "usage_memoria": 512},
+        },
+    )
+    full = monitoring_export.build_full_payload()
+    assert full["summary"].get("first_run_label")
+    kpis = full["overview"]["globalKpis"]
+    assert kpis["p95ExecTime"] >= 10.0
+    assert kpis["avgCpu"] == 40.0
+    assert kpis["avgMem"] == 512.0
+
+
+def test_volume_baseline_when_history_exists(sqlite_store, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import timedelta
+
+    base = store.utcnow()
+    for day_offset in range(2, 9):
+        started = (base - timedelta(days=day_offset)).isoformat()
+        run = store.start_run(
+            {
+                "pipeline_id": "vol_pipe",
+                "host_id": "h1",
+                "started_at": started,
+            }
+        )
+        store.finish_run(run["run_id"], {"status": "ok", "duration_sec": 1.0})
+
+    recent = store.start_run(
+        {
+            "pipeline_id": "vol_pipe",
+            "host_id": "h1",
+            "started_at": (base - timedelta(hours=2)).isoformat(),
+        }
+    )
+    store.finish_run(recent["run_id"], {"status": "ok", "duration_sec": 1.0})
+
+    fast = monitoring_export.build_ops_fast_payload()
+    volume = fast["overview"]["operationalSignals"]["volume"]
+    assert volume["runs24h"] >= 1
+    assert volume["baseline"] > 0
+    assert volume["ratio"] > 0
+
+
 def test_purge_pipeline_data(sqlite_store) -> None:
     run = store.start_run({"pipeline_id": "p_monitor_recent", "host_id": "local"})
     store.record_module(
