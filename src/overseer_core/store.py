@@ -797,13 +797,31 @@ def _catalog_payload_from_yaml_entry(entry: dict[str, Any], host_db: str, catalo
                 "metadata": meta,
             }
         )
-    edges = [
-        {
-            "from_module_id": nodes[i]["module_id"],
-            "to_module_id": nodes[i + 1]["module_id"],
-        }
-        for i in range(len(nodes) - 1)
-    ]
+    edges: list[dict[str, Any]] = []
+    has_explicit_deps = False
+    node_ids = {node["module_id"] for node in nodes}
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        module_id = str(step.get("module_id") or "").strip()
+        if not module_id:
+            continue
+        raw_deps = step.get("depends_on")
+        if raw_deps is None:
+            continue
+        dep_list = [str(raw_deps)] if isinstance(raw_deps, str) else [str(d) for d in raw_deps if d]
+        for dep in dep_list:
+            if dep in node_ids and dep != module_id:
+                edges.append({"from_module_id": dep, "to_module_id": module_id})
+                has_explicit_deps = True
+    if not has_explicit_deps:
+        edges = [
+            {
+                "from_module_id": nodes[i]["module_id"],
+                "to_module_id": nodes[i + 1]["module_id"],
+            }
+            for i in range(len(nodes) - 1)
+        ]
     return {
         "pipeline_id": pipeline_id,
         "host_id": host_db,
@@ -861,11 +879,13 @@ def reconcile_catalog_from_yaml() -> dict[str, Any]:
             register_pipeline_catalog(payload)
             updated.append({"pipeline_id": pipeline_id, "host_id": host_db})
 
+    exported = runner_catalog.export_catalog_from_db()
     return {
         "created": created,
         "updated": updated,
         "skipped": skipped,
         "hosts": sorted(set(hosts)),
+        "exported": exported,
     }
 
 

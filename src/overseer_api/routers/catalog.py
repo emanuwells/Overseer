@@ -60,6 +60,10 @@ class ReconcileBody(BaseModel):
     sync_remote: bool = False
 
 
+class ExportBody(BaseModel):
+    host_id: str | None = None
+
+
 class PipelinePatchBody(BaseModel):
     host_id: str
     name: str | None = None
@@ -103,6 +107,16 @@ def register_pipeline(body: PipelineCatalogBody) -> dict[str, Any]:
     return {"ok": True, "dag": dag}
 
 
+@router.post("/export")
+def export_catalog(body: ExportBody | None = None) -> dict[str, Any]:
+    options = body or ExportBody()
+    try:
+        result = runner_catalog.export_catalog_from_db(host_id=options.host_id)
+        return {"ok": True, "export": result}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.post("/reconcile")
 def reconcile_catalog(body: ReconcileBody | None = None) -> dict[str, Any]:
     options = body or ReconcileBody()
@@ -134,7 +148,7 @@ def patch_pipeline(pipeline_id: str, body: PipelinePatchBody) -> dict[str, Any]:
         dag = store.patch_pipeline_catalog(pipeline_id, host_id, fields)
         yaml_result: dict[str, Any] | None = None
         try:
-            yaml_result = runner_catalog.patch_runner_catalog_yaml(catalog_host, pipeline_id, fields)
+            yaml_result = runner_catalog.sync_pipeline_yaml_from_db(catalog_host, pipeline_id)
         except (FileNotFoundError, ValueError) as exc:
             raise ValueError(str(exc)) from exc
 

@@ -14,5 +14,10 @@ pipelines:
       - module_id: extract
         command: ["python", "C:\\Dev\\Repos\\emanuwells\\forms\\extract.py"]
         cwd: C:\Dev\Repos\emanuwells\forms
+      - module_id: transform
+        command: ["python", "C:\\Dev\\Repos\\emanuwells\\forms\\transform.py"]
+        cwd: C:\Dev\Repos\emanuwells\forms
+        depends_on: extract
       - module_id: load
         command: ["python", "C:\\Dev\\Repos\\emanuwells\\forms\\load.py"]
+        depends_on: transform

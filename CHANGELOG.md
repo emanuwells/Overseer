@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.7.2] - 2026-06-11T40:00:00+01:00
+
+### Sync bidireccional DB→YAML e DAG multi-step
+
+**Alterações:**
+- `runner_catalog.sync_pipeline_yaml_from_db()` e `export_catalog_from_db()`: metadata e `steps[]` exportados da DB para `deploy/runners/*.yaml` (DB é fonte de verdade).
+- `reconcile_catalog_from_yaml()` exporta YAML após import; `PATCH /v1/catalog/pipelines/{id}` sincroniza YAML completo.
+- `POST /v1/catalog/export` para export manual.
+- `depends_on` em `steps[]` do YAML para DAGs não-lineares (extract→transform→load).
+- Template `_example.yaml` com três steps encadeados.
+
+---
+
 ## [5.7.1] - 2026-06-11T36:00:00+01:00
 
 ### DB como fonte de verdade e inventário de código
