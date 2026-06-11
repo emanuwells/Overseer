@@ -207,16 +207,17 @@ def run_resource_metrics(runs: list[dict[str, Any]]) -> tuple[float, float, floa
         if row.get("duration_sec") is not None:
             durations.append(float(row["duration_sec"]))
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
-        cpu = metadata_cpu(metadata)
+        cpu = min(metadata_cpu(metadata), 100.0)
         memory = metadata_memory(metadata)
         if memory > 0:
             mems.append(memory)
-            cpus.append(cpu)
+            if cpu > 0:
+                cpus.append(cpu)
         elif cpu > 0:
             cpus.append(cpu)
     avg_exec = round(sum(durations) / len(durations), 3) if durations else 0.0
     p95_exec = round(_percentile(durations, 0.95), 3) if durations else 0.0
-    avg_cpu = round(sum(cpus) / len(cpus), 2) if cpus else 0.0
+    avg_cpu = round(min(sum(cpus) / len(cpus), 100.0), 2) if cpus else 0.0
     avg_mem = round(sum(mems) / len(mems), 2) if mems else 0.0
     return avg_exec, p95_exec, avg_cpu, avg_mem
 
@@ -295,13 +296,24 @@ def enrich_deployment(
     return item
 
 
-def run_row_id(run_id: str, index: int = 0) -> int:
+def run_row_id(run: dict[str, Any] | str, index: int = 0) -> int:
+    if isinstance(run, dict):
+        local_id = run.get("run_local_id")
+        if local_id is not None and str(local_id).strip() != "":
+            return int(local_id)
+        run_id = str(run.get("run_id") or "")
+    else:
+        run_id = str(run or "")
     return abs(hash(f"{run_id}:{index}")) % 2_000_000_000 or index + 1
 
 
 def build_operational_summary(
     runs: list[dict[str, Any]],
     deployments: list[dict[str, Any]],
+    *,
+    total_runs: int | None = None,
+    runs_7d: list[dict[str, Any]] | None = None,
+    failed_7d: int | None = None,
 ) -> dict[str, Any]:
     grouped = group_runs_by_deployment(runs)
     at_risk = stale = regressions = 0
@@ -316,19 +328,34 @@ def build_operational_summary(
         if is_at_risk:
             at_risk += 1
 
-    total = len(runs)
+    window_runs = runs_7d if runs_7d is not None else runs
+    total = int(total_runs if total_runs is not None else len(runs))
+    sample_total = len(runs)
     ok = sum(1 for row in runs if is_ok(row.get("status")))
     failed = sum(1 for row in runs if is_failed(row.get("status")))
     warning = sum(1 for row in runs if is_warning(row.get("status")))
-    avg_exec, p95_exec, avg_cpu, avg_mem = run_resource_metrics(runs)
+    window_ok = sum(1 for row in window_runs if is_ok(row.get("status")))
+    window_total = len(window_runs)
+    window_failed = (
+        int(failed_7d)
+        if failed_7d is not None
+        else sum(1 for row in window_runs if is_failed(row.get("status")))
+    )
+    avg_exec, p95_exec, avg_cpu, avg_mem = run_resource_metrics(window_runs)
+    volume = compute_volume(runs)
     return {
         "pipelines": len(deployments),
         "runs": total,
+        "total_runs": total,
         "running": sum(1 for row in runs if _status_bucket(row.get("status")) == "running"),
         "ok": ok,
         "failed": failed,
+        "failed_7d": window_failed,
         "warning": warning,
-        "success_rate": round((ok / total) * 100, 2) if total else 100.0,
+        "success_rate": round((ok / sample_total) * 100, 2) if sample_total else 100.0,
+        "success_rate_7d": round((window_ok / window_total) * 100, 2) if window_total else 100.0,
+        "metrics_period_label": "7d",
+        "runs_24h": volume.get("runs24h", 0),
         "avg_exec_time": avg_exec,
         "p95_exec_time": p95_exec,
         "avg_cpu": avg_cpu,
@@ -337,5 +364,5 @@ def build_operational_summary(
         "stale": stale,
         "regressions": regressions,
         "first_run_label": first_run_label(runs),
-        "volume": compute_volume(runs),
+        "volume": volume,
     }

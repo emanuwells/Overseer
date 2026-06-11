@@ -5,7 +5,7 @@ import os
 import secrets
 import socket
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -95,6 +95,7 @@ runs_table = Table(
     Column("metadata_json", Text, nullable=True),
     Column("created_at", DateTime, nullable=False, default=datetime.utcnow),
     Column("updated_at", DateTime, nullable=False, default=datetime.utcnow),
+    Column("run_local_id", Integer, unique=True, nullable=True, index=True),
 )
 
 modules_table = Table(
@@ -279,6 +280,7 @@ def is_excluded_pipeline(pipeline_id: str) -> bool:
 def init_schema() -> None:
     metadata.create_all(get_engine())
     ensure_schema_columns()
+    backfill_run_local_ids()
     repair_deployment_data()
     deactivate_excluded_pipelines()
 
@@ -329,6 +331,39 @@ def ensure_schema_columns() -> None:
             cols = {column["name"] for column in inspector.get_columns(table)}
             if "host_id" not in cols:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN host_id {ddl}"))
+        if inspector.has_table("overseer_runs"):
+            run_cols = {column["name"] for column in inspector.get_columns("overseer_runs")}
+            if "run_local_id" not in run_cols:
+                conn.execute(text("ALTER TABLE overseer_runs ADD COLUMN run_local_id INTEGER NULL"))
+
+
+def backfill_run_local_ids() -> int:
+    engine = get_engine()
+    if not inspect(engine).has_table("overseer_runs"):
+        return 0
+    inspector = inspect(engine)
+    run_cols = {column["name"] for column in inspector.get_columns("overseer_runs")}
+    if "run_local_id" not in run_cols:
+        return 0
+    updated = 0
+    with engine.begin() as conn:
+        pending = conn.execute(
+            select(runs_table.c.run_id)
+            .where(runs_table.c.run_local_id.is_(None))
+            .order_by(runs_table.c.started_at.asc(), runs_table.c.created_at.asc())
+        ).all()
+        if not pending:
+            return 0
+        next_id = int(conn.execute(select(func.max(runs_table.c.run_local_id))).scalar() or 0) + 1
+        for (run_id,) in pending:
+            conn.execute(
+                update(runs_table)
+                .where(runs_table.c.run_id == run_id)
+                .values(run_local_id=next_id, updated_at=utcnow())
+            )
+            next_id += 1
+            updated += 1
+    return updated
 
 
 def normalize_host_id(value: Any) -> str:
@@ -925,6 +960,8 @@ def start_run(payload: dict[str, Any]) -> dict[str, Any]:
         "updated_at": now,
     }
     with get_engine().begin() as conn:
+        next_local = int(conn.execute(select(func.max(runs_table.c.run_local_id))).scalar() or 0) + 1
+        values["run_local_id"] = next_local
         conn.execute(insert(runs_table).values(**values))
     return get_run(run_id) or {"run_id": run_id}
 
@@ -1284,6 +1321,35 @@ def list_runs(
     return [row_to_dict(row) for row in rows]
 
 
+def list_runs_since(days: float = 7, limit: int = 5000) -> list[dict[str, Any]]:
+    cutoff = utcnow() - timedelta(days=max(0.0, days))
+    stmt = (
+        select(runs_table)
+        .where(runs_table.c.started_at >= cutoff)
+        .order_by(runs_table.c.started_at.desc())
+        .limit(max(1, min(limit, 5000)))
+    )
+    with get_engine().connect() as conn:
+        rows = conn.execute(stmt).mappings().all()
+    return [row_to_dict(row) for row in rows]
+
+
+def count_runs() -> int:
+    with get_engine().connect() as conn:
+        total = conn.execute(select(func.count()).select_from(runs_table)).scalar()
+    return int(total or 0)
+
+
+def count_runs_since(days: float = 7, *, failed_only: bool = False) -> int:
+    cutoff = utcnow() - timedelta(days=max(0.0, days))
+    stmt = select(func.count()).select_from(runs_table).where(runs_table.c.started_at >= cutoff)
+    if failed_only:
+        stmt = stmt.where(func.lower(runs_table.c.status).in_(("failed", "nok", "error")))
+    with get_engine().connect() as conn:
+        total = conn.execute(stmt).scalar()
+    return int(total or 0)
+
+
 def list_modules(run_id: str | None = None, pipeline_id: str | None = None) -> list[dict[str, Any]]:
     stmt = select(modules_table).order_by(modules_table.c.created_at.desc()).limit(1000)
     if run_id:
@@ -1324,8 +1390,15 @@ def overview() -> dict[str, Any]:
     from . import deployment_health
 
     runs = list_runs(limit=1000)
+    runs_7d = list_runs_since(days=7, limit=5000)
     pipelines = list_pipelines()
-    summary = deployment_health.build_operational_summary(runs, pipelines)
+    summary = deployment_health.build_operational_summary(
+        runs,
+        pipelines,
+        total_runs=count_runs(),
+        runs_7d=runs_7d,
+        failed_7d=count_runs_since(7, failed_only=True),
+    )
     return {
         "generated_at": utcnow().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
         "summary": summary,

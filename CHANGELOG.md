@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.6.2] - 2026-06-11T31:00:00+01:00
+
+### Sequential run IDs and 7-day KPIs
+
+**Alterações:**
+- Coluna `run_local_id` sequencial (1..N) com backfill em `init_schema()` e alocação em `start_run()`.
+- Summary operacional: `total_runs` real, `failed_7d`, `success_rate_7d`, `metrics_period_label`, CPU cap ≤100%.
+- `run_row_id()` prefere `run_local_id`; script `scripts/maintenance/assign_run_local_ids.py`.
+- Bloco Slack em `finish_run()` inalterado.
+
+---
+
 ## [5.6.1] - 2026-06-11T29:00:00+01:00
 
 ### Host OS metadata e manutenção DB
