@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Overseer - Ambiente</title><link rel="stylesheet" href="css/app.css"></head>
 <body data-view="deployments">
   <div class="app-shell">
-    <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>ambiente API</span></div></a><nav class="nav"><a href="dashboard.html">Ops</a><a href="run-detail.html">Runs</a><a href="lineage.html">DAG</a><a aria-current="page" href="deployments.html">Ambiente</a></nav><div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div></aside>
+    <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>ambiente API</span></div></a><nav class="nav" data-app-nav aria-label="Navegação principal"></nav><div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div></aside>
     <main class="main"><header class="topbar"><div class="crumb">Overseer / Ambiente</div><div class="actions" data-tabs><button class="btn primary" data-tab="#prod">DB</button><button class="btn" data-tab="#staging">Heartbeats</button><button class="btn" data-tab="#dev">Triggers</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
       <section class="content"><div class="hero-row"><div><h1>Ambiente Overseer</h1><p class="subhead">Estado da API, base de dados, catálogo DAG, heartbeats e triggers operacionais.</p></div><span class="pill" data-sync-state>A carregar</span></div>
         <div data-alert></div>

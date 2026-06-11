@@ -228,6 +228,17 @@ function isPipelineVisible(item) {
   return !RETIRED_PIPELINE_IDS.has(logicalId);
 }
 
+function normalizePipelineRow(item) {
+  const logicalId = logicalPipelineId(item?.pipeline_id);
+  if (!logicalId) return null;
+  const candidate = { ...item, pipeline_id: logicalId };
+  if (logicalPipelineId(item.pipeline_id) !== item.pipeline_id) {
+    const legacyHost = String(item.pipeline_id).split('__').pop();
+    if (legacyHost && !candidate.host_id) candidate.host_id = legacyHost;
+  }
+  return candidate;
+}
+
 function pipelineRecencyScore(item) {
   const started = item?.last_started_at ? new Date(item.last_started_at).getTime() : 0;
   const cleanId = logicalPipelineId(item?.pipeline_id) === item?.pipeline_id ? 1 : 0;
@@ -239,29 +250,60 @@ function dedupePipelines(pipelines) {
   const best = new Map();
   (pipelines || []).forEach((item) => {
     if (!isPipelineVisible(item)) return;
-    const logicalId = logicalPipelineId(item.pipeline_id);
-    if (!logicalId) return;
-    const candidate = { ...item, pipeline_id: logicalId };
-    const legacyHost = logicalPipelineId(item.pipeline_id) !== item.pipeline_id
-      ? String(item.pipeline_id).split('__').pop()
-      : '';
-    if (legacyHost && !candidate.host_id) candidate.host_id = legacyHost;
-    const prev = best.get(logicalId);
+    const candidate = normalizePipelineRow(item);
+    if (!candidate) return;
+    const key = deploymentKey(candidate);
+    const prev = best.get(key);
     if (!prev) {
-      best.set(logicalId, candidate);
+      best.set(key, candidate);
       return;
     }
     const a = pipelineRecencyScore(candidate);
     const b = pipelineRecencyScore(prev);
     if (a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] > b[2])))) {
-      best.set(logicalId, candidate);
+      best.set(key, candidate);
     }
   });
-  return Array.from(best.values()).sort((left, right) => String(left.pipeline_id).localeCompare(String(right.pipeline_id)));
+  return Array.from(best.values()).sort((left, right) => {
+    const byPipeline = String(left.pipeline_id).localeCompare(String(right.pipeline_id));
+    if (byPipeline !== 0) return byPipeline;
+    return String(left.host_id || '').localeCompare(String(right.host_id || ''));
+  });
 }
 
 function deploymentKey(item) {
-  return `${logicalPipelineId(item.pipeline_id)}::${item.host_id || ''}`;
+  const logicalId = logicalPipelineId(item?.pipeline_id || item);
+  const hostId = typeof item === 'object' ? (item.host_id || '') : '';
+  return `${logicalId}::${hostId}`;
+}
+
+function runDeploymentKey(run) {
+  return deploymentKey({ pipeline_id: run.pipeline_id, host_id: run.host_id || '' });
+}
+
+const NAV_ITEMS = [
+  { id: 'dashboard', href: 'dashboard.html', label: 'Operações', hint: 'estado e KPIs' },
+  { id: 'runs', href: 'run-detail.html', label: 'Runs', hint: 'histórico e detalhe' },
+  { id: 'lineage', href: 'lineage.html', label: 'DAG', hint: 'catálogo e módulos' },
+  { id: 'deployments', href: 'deployments.html', label: 'Ambiente', hint: 'DB e heartbeats' },
+];
+
+function renderAppNav(currentId) {
+  const nav = one('[data-app-nav]');
+  if (!nav) return;
+  nav.innerHTML = NAV_ITEMS.map((item) => `
+    <a href="${esc(item.href)}" ${item.id === currentId ? 'aria-current="page"' : ''} title="${esc(item.hint)}">
+      <span class="nav-icon" aria-hidden="true">${esc(item.label.charAt(0))}</span>
+      <span class="nav-copy"><strong>${esc(item.label)}</strong><small>${esc(item.hint)}</small></span>
+    </a>
+  `).join('');
+}
+
+function runDetailUrl(run) {
+  const params = new URLSearchParams({ run: run.run_id });
+  if (run.pipeline_id) params.set('pipeline', logicalPipelineId(run.pipeline_id));
+  if (run.host_id) params.set('host', run.host_id);
+  return `run-detail.html?${params.toString()}`;
 }
 
 function parseDeploymentKey(key) {
@@ -393,7 +435,7 @@ function renderOverview(overview) {
     const statusKlass = stale ? 'stale' : statusClass(item.last_status);
   const statusText = stale ? 'stale' : statusLabel(item.last_status);
     return `
-    <tr data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
+    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(item.host_id || '')}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
       <td data-label="Pipeline"><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
       <td data-label="Host">${esc(hostDisplay(item))}</td>
       <td data-label="Estado"><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
@@ -412,20 +454,24 @@ function renderOverview(overview) {
     const refreshed = findPipelineRow(state.selectedPipeline.pipeline_id, state.selectedPipeline.host_id);
     if (refreshed) setInspectorSelection(refreshed);
   }
-  const recentByPipeline = new Map();
+  const recentByDeployment = new Map();
   runs.forEach((run) => {
-    const key = logicalPipelineId(run.pipeline_id);
-    const prev = recentByPipeline.get(key);
-    if (!prev || new Date(run.started_at) > new Date(prev.started_at)) recentByPipeline.set(key, run);
+    const key = runDeploymentKey(run);
+    const prev = recentByDeployment.get(key);
+    if (!prev || new Date(run.started_at) > new Date(prev.started_at)) recentByDeployment.set(key, run);
   });
-  const recentRuns = Array.from(recentByPipeline.values())
+  const recentRuns = Array.from(recentByDeployment.values())
     .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
-    .slice(0, 8);
+    .slice(0, 10);
   html('[data-recent-runs]', recentRuns.length ? recentRuns.map((run) => {
     const stale = isStaleRun(run.started_at, run.status);
     const klass = stale ? 'stale' : statusClass(run.status);
+    const pipelineLabel = logicalPipelineId(run.pipeline_id);
     return `
-    <div class="alert-item"><div><strong>${esc(run.pipeline_id)}</strong><p>${esc(run.host_id || '--')} · ${esc(run.run_id)} · ${esc(formatDate(run.started_at))}</p></div><span class="pill ${klass}">${esc(stale ? 'stale' : statusLabel(run.status))}</span></div>`;
+    <a class="alert-item alert-link" href="${esc(runDetailUrl(run))}">
+      <div><strong>${esc(pipelineLabel)}</strong><p>${esc(run.host_id || '--')} · ${esc(run.run_id)} · ${esc(formatDate(run.started_at))}</p></div>
+      <span class="pill ${klass}">${esc(stale ? 'stale' : statusLabel(run.status))}</span>
+    </a>`;
   }).join('') : emptyBlock('Ainda não há runs recebidas.'));
 
   by('[data-pipelines] tr[data-name]').forEach((row) => {
@@ -499,13 +545,46 @@ function renderRunDetail(detail) {
   bindSearch();
 }
 
+function renderRunsList(runs, selectedRunId) {
+  html('[data-runs-list]', runs.length ? runs.map((run) => {
+    const stale = isStaleRun(run.started_at, run.status);
+    const klass = stale ? 'stale' : statusClass(run.status);
+    const selected = run.run_id === selectedRunId ? ' is-selected' : '';
+    return `
+    <a class="run-list-item${selected}" href="${esc(runDetailUrl(run))}" data-search-row>
+      <div class="run-list-main">
+        <strong>${esc(logicalPipelineId(run.pipeline_id))}</strong>
+        <span class="mono">${esc(run.host_id || '--')}</span>
+      </div>
+      <div class="run-list-meta mono">
+        <span>${esc(formatDate(run.started_at))}</span>
+        <span class="pill ${klass}">${esc(stale ? 'stale' : statusLabel(run.status))}</span>
+      </div>
+    </a>`;
+  }).join('') : emptyBlock('Sem runs registadas.'));
+  text('[data-count="runs-list"]', `${runs.length} run(s) recente(s).`);
+}
+
 async function loadRuns() {
   setSync('A carregar');
   setAlert();
   try {
-    const [runsResponse, database] = await Promise.all([api('/v1/read/runs?limit=1'), api('/v1/read/database')]);
+    const params = new URLSearchParams(window.location.search);
+    const requestedRun = params.get('run') || '';
+    const filterPipeline = params.get('pipeline') || '';
+    const filterHost = params.get('host') || '';
+    const runsQuery = new URLSearchParams({ limit: '80' });
+    if (filterPipeline) runsQuery.set('pipeline_id', filterPipeline);
+    if (filterHost) runsQuery.set('host_id', filterHost);
+
+    const [runsResponse, database] = await Promise.all([
+      api(`/v1/read/runs?${runsQuery.toString()}`),
+      api('/v1/read/database'),
+    ]);
     renderDatabase(database.database);
-    const run = runsResponse.items?.[0];
+    const runs = runsResponse.items || [];
+    const run = runs.find((item) => item.run_id === requestedRun) || runs[0];
+    renderRunsList(runs, run?.run_id);
     if (!run) {
       renderRunDetail(null);
       setSync('Sem runs', 'warn');
@@ -513,6 +592,7 @@ async function loadRuns() {
     }
     const detail = await api(`/v1/read/runs/${encodeURIComponent(run.run_id)}`);
     renderRunDetail(detail);
+    setSync('Sincronizado', 'ok');
   } catch (error) {
     setSync('Erro', 'danger');
     setAlert(error.message, 'error');
@@ -676,8 +756,9 @@ async function loadLineage() {
     }
     const deployment = state.pipelines.find((item) => item.pipeline_id === pipelineId && (item.host_id || '') === hostId);
     const runsUrl = `/v1/read/runs?pipeline_id=${encodeURIComponent(pipelineId)}&host_id=${encodeURIComponent(hostId)}&limit=1`;
+    const dagUrl = `/v1/read/pipelines/${encodeURIComponent(pipelineId)}/dag?host_id=${encodeURIComponent(hostId)}`;
     const [dagResponse, runsResponse] = await Promise.all([
-      api(`/v1/read/pipelines/${encodeURIComponent(pipelineId)}/dag`),
+      api(dagUrl),
       api(runsUrl),
     ]);
     const lastRun = runsResponse.items?.[0];
@@ -727,13 +808,15 @@ async function loadDeployments() {
 }
 
 function init() {
+  const view = document.body.dataset.view || 'dashboard';
+  renderAppNav(view);
   const loaders = {
     dashboard: loadDashboard,
     runs: loadRuns,
     lineage: loadLineage,
     deployments: loadDeployments,
   };
-  const load = loaders[document.body.dataset.view] || loadDashboard;
+  const load = loaders[view] || loadDashboard;
   bindChrome(load);
   bindFilters();
   bindSearch();

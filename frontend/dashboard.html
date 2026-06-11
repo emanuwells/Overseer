@@ -9,35 +9,74 @@
 <body data-view="dashboard">
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>observabilidade DAG</span></div></a>
-      <nav class="nav">
-        <a aria-current="page" href="dashboard.html">Ops</a><a href="run-detail.html">Runs</a><a href="lineage.html">DAG</a><a href="deployments.html">Ambiente</a>
-      </nav>
-      <div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div>
+      <a class="brand" href="dashboard.html">
+        <div class="brand-mark">O</div>
+        <div><strong>Overseer</strong><span>observabilidade DAG</span></div>
+      </a>
+      <nav class="nav" data-app-nav aria-label="Navegação principal"></nav>
+      <div class="side-status">
+        <small data-db-label>Base de dados</small>
+        <div class="bar"><span data-db-bar style="width:0%"></span></div>
+      </div>
     </aside>
     <main class="main">
       <header class="topbar">
-        <div class="crumb">Overseer / Pipelines / Operações</div>
+        <div class="crumb">
+          <a href="dashboard.html">Overseer</a>
+          <span>/</span>
+          <span>Operações</span>
+        </div>
         <div class="actions">
-          <label class="select">Estado <select data-filter="#pipeline-table"><option value="all">todos</option><option value="ok">ok</option><option value="warn">atenção</option><option value="danger">falha</option></select></label>
-          <button class="btn primary" data-refresh>Atualizar</button>
+          <label class="search"><input data-search="#pipeline-table" placeholder="Pesquisar pipeline ou host" autocomplete="off"></label>
+          <label class="select">Estado
+            <select data-filter="#pipeline-table">
+              <option value="all">todos</option>
+              <option value="ok">ok</option>
+              <option value="warn">atenção</option>
+              <option value="danger">falha</option>
+            </select>
+          </label>
+          <button class="btn primary" data-refresh type="button">Atualizar</button>
         </div>
       </header>
       <section class="content">
-        <div class="hero-row"><div><h1>Operações de pipelines</h1><p class="subhead">Estado dos DAGs registados no Overseer, runs recentes, pressão de falhas e conectividade da base de dados.</p></div><span class="pill" data-sync-state>A carregar</span></div>
+        <div class="hero-row">
+          <div>
+            <h1>Operações de pipelines</h1>
+            <p class="subhead">Estado por deployment (pipeline + host), runs recentes e conectividade da base de dados. Cada linha representa um host distinto.</p>
+          </div>
+          <span class="pill" data-sync-state>A carregar</span>
+        </div>
         <div data-alert></div>
         <div class="kpis grid">
-          <div class="card card-pad kpi"><span class="label">Pipelines</span><div class="kpi-main"><span class="metric" data-kpi="pipelines">--</span><span class="delta">catálogo</span></div><svg class="spark" viewBox="0 0 160 32"><path d="M0 26 L18 21 L36 23 L54 14 L72 16 L90 8 L108 12 L126 6 L160 10"/></svg></div>
-          <div class="card card-pad kpi"><span class="label">Runs</span><div class="kpi-main"><span class="metric" data-kpi="runs">--</span><span class="delta">histórico</span></div><svg class="spark" viewBox="0 0 160 32"><path d="M0 18 L20 20 L44 16 L62 24 L86 12 L116 26 L136 13 L160 19"/></svg></div>
-          <div class="card card-pad kpi"><span class="label">Falhas</span><div class="kpi-main"><span class="metric" data-kpi="failed">--</span><span class="delta danger">últimas runs</span></div><svg class="spark" viewBox="0 0 160 32"><path d="M0 10 L20 14 L44 18 L62 11 L86 23 L116 20 L136 26 L160 17"/></svg></div>
-          <div class="card card-pad kpi"><span class="label">Sucesso</span><div class="kpi-main"><span class="metric" data-kpi="success_rate">--</span><span class="delta">taxa</span></div><svg class="spark" viewBox="0 0 160 32"><path d="M0 18 L18 19 L36 15 L54 16 L72 13 L90 12 L108 10 L126 11 L160 8"/></svg></div>
+          <div class="card card-pad kpi"><span class="label">Deployments</span><div class="kpi-main"><span class="metric" data-kpi="pipelines">--</span><span class="delta">catálogo</span></div></div>
+          <div class="card card-pad kpi"><span class="label">Runs</span><div class="kpi-main"><span class="metric" data-kpi="runs">--</span><span class="delta">histórico</span></div></div>
+          <div class="card card-pad kpi"><span class="label">Falhas</span><div class="kpi-main"><span class="metric" data-kpi="failed">--</span><span class="delta danger">últimas runs</span></div></div>
+          <div class="card card-pad kpi"><span class="label">Sucesso</span><div class="kpi-main"><span class="metric" data-kpi="success_rate">--</span><span class="delta">taxa</span></div></div>
         </div>
         <div class="two-col grid">
           <section class="card">
-            <div class="section-head"><div><h2>Pipelines registados</h2><p data-count="pipelines">A carregar catálogo.</p></div></div>
+            <div class="section-head">
+              <div>
+                <h2>Pipelines por host</h2>
+                <p data-count="pipelines">A carregar catálogo.</p>
+              </div>
+              <a class="btn" href="run-detail.html">Ver todas as runs</a>
+            </div>
             <div class="table-wrap">
               <table id="pipeline-table">
-                <thead><tr><th>Pipeline</th><th>Host</th><th>Estado</th><th>Dono</th><th>Agenda</th><th>Última run</th><th>Duração</th><th>Criticidade</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Pipeline</th>
+                    <th>Host</th>
+                    <th>Estado</th>
+                    <th>Dono</th>
+                    <th>Agenda</th>
+                    <th>Última run</th>
+                    <th>Duração</th>
+                    <th>Criticidade</th>
+                  </tr>
+                </thead>
                 <tbody data-pipelines>
                   <tr><td colspan="8">A carregar dados do Overseer.</td></tr>
                 </tbody>
@@ -45,18 +84,34 @@
             </div>
           </section>
           <aside class="card" id="inspector">
-            <div class="section-head"><div><h2 data-inspector-title>Sem pipeline selecionado</h2><p data-inspector-state>aguardar dados</p></div><div class="inspector-actions"><button class="btn" type="button" data-edit-pipeline hidden>Editar</button><button class="btn" data-copy="">Copiar run</button></div></div>
+            <div class="section-head">
+              <div>
+                <h2 data-inspector-title>Sem pipeline selecionado</h2>
+                <p data-inspector-state>aguardar dados</p>
+              </div>
+              <div class="inspector-actions">
+                <button class="btn" type="button" data-edit-pipeline hidden>Editar</button>
+                <button class="btn" type="button" data-copy="">Copiar run</button>
+              </div>
+            </div>
             <form class="inspector-edit" data-pipeline-edit hidden>
               <label>Nome<input name="name" type="text" autocomplete="off"></label>
               <label>Dono<input name="owner" type="text" autocomplete="off"></label>
               <label>Agenda (cron ou manual)<input name="schedule" type="text" placeholder="0 2 * * * ou manual" autocomplete="off"></label>
-              <label>Criticidade<select name="criticality"><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option></select></label>
+              <label>Criticidade
+                <select name="criticality">
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="critical">critical</option>
+                </select>
+              </label>
               <div class="inspector-edit-actions">
                 <button class="btn primary" type="submit">Guardar e sincronizar</button>
                 <button class="btn" type="button" data-cancel-edit>Cancelar</button>
               </div>
             </form>
-            <p class="subhead" style="padding:0 1.25rem 0.5rem">Actividade recente (todas as runs)</p>
+            <p class="subhead inspector-note">Última run por deployment (pipeline + host)</p>
             <div class="alert-list" data-recent-runs>
               <div class="alert-item"><div><strong>A carregar runs</strong><p>Os dados serão preenchidos a partir de /v1/read/overview.</p></div><span class="pill">loading</span></div>
             </div>

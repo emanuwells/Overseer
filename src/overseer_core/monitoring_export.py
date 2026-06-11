@@ -80,8 +80,11 @@ def _hours_since(value: Any) -> float | None:
 def _pipeline_lookup(pipelines: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     lookup: dict[str, dict[str, Any]] = {}
     for row in pipelines:
-        pid = str(row.get("pipeline_id") or "")
-        if pid:
+        key = store.deployment_key_from_row(row)
+        if key:
+            lookup[key] = row
+        pid = store.logical_pipeline_id(str(row.get("pipeline_id") or ""))
+        if pid and pid not in lookup:
             lookup[pid] = row
     return lookup
 
@@ -126,7 +129,8 @@ def _run_to_values(
     catalog: dict[str, dict[str, Any]],
 ) -> list[Any]:
     pipeline_id = store.logical_pipeline_id(str(run.get("pipeline_id") or ""))
-    cat = catalog.get(pipeline_id) or {}
+    deployment = store.deployment_key_from_row(run)
+    cat = catalog.get(deployment) or catalog.get(pipeline_id) or {}
     metadata = run.get("metadata") if isinstance(run.get("metadata"), dict) else {}
     host_id = str(run.get("host_id") or "")
     os_label = str(metadata.get("os") or host_id or run.get("hostname") or "unknown")
@@ -172,14 +176,27 @@ def _rows_and_index(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]])
     return fields, rows, id_index
 
 
-def _group_runs_by_pipeline(runs: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def _group_runs_by_deployment(runs: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for run in runs:
-        pid = store.logical_pipeline_id(str(run.get("pipeline_id") or ""))
-        grouped[pid].append(run)
+        key = store.deployment_key_from_row(run)
+        if key:
+            grouped[key].append(run)
     for items in grouped.values():
         items.sort(key=lambda row: str(row.get("started_at") or ""), reverse=True)
     return grouped
+
+
+def _split_deployment_key(key: str) -> tuple[str, str]:
+    logical, _, host = str(key or "").partition("::")
+    return logical, host
+
+
+def _lineage_export_key(deployment: str) -> str:
+    pipeline_id, host_id = _split_deployment_key(deployment)
+    if not host_id or host_id.lower() in {"local", "localhost"}:
+        return pipeline_id
+    return f"{pipeline_id}@{host_id}"
 
 
 def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) -> dict[str, Any]:
@@ -189,7 +206,7 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
     warning = sum(1 for row in runs if _is_warning(row.get("status")))
     durations = [float(row["duration_sec"]) for row in runs if row.get("duration_sec") is not None]
     avg_exec = round(sum(durations) / len(durations), 3) if durations else 0.0
-    grouped = _group_runs_by_pipeline(runs)
+    grouped = _group_runs_by_deployment(runs)
     at_risk = stale = regressions = 0
     for items in grouped.values():
         if not items:
@@ -226,7 +243,7 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
 
 
 def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict[str, Any]:
-    grouped = _group_runs_by_pipeline(runs)
+    grouped = _group_runs_by_deployment(runs)
     failed_count = sum(1 for items in grouped.values() if items and _is_failed(items[0].get("status")))
     immediate = []
     incidents = []
@@ -305,10 +322,11 @@ def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict
 
 
 def _build_pipelines(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    grouped = _group_runs_by_pipeline(runs)
+    grouped = _group_runs_by_deployment(runs)
     catalog = _pipeline_lookup(pipelines)
     items: list[dict[str, Any]] = []
-    for pipeline_id, items_runs in grouped.items():
+    for deployment, items_runs in grouped.items():
+        pipeline_id, host_id = _split_deployment_key(deployment)
         latest = items_runs[0]
         recent = items_runs[:7]
         failed_recent = sum(1 for row in recent if _is_failed(row.get("status")))
@@ -324,13 +342,15 @@ def _build_pipelines(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]
             ),
         )
         risk_level = "critical" if risk_score >= 80 else "high" if risk_score >= 55 else "medium" if risk_score >= 30 else "low"
-        cat = catalog.get(pipeline_id) or {}
+        cat = catalog.get(deployment) or catalog.get(pipeline_id) or {}
         items.append(
             {
                 "pipelineId": pipeline_id,
+                "hostId": host_id or latest.get("host_id"),
                 "name": latest.get("pipeline_name") or cat.get("name") or pipeline_id,
                 "owner": cat.get("owner") or "unknown",
                 "criticality": cat.get("criticality") or "medium",
+                "schedule": cat.get("schedule") or "manual",
                 "lastRun": latest.get("started_at"),
                 "lastStatus": _status_bucket(latest.get("status")),
                 "successRate7d": round(success_rate_7d, 2),
@@ -437,22 +457,24 @@ def _build_lineage_blocks(
     runs: list[dict[str, Any]],
     pipelines: list[dict[str, Any]],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    grouped = _group_runs_by_pipeline(runs)
+    grouped = _group_runs_by_deployment(runs)
     module_lineage: dict[str, Any] = {}
     pipeline_scripts: dict[str, Any] = {}
 
     catalog = _pipeline_lookup(pipelines)
-    pipeline_ids: set[str] = set(grouped.keys())
+    deployments: set[str] = set(grouped.keys())
     for row in pipelines:
-        pid = store.logical_pipeline_id(str(row.get("pipeline_id") or ""))
-        if pid and row.get("active", True):
-            pipeline_ids.add(pid)
+        key = store.deployment_key_from_row(row)
+        if key and row.get("active", True):
+            deployments.add(key)
 
-    for pipeline_id in sorted(pipeline_ids):
-        cat = catalog.get(pipeline_id) or {}
-        if cat and cat.get("active") is False and pipeline_id not in grouped:
+    for deployment in sorted(deployments):
+        pipeline_id, host_id = _split_deployment_key(deployment)
+        export_key = _lineage_export_key(deployment)
+        cat = catalog.get(deployment) or catalog.get(pipeline_id) or {}
+        if cat and cat.get("active") is False and deployment not in grouped:
             continue
-        latest_runs = grouped.get(pipeline_id, [])
+        latest_runs = grouped.get(deployment, [])
         latest = latest_runs[0] if latest_runs else None
         latest_run_id = str(latest.get("run_id") or "") if latest else ""
         row_id = _run_row_id(latest_run_id, 0) if latest_run_id else None
@@ -464,7 +486,7 @@ def _build_lineage_blocks(
                 if mid:
                     modules_by_id[mid] = mod
 
-        dag = store.get_pipeline_dag(pipeline_id)
+        dag = store.get_pipeline_dag(pipeline_id, host_id)
         catalog_nodes = list(dag.get("nodes") or [])
         catalog_edges = list(dag.get("edges") or [])
         if not catalog_nodes and modules_by_id:
@@ -587,8 +609,8 @@ def _build_lineage_blocks(
         ]
 
         if export_nodes or scripts:
-            module_lineage[pipeline_id] = {"nodes": export_nodes, "edges": edges}
-            pipeline_scripts[pipeline_id] = scripts
+            module_lineage[export_key] = {"nodes": export_nodes, "edges": edges}
+            pipeline_scripts[export_key] = scripts
 
     return module_lineage, pipeline_scripts
 

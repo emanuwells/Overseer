@@ -5,6 +5,8 @@
 pipelines:
   - id: backup_baze2
     name: Backup BaZe2 DB
+    owner: ops
+    criticality: high
     schedule: "0 2 * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_backups.txt
     cron_match: "backup_baze2.py"
@@ -14,6 +16,8 @@ pipelines:
 
   - id: baze2_info
     name: BaZe2 Info
+    owner: data
+    criticality: medium
     schedule: "0 2 * * 1"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_info.txt
     cron_match: "baze2_info.py"
@@ -23,6 +27,8 @@ pipelines:
 
   - id: backup_webserver
     name: Backup Webserver NGINX
+    owner: ops
+    criticality: high
     schedule: "0 3 * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_nginx.txt
     cron_match: "backup_webserver.py"
@@ -32,6 +38,8 @@ pipelines:
 
   - id: weatherapi_4_maia
     name: WeatherAPI 4 Maia
+    owner: data
+    criticality: medium
     schedule: "15,45 * * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_weather.txt
     cron_match: "weatherapi"
@@ -42,6 +50,8 @@ pipelines:
 
   - id: traffic_flow
     name: Yunex Traffic Flow
+    owner: data
+    criticality: medium
     schedule: "*/15 * * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_traffic.txt
     cron_match: "traffic_flow.py"
@@ -51,6 +61,8 @@ pipelines:
 
   - id: wireforms_sync
     name: Wireforms Sync
+    owner: data
+    criticality: medium
     schedule: "0 23 * * 0"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_wireforms.txt
     cron_match: "wireforms_sync.py"

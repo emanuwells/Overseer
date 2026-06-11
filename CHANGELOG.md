@@ -1,5 +1,23 @@
 # Changelog
 
+## [5.4.2] - 2026-06-11T12:00:00+01:00
+
+### Runs correctas por deployment e UI principal renovada
+
+**Motivo:**
+As últimas runs (especialmente Medidata) apareciam incorrectas porque pipeline e host eram fundidos numa única linha lógica. O MAIATRON e o dashboard principal mostravam a run mais recente de qualquer host, não do deployment correcto.
+
+**Alterações:**
+- `store.dedupe_pipelines`: uma linha por deployment (`pipeline_id` + `host_id`); funde apenas duplicados legacy (`__HOST`).
+- `monitoring_export`: agrupamento de runs, lineage e catálogo por deployment; `hostId` e `schedule` no payload MAIATRON.
+- YAML `baze2.yaml`: `owner` e `criticality` em todos os pipelines (crons já existiam).
+- Frontend: navegação com hints, pesquisa no dashboard, runs recentes clicáveis por deployment, página Runs com histórico lateral e filtro por `?pipeline=&host=`.
+
+**Validação:**
+- `python -m pytest -q`
+
+---
+
 ## [5.4.1] - 2026-06-10T19:00:00+01:00
 
 ### Slack: @channel, lembretes diários e resolução imediata

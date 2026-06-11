@@ -63,7 +63,7 @@ def test_list_runs_filters_host(sqlite_store) -> None:
     assert store.list_runs(pipeline_id="p", host_id="a")[0]["host_id"] == "a"
 
 
-def test_list_pipelines_dedupes_logical_id(sqlite_store) -> None:
+def test_list_pipelines_one_row_per_host(sqlite_store) -> None:
     for host in ("baze2", "WS1207"):
         store.register_pipeline_catalog(
             {
@@ -75,6 +75,23 @@ def test_list_pipelines_dedupes_logical_id(sqlite_store) -> None:
             }
         )
         store.start_run({"pipeline_id": "medidata_pipeline", "host_id": host})
+    rows = store.list_pipelines()
+    assert len(rows) == 2
+    hosts = {row["host_id"] for row in rows}
+    assert hosts == {"baze2", "WS1207"}
+    assert all(row["pipeline_id"] == "medidata_pipeline" for row in rows)
+
+
+def test_list_pipelines_merges_legacy_duplicate(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "medidata_pipeline",
+            "host_id": "WS1207",
+            "name": "Medidata Pipeline",
+            "nodes": [{"module_id": "run", "label": "run"}],
+            "edges": [],
+        }
+    )
     store.register_pipeline_catalog(
         {
             "pipeline_id": "medidata_pipeline__WS1207",
@@ -83,6 +100,8 @@ def test_list_pipelines_dedupes_logical_id(sqlite_store) -> None:
             "edges": [],
         }
     )
+    store.start_run({"pipeline_id": "medidata_pipeline", "host_id": "WS1207"})
     rows = store.list_pipelines()
     assert len(rows) == 1
     assert rows[0]["pipeline_id"] == "medidata_pipeline"
+    assert rows[0]["host_id"] == "WS1207"
