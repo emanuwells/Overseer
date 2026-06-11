@@ -8,6 +8,32 @@ from typing import Any
 
 from . import store
 
+
+def _metadata_cpu(metadata: dict[str, Any]) -> float:
+    for key in ("usage_cpu", "cpu"):
+        val = metadata.get(key)
+        if val is not None and str(val).strip() != "":
+            return float(val)
+    return 0.0
+
+
+def _metadata_memory(metadata: dict[str, Any]) -> float:
+    for key in ("usage_memoria", "memory_mb", "usage_mem_mb"):
+        val = metadata.get(key)
+        if val is not None and str(val).strip() != "":
+            return float(val)
+    return 0.0
+
+
+def _catalog_prev_schedule(cat: dict[str, Any]) -> str | None:
+    if cat.get("prev_schedule"):
+        return str(cat["prev_schedule"])
+    meta = cat.get("metadata")
+    if isinstance(meta, dict) and meta.get("prev_schedule"):
+        return str(meta["prev_schedule"])
+    return None
+
+
 ROW_FIELDS: list[str] = [
     "id",
     "pipelineId",
@@ -146,8 +172,8 @@ def _run_to_values(
         run.get("started_at"),
         run.get("ended_at"),
         run.get("duration_sec"),
-        metadata.get("usage_cpu") or metadata.get("cpu") or 0,
-        metadata.get("usage_memoria") or metadata.get("memory_mb") or 0,
+        _metadata_cpu(metadata),
+        _metadata_memory(metadata),
         _status_bucket(run.get("status")),
         None,
         run.get("error_message"),
@@ -220,12 +246,12 @@ def _run_resource_metrics(runs: list[dict[str, Any]]) -> tuple[float, float, flo
         if row.get("duration_sec") is not None:
             durations.append(float(row["duration_sec"]))
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
-        cpu = metadata.get("usage_cpu") or metadata.get("cpu")
-        memory = metadata.get("usage_memoria") or metadata.get("memory_mb")
-        if cpu is not None and str(cpu).strip() != "":
-            cpus.append(float(cpu))
-        if memory is not None and str(memory).strip() != "":
-            mems.append(float(memory))
+        cpu = _metadata_cpu(metadata)
+        memory = _metadata_memory(metadata)
+        if cpu > 0:
+            cpus.append(cpu)
+        if memory > 0:
+            mems.append(memory)
     avg_exec = round(sum(durations) / len(durations), 3) if durations else 0.0
     p95_exec = round(_percentile(durations, 0.95), 3) if durations else 0.0
     avg_cpu = round(sum(cpus) / len(cpus), 2) if cpus else 0.0
@@ -486,6 +512,7 @@ def _pipeline_export_row(
         "owner": cat.get("owner") or "unknown",
         "criticality": cat.get("criticality") or "medium",
         "schedule": cat.get("schedule") or "manual",
+        "prevSchedule": _catalog_prev_schedule(cat),
         "lastRun": last_run,
         "lastStatus": last_status,
         "successRate7d": round(success_rate_7d, 2),
@@ -529,6 +556,7 @@ def _build_pipeline_catalog(pipelines: list[dict[str, Any]]) -> list[dict[str, A
             "owner": row.get("owner"),
             "criticality": row.get("criticality"),
             "schedule": row.get("schedule"),
+            "prev_schedule": _catalog_prev_schedule(row),
             "runner_host": row.get("runner_host"),
             "active": row.get("active", True),
             "updated_at": row.get("updated_at"),

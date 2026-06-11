@@ -78,8 +78,10 @@ class PipelinePatchBody(BaseModel):
             raise ValueError("schedule não pode ser vazio.")
         if raw.lower() == "manual":
             return "manual"
+        if raw.lower() == "paused":
+            return "paused"
         if not _CRON_RE.match(raw):
-            raise ValueError("schedule deve ser 'manual' ou cron de 5 campos.")
+            raise ValueError("schedule deve ser 'manual', 'paused' ou cron de 5 campos.")
         return raw
 
     @model_validator(mode="after")

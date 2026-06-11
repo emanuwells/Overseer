@@ -13,6 +13,7 @@ from .repo_paths import repo_root
 logger = logging.getLogger("overseer.runner_catalog")
 
 PATCHABLE_YAML_KEYS = frozenset({"name", "owner", "schedule", "criticality"})
+YAML_META_KEYS = frozenset({"prev_schedule"})
 HOSTS_FILE_NAME = "hosts.yaml"
 
 
@@ -56,6 +57,7 @@ def load_all_runner_catalogs(root: Path | None = None) -> dict[str, list[dict[st
                     "name": item.get("name"),
                     "owner": item.get("owner"),
                     "schedule": item.get("schedule"),
+                    "prev_schedule": item.get("prev_schedule"),
                     "criticality": item.get("criticality"),
                     "steps": item.get("steps") if isinstance(item.get("steps"), list) else [],
                 }
@@ -95,6 +97,23 @@ def catalog_path_for_host(host_id: str, root: Path | None = None) -> Path:
     return path
 
 
+def resolve_schedule_patch(entry: dict[str, Any], new_schedule: str) -> dict[str, Any]:
+    """Calcula schedule/prev_schedule para pause, resume ou alteração de cron."""
+    current = str(entry.get("schedule") or "manual").strip()
+    new = str(new_schedule or "").strip()
+    if not new:
+        raise ValueError("schedule não pode ser vazio.")
+    patch: dict[str, Any] = {"schedule": new}
+    if new.lower() == "paused":
+        if current.lower() not in {"manual", "paused", ""}:
+            patch["prev_schedule"] = current
+        elif entry.get("prev_schedule"):
+            patch["prev_schedule"] = entry.get("prev_schedule")
+    elif new.lower() != "manual":
+        patch["prev_schedule"] = None
+    return patch
+
+
 def patch_runner_catalog_yaml(
     host_id: str,
     pipeline_id: str,
@@ -119,10 +138,21 @@ def patch_runner_catalog_yaml(
         if str(entry.get("id") or "") != pipeline_id:
             continue
         found = True
-        for key, value in fields.items():
-            if key in PATCHABLE_YAML_KEYS and value is not None:
-                entry[key] = value
-                updated_keys.append(key)
+        effective = dict(fields)
+        if "schedule" in effective and effective["schedule"] is not None:
+            effective.update(resolve_schedule_patch(entry, str(effective["schedule"])))
+        for key, value in effective.items():
+            if key in PATCHABLE_YAML_KEYS:
+                if value is not None:
+                    entry[key] = value
+                    updated_keys.append(key)
+            elif key in YAML_META_KEYS:
+                if value is None:
+                    entry.pop(key, None)
+                    updated_keys.append(f"-{key}")
+                else:
+                    entry[key] = value
+                    updated_keys.append(key)
         break
 
     if not found:

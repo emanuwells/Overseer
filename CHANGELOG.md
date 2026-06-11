@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.3] - 2026-06-11T23:30:00+01:00
+
+### Telemetria CPU/Mem, schedule paused e export
+
+**Alterações:**
+- `OverseerMonitor`: grava `usage_cpu` e `usage_memoria` (peak CPU + RSS).
+- `monitoring_export`: aceita alias `usage_mem_mb`; exporta `prevSchedule` nos pipelines.
+- API `PATCH /v1/catalog/pipelines`: aceita `schedule=paused` com `prev_schedule` em DB/YAML.
+- Testes para pause/resume e metadata mista.
+
+---
+
 ## [5.5.2] - 2026-06-11T22:00:00+01:00
 
 ### Export monitoring para MAIATRON (deployments, volume, P95)

@@ -41,6 +41,7 @@ class OverseerMonitor:
         self.start_time: datetime | None = None
         self.process: psutil.Process | None = None
         self.peak_rss = 0
+        self.peak_cpu = 0.0
 
     @staticmethod
     def from_env(script_name: str) -> "OverseerMonitor":
@@ -59,6 +60,10 @@ class OverseerMonitor:
         self.start_time = datetime.now()
         self.process = psutil.Process()
         self.peak_rss = self.process.memory_info().rss
+        try:
+            self.process.cpu_percent()
+        except Exception:
+            pass
         if not self.run_id:
             try:
                 self.run_id = self.client.start_run(
@@ -84,10 +89,15 @@ class OverseerMonitor:
         run_id = self.run_id or os.getenv("OVERSEER_RUN_ID")
         duration = max(0.0, (datetime.now() - self.start_time).total_seconds())
         usage_mem_mb = None
+        usage_cpu = None
         try:
             if self.process:
                 self.peak_rss = max(self.peak_rss, self.process.memory_info().rss)
                 usage_mem_mb = round(self.peak_rss / (1024 * 1024), 2)
+                cpu_sample = self.process.cpu_percent(interval=0.05)
+                if cpu_sample is not None:
+                    self.peak_cpu = max(self.peak_cpu, float(cpu_sample))
+                usage_cpu = round(self.peak_cpu, 2) if self.peak_cpu > 0 else None
         except Exception:
             pass
 
@@ -102,6 +112,8 @@ class OverseerMonitor:
                 "os_name": self.os_name,
                 "os_release": self.os_release,
                 "os_platform": self.os_platform,
+                "usage_cpu": usage_cpu,
+                "usage_memoria": usage_mem_mb,
                 "usage_mem_mb": usage_mem_mb,
                 "extra_tags": self.extra_tags,
             },

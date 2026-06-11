@@ -91,6 +91,42 @@ def test_patch_runner_catalog_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert entry["name"] == "Demo"
 
 
+def test_pause_and_resume_schedule_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OVERSEER_ROOT", str(tmp_path))
+    path = _write_catalog(tmp_path, "baze2", "demo")
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["pipelines"][0]["schedule"] = "0 2 * * *"
+    path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+
+    runner_catalog.patch_runner_catalog_yaml("baze2", "demo", {"schedule": "paused"}, root=tmp_path)
+    paused = yaml.safe_load(path.read_text(encoding="utf-8"))["pipelines"][0]
+    assert paused["schedule"] == "paused"
+    assert paused["prev_schedule"] == "0 2 * * *"
+
+    runner_catalog.patch_runner_catalog_yaml("baze2", "demo", {"schedule": "0 3 * * *"}, root=tmp_path)
+    resumed = yaml.safe_load(path.read_text(encoding="utf-8"))["pipelines"][0]
+    assert resumed["schedule"] == "0 3 * * *"
+    assert "prev_schedule" not in resumed
+
+
+def test_patch_pipeline_catalog_pause_db(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "demo",
+            "host_id": "baze2",
+            "name": "Demo",
+            "owner": "ops",
+            "schedule": "0 1 * * *",
+            "nodes": [{"module_id": "a"}],
+            "edges": [],
+        }
+    )
+    dag = store.patch_pipeline_catalog("demo", "baze2", {"schedule": "paused"})
+    assert dag["pipeline"]["schedule"] == "paused"
+    meta = dag["pipeline"].get("metadata") or {}
+    assert meta.get("prev_schedule") == "0 1 * * *"
+
+
 def test_patch_pipeline_catalog_db_only(sqlite_store) -> None:
     store.register_pipeline_catalog(
         {

@@ -183,6 +183,22 @@ def test_pipelines_include_catalog_without_runs(sqlite_store) -> None:
     assert idle.get("deploymentKey", "").startswith("idle_pipe::")
 
 
+def test_metadata_memory_aliases_usage_mem_mb(sqlite_store) -> None:
+    run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
+    store.finish_run(
+        run["run_id"],
+        {
+            "status": "ok",
+            "duration_sec": 5.0,
+            "metadata": {"usage_cpu": 12.5, "usage_mem_mb": 256},
+        },
+    )
+    full = monitoring_export.build_full_payload()
+    kpis = full["overview"]["globalKpis"]
+    assert kpis["avgCpu"] == 12.5
+    assert kpis["avgMem"] == 256.0
+
+
 def test_summary_first_run_label_and_p95(sqlite_store) -> None:
     run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
     store.finish_run(

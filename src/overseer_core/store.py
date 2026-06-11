@@ -628,7 +628,13 @@ def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any
         raise ValueError(f"Pipeline não encontrado: {logical_id}@{host_id}")
     pipeline_id = logical_id
 
+    current = get_pipeline(pipeline_id, host_id) or {}
+    current_meta = current.get("metadata") if isinstance(current.get("metadata"), dict) else json_load(current.get("metadata_json"))
+    if not isinstance(current_meta, dict):
+        current_meta = {}
+
     updates: dict[str, Any] = {}
+    meta_updates: dict[str, Any] = {}
     for key in PATCHABLE_CATALOG_FIELDS:
         if key not in fields or fields[key] is None:
             continue
@@ -639,8 +645,32 @@ def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any
         else:
             updates[key] = str(fields[key]).strip()
 
-    if not updates:
+    if "schedule" in updates:
+        from . import runner_catalog
+
+        entry = {
+            "schedule": current.get("schedule") or "manual",
+            "prev_schedule": current_meta.get("prev_schedule") or current.get("prev_schedule"),
+        }
+        schedule_patch = runner_catalog.resolve_schedule_patch(entry, updates["schedule"])
+        updates["schedule"] = schedule_patch["schedule"]
+        if "prev_schedule" in schedule_patch:
+            if schedule_patch["prev_schedule"] is None:
+                meta_updates["prev_schedule"] = None
+            else:
+                meta_updates["prev_schedule"] = schedule_patch["prev_schedule"]
+
+    if not updates and not meta_updates:
         return get_pipeline_dag(pipeline_id, host_id)
+
+    if meta_updates:
+        merged_meta = dict(current_meta)
+        for meta_key, meta_val in meta_updates.items():
+            if meta_val is None:
+                merged_meta.pop(meta_key, None)
+            else:
+                merged_meta[meta_key] = meta_val
+        updates["metadata_json"] = json_dump(merged_meta)
 
     updates["updated_at"] = utcnow()
     with get_engine().begin() as conn:
@@ -695,7 +725,10 @@ def _catalog_payload_from_yaml_entry(entry: dict[str, Any], host_db: str, catalo
         "owner": str(entry.get("owner") or "data"),
         "criticality": str(entry.get("criticality") or "medium").lower(),
         "schedule": str(entry.get("schedule") or "manual"),
-        "metadata": {"host_id": catalog_host},
+        "metadata": {
+            "host_id": catalog_host,
+            **({"prev_schedule": str(entry["prev_schedule"])} if entry.get("prev_schedule") else {}),
+        },
         "nodes": nodes,
         "edges": [],
     }
@@ -778,6 +811,8 @@ def list_deployments() -> list[dict[str, Any]]:
                 item["owner"] = str(entry["owner"])
             if entry.get("schedule"):
                 item["schedule"] = str(entry["schedule"])
+            if entry.get("prev_schedule"):
+                item["prev_schedule"] = str(entry["prev_schedule"])
             if entry.get("criticality"):
                 item["criticality"] = str(entry["criticality"]).lower()
 
