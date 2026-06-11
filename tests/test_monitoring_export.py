@@ -199,6 +199,75 @@ def test_metadata_memory_aliases_usage_mem_mb(sqlite_store) -> None:
     assert kpis["avgMem"] == 256.0
 
 
+def test_manual_schedule_never_stale(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "manual_pipe",
+            "host_id": "h1",
+            "name": "Manual Pipe",
+            "schedule": "manual",
+        }
+    )
+    run = store.start_run(
+        {
+            "pipeline_id": "manual_pipe",
+            "host_id": "h1",
+            "started_at": "2020-01-01T00:00:00Z",
+        }
+    )
+    store.finish_run(run["run_id"], {"status": "ok", "duration_sec": 1.0})
+    fast = monitoring_export.build_ops_fast_payload()
+    assert fast["summary"]["stale"] == 0
+
+
+def test_weekly_schedule_not_stale_within_week(sqlite_store, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import timedelta
+
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "weekly_pipe",
+            "host_id": "h1",
+            "name": "Weekly Pipe",
+            "schedule": "0 2 * * 1",
+        }
+    )
+    recent_start = (store.utcnow() - timedelta(days=3)).isoformat()
+    run = store.start_run(
+        {
+            "pipeline_id": "weekly_pipe",
+            "host_id": "h1",
+            "started_at": recent_start,
+        }
+    )
+    store.finish_run(run["run_id"], {"status": "ok", "duration_sec": 1.0})
+    fast = monitoring_export.build_ops_fast_payload()
+    assert fast["summary"]["stale"] == 0
+
+
+def test_weekly_schedule_stale_after_threshold(sqlite_store) -> None:
+    from datetime import timedelta
+
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "weekly_old",
+            "host_id": "h1",
+            "name": "Weekly Old",
+            "schedule": "0 23 * * 0",
+        }
+    )
+    old_start = (store.utcnow() - timedelta(days=10)).isoformat()
+    run = store.start_run(
+        {
+            "pipeline_id": "weekly_old",
+            "host_id": "h1",
+            "started_at": old_start,
+        }
+    )
+    store.finish_run(run["run_id"], {"status": "ok", "duration_sec": 1.0})
+    fast = monitoring_export.build_ops_fast_payload()
+    assert fast["summary"]["stale"] >= 1
+
+
 def test_export_runner_host_without_any_fallback(sqlite_store) -> None:
     run = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
     store.finish_run(

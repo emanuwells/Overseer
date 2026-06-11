@@ -73,7 +73,85 @@ ROW_FIELDS: list[str] = [
     "requestedBySSO",
 ]
 
-_STALE_HOURS = 24
+_MANUAL_SCHEDULES = frozenset({"manual", "paused", ""})
+
+
+def _catalog_schedule(cat: dict[str, Any]) -> str:
+    return str(cat.get("schedule") or "manual").strip()
+
+
+def _is_manual_schedule(schedule: str) -> bool:
+    return str(schedule or "manual").strip().lower() in _MANUAL_SCHEDULES
+
+
+def _schedule_stale_threshold_hours(schedule: str) -> float | None:
+    """
+    Hours without a successful run before a deployment is considered stale.
+
+    ``None`` means the schedule never goes stale (manual/paused).
+    """
+    normalized = str(schedule or "manual").strip().lower()
+    if _is_manual_schedule(normalized):
+        return None
+
+    parts = normalized.split()
+    if len(parts) != 5:
+        return 168.0
+
+    minute, hour, dom, month, dow = parts
+
+    if minute.startswith("*/"):
+        try:
+            every_minutes = max(1, int(minute[2:]))
+            return max(1.0, (every_minutes * 3) / 60.0)
+        except ValueError:
+            pass
+
+    if "," in minute and hour in {"*", "0-23"}:
+        return 3.0
+
+    if hour == "*" and minute.isdigit():
+        return 3.0
+
+    if hour.startswith("*/"):
+        try:
+            every_hours = max(1, int(hour[2:]))
+            return every_hours * 3.0
+        except ValueError:
+            pass
+
+    if dow in {"1-5", "mon-fri"} and dom == "*":
+        return 24.0 * 4
+
+    if dow != "*" and dom == "*":
+        return 24.0 * 8
+
+    if dom != "*" and dow == "*":
+        return 24.0 * 35
+
+    if dom == "*" and month == "*" and dow == "*":
+        return 36.0
+
+    return 168.0
+
+
+def _is_stale_deployment(items: list[dict[str, Any]], cat: dict[str, Any]) -> bool:
+    schedule = _catalog_schedule(cat)
+    threshold = _schedule_stale_threshold_hours(schedule)
+    if threshold is None:
+        return False
+
+    if not items:
+        last_started = cat.get("last_started_at")
+        if not last_started:
+            return False
+        hours = _hours_since(last_started)
+        return hours is not None and hours > threshold
+
+    hours = _hours_since(items[0].get("started_at"))
+    if hours is None:
+        return True
+    return hours > threshold
 
 
 def _iso_now() -> str:
@@ -316,12 +394,13 @@ def _compute_volume(runs: list[dict[str, Any]]) -> dict[str, Any]:
 def _deployment_signal_counts(
     deployment: str,
     items: list[dict[str, Any]],
+    cat: dict[str, Any] | None = None,
 ) -> tuple[bool, bool, bool]:
+    catalog_row = cat or {}
+    is_stale = _is_stale_deployment(items, catalog_row)
     if not items:
-        return True, False, False
+        return is_stale, False, is_stale
     latest = items[0]
-    stale_hours = _hours_since(latest.get("started_at"))
-    is_stale = stale_hours is None or stale_hours > _STALE_HOURS
     recent = items[:7]
     fail_rate = sum(1 for row in recent if _is_failed(row.get("status"))) / max(1, len(recent))
     is_failed = _is_failed(latest.get("status"))
@@ -335,16 +414,21 @@ def _risk_score_for_deployment(
     recent: list[dict[str, Any]],
     *,
     stale_hours: float | None,
+    stale_threshold: float | None,
 ) -> int:
+    stale_penalty = 0
+    if stale_threshold is not None:
+        if stale_hours is None or stale_hours > stale_threshold:
+            stale_penalty = 25
     if latest is None:
-        return 25 if stale_hours is None or stale_hours > _STALE_HOURS else 0
+        return stale_penalty
     failed_recent = sum(1 for row in recent if _is_failed(row.get("status")))
     return min(
         100,
         max(
             0,
             (45 if _is_failed(latest.get("status")) else 20 if _is_warning(latest.get("status")) else 0)
-            + (25 if (stale_hours or 0) > _STALE_HOURS or stale_hours is None else 0)
+            + stale_penalty
             + (20 if failed_recent / max(1, len(recent)) > 0.2 else 0),
         ),
     )
@@ -368,6 +452,7 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
     avg_exec, p95_exec, avg_cpu, avg_mem = _run_resource_metrics(runs)
     grouped = _group_runs_by_deployment(runs)
     filtered = _filter_pipelines_for_export(pipelines)
+    catalog = _pipeline_lookup(pipelines)
     at_risk = stale = regressions = 0
     seen: set[str] = set()
 
@@ -377,7 +462,9 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
             continue
         seen.add(deployment)
         items = grouped.get(deployment, [])
-        is_stale, is_regression, is_at_risk = _deployment_signal_counts(deployment, items)
+        pipeline_id, _ = _split_deployment_key(deployment)
+        cat = catalog.get(deployment) or catalog.get(pipeline_id) or row
+        is_stale, is_regression, is_at_risk = _deployment_signal_counts(deployment, items, cat)
         if is_stale:
             stale += 1
         if is_regression:
@@ -388,7 +475,9 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
     for deployment, items in grouped.items():
         if deployment in seen or not items:
             continue
-        is_stale, is_regression, is_at_risk = _deployment_signal_counts(deployment, items)
+        pipeline_id, _ = _split_deployment_key(deployment)
+        cat = catalog.get(deployment) or catalog.get(pipeline_id) or {}
+        is_stale, is_regression, is_at_risk = _deployment_signal_counts(deployment, items, cat)
         if is_stale:
             stale += 1
         if is_regression:
@@ -420,15 +509,22 @@ def _build_summary(runs: list[dict[str, Any]], pipelines: list[dict[str, Any]]) 
     }
 
 
-def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict[str, Any]:
+def _build_overview(
+    runs: list[dict[str, Any]],
+    summary: dict[str, Any],
+    pipelines: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    catalog = _pipeline_lookup(pipelines or [])
     grouped = _group_runs_by_deployment(runs)
     failed_count = sum(1 for items in grouped.values() if items and _is_failed(items[0].get("status")))
     immediate = []
     incidents = []
-    for items in grouped.values():
+    for deployment, items in grouped.items():
         if not items:
             continue
         latest = items[0]
+        pipeline_id, _ = _split_deployment_key(deployment)
+        cat = catalog.get(deployment) or catalog.get(pipeline_id) or {}
         row_id = _run_row_id(str(latest.get("run_id") or ""), 0)
         if _is_failed(latest.get("status")):
             immediate.append(
@@ -451,8 +547,7 @@ def _build_overview(runs: list[dict[str, Any]], summary: dict[str, Any]) -> dict
                     "when": latest.get("started_at"),
                 }
             )
-        stale_hours = _hours_since(latest.get("started_at"))
-        if stale_hours is None or stale_hours > _STALE_HOURS:
+        if _is_stale_deployment(items, cat):
             incidents.append(
                 {
                     "pipelineId": latest.get("pipeline_id"),
@@ -518,7 +613,13 @@ def _pipeline_export_row(
         last_status = "no_run"
         display_name = cat.get("name") or pipeline_id
 
-    risk_score = _risk_score_for_deployment(latest, recent, stale_hours=stale_hours)
+    stale_threshold = _schedule_stale_threshold_hours(_catalog_schedule(cat))
+    risk_score = _risk_score_for_deployment(
+        latest,
+        recent,
+        stale_hours=stale_hours,
+        stale_threshold=stale_threshold,
+    )
     return {
         "deploymentKey": deployment,
         "pipelineId": pipeline_id,
@@ -865,7 +966,7 @@ def build_full_payload(*, run_limit: int = 5000) -> dict[str, Any]:
     ]
     fields, rows, _ = _rows_and_index(runs, pipelines)
     summary = _build_summary(runs, pipelines)
-    overview = _build_overview(runs, summary)
+    overview = _build_overview(runs, summary, pipelines)
     module_lineage, pipeline_scripts = _build_lineage_blocks(runs, pipelines)
     return {
         "generated_at": _iso_now(),
@@ -891,7 +992,7 @@ def build_ops_fast_payload(*, run_limit: int = 1000) -> dict[str, Any]:
     return {
         "generated_at": _iso_now(),
         "summary": summary,
-        "overview": _build_overview(runs, summary),
+        "overview": _build_overview(runs, summary, pipelines),
     }
 
 

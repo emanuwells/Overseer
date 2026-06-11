@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.5.6] - 2026-06-11T27:00:00+01:00
+
+### Stale schedule-aware
+
+**Alterações:**
+- Stale baseado no `schedule` do catálogo: manuais/paused nunca stale; semanais só após ~8 dias; diários após ~36h.
+- Alertas e summary usam a mesma regra; risk score alinhado.
+
+---
+
 ## [5.5.5] - 2026-06-11T26:00:00+01:00
 
 ### Telemetria end-to-end nos runners e export
