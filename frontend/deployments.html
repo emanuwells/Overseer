@@ -4,12 +4,25 @@
 <body data-view="deployments">
   <div class="app-shell">
     <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>ambiente API</span></div></a><nav class="nav" data-app-nav aria-label="Navegação principal"></nav><div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div></aside>
-    <main class="main"><header class="topbar"><div class="crumb">Overseer / Ambiente</div><div class="actions" data-tabs><button class="btn primary" data-tab="#prod">DB</button><button class="btn" data-tab="#staging">Heartbeats</button><button class="btn" data-tab="#dev">Triggers</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
-      <section class="content"><div class="hero-row"><div><h1>Ambiente Overseer</h1><p class="subhead">Estado da API, base de dados, catálogo DAG, heartbeats e triggers operacionais.</p></div><span class="pill" data-sync-state>A carregar</span></div>
-        <div data-alert></div>
+    <main class="main"><header class="topbar"><div class="crumb">Overseer / Ambiente</div><div class="actions" data-tabs><button class="btn primary" data-tab="#prod">DB</button><button class="btn" data-tab="#staging">Heartbeats</button><button class="btn" data-tab="#dev">Triggers</button><button class="btn" data-tab="#sync">Sync</button><button class="btn primary" data-refresh>Atualizar</button></div></header>
+      <section class="content"><div class="hero-row"><div><h1>Ambiente Overseer</h1><p class="subhead">Estado da API, base de dados, hosts de sync SSH e actividade operacional.</p></div><span class="pill" data-sync-state aria-live="polite">A carregar</span></div>
+        <div data-alert aria-live="polite"></div>
+        <div class="token-banner" data-token-banner hidden><p>Para reconciliar o catálogo, configure o token API em <code>js/overseer-config.js</code>.</p></div>
         <section id="prod" data-panel><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Modo DB</span><span class="metric" data-db-mode>--</span></div><div class="card card-pad kpi"><span class="label">Pipelines</span><span class="metric" data-table-count="pipelines">--</span></div><div class="card card-pad kpi"><span class="label">Nodes</span><span class="metric" data-table-count="pipeline_nodes">--</span></div><div class="card card-pad kpi"><span class="label">Edges</span><span class="metric" data-table-count="pipeline_edges">--</span></div></div></section>
         <section id="staging" data-panel hidden><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Heartbeats</span><span class="metric" data-count-kpi="heartbeats">--</span></div><div class="card card-pad kpi"><span class="label">OK</span><span class="metric" data-count-kpi="heartbeats_ok">--</span></div><div class="card card-pad kpi"><span class="label">Último</span><span class="metric" data-last-heartbeat>--</span></div><div class="card card-pad kpi"><span class="label">Fontes</span><span class="metric" data-count-kpi="sources">--</span></div></div></section>
         <section id="dev" data-panel hidden><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Triggers</span><span class="metric" data-count-kpi="triggers">--</span></div><div class="card card-pad kpi"><span class="label">Em fila</span><span class="metric" data-count-kpi="queued">--</span></div><div class="card card-pad kpi"><span class="label">Reclamados</span><span class="metric" data-count-kpi="claimed">--</span></div><div class="card card-pad kpi"><span class="label">Concluídos</span><span class="metric" data-count-kpi="completed">--</span></div></div></section>
+        <section id="sync" data-panel hidden>
+          <div class="section-head card" style="border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;">
+            <div><h2>Hosts de sync</h2><p>Mapa em <code>deploy/runners/hosts.yaml</code>. PATCH de pipeline actualiza YAML e pode provisionar o runner remoto.</p></div>
+            <div class="inspector-actions">
+              <span class="pill" data-ssh-sync-flag>—</span>
+              <button class="btn primary" type="button" data-reconcile-catalog>Reconciliar catálogo</button>
+            </div>
+          </div>
+          <div class="card table-wrap">
+            <table><thead><tr><th>Host</th><th>Plataforma</th><th>SSH</th><th>Repo</th></tr></thead><tbody data-runner-hosts><tr><td colspan="4">A carregar hosts.</td></tr></tbody></table>
+          </div>
+        </section>
         <div class="two-col grid">
           <section class="card"><div class="section-head"><div><h2>Estado da base de dados</h2><p data-db-url>URL mascarada a carregar.</p></div></div><div class="table-wrap"><table><thead><tr><th>Tabela</th><th>Registos</th><th>Estado</th></tr></thead><tbody data-db-tables><tr><td colspan="3">A carregar tabelas.</td></tr></tbody></table></div></section>
           <aside class="card"><div class="section-head"><div><h2>Atividade</h2><p>Heartbeats e triggers recentes.</p></div></div><div class="deploy-list" data-activity><div class="deploy-item"><strong>A carregar atividade</strong><p class="mono">A aguardar resposta da API.</p></div></div></aside>

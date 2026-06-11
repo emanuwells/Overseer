@@ -43,19 +43,34 @@
         <div class="hero-row">
           <div>
             <h1>Operações de pipelines</h1>
-            <p class="subhead">Estado por deployment (pipeline + host), runs recentes e conectividade da base de dados. Cada linha representa um host distinto.</p>
+            <p class="subhead">Estado por deployment (pipeline + host), edição de metadados com sync para YAML e runners remotos.</p>
           </div>
-          <span class="pill" data-sync-state>A carregar</span>
+          <span class="pill" data-sync-state aria-live="polite">A carregar</span>
         </div>
-        <div data-alert></div>
+        <div data-alert aria-live="polite"></div>
+        <div class="token-banner" data-token-banner hidden>
+          <p>Para editar owner, agenda e criticidade, configure o token API em <code>js/overseer-config.js</code>.</p>
+        </div>
         <div class="kpis grid">
-          <div class="card card-pad kpi"><span class="label">Deployments</span><div class="kpi-main"><span class="metric" data-kpi="pipelines">--</span><span class="delta">catálogo</span></div></div>
-          <div class="card card-pad kpi"><span class="label">Runs</span><div class="kpi-main"><span class="metric" data-kpi="runs">--</span><span class="delta">histórico</span></div></div>
-          <div class="card card-pad kpi"><span class="label">Falhas</span><div class="kpi-main"><span class="metric" data-kpi="failed">--</span><span class="delta danger">últimas runs</span></div></div>
-          <div class="card card-pad kpi"><span class="label">Sucesso</span><div class="kpi-main"><span class="metric" data-kpi="success_rate">--</span><span class="delta">taxa</span></div></div>
+          <button class="card card-pad kpi kpi-click" type="button" data-kpi-action="scroll-pipelines" title="Ver tabela de deployments">
+            <span class="label">Deployments</span>
+            <div class="kpi-main"><span class="metric" data-kpi="pipelines">--</span><span class="delta">catálogo</span></div>
+          </button>
+          <a class="card card-pad kpi kpi-click" href="run-detail.html" title="Histórico de runs">
+            <span class="label">Runs</span>
+            <div class="kpi-main"><span class="metric" data-kpi="runs">--</span><span class="delta">histórico</span></div>
+          </a>
+          <button class="card card-pad kpi kpi-click" type="button" data-kpi-action="filter-failed" title="Filtrar falhas">
+            <span class="label">Falhas</span>
+            <div class="kpi-main"><span class="metric" data-kpi="failed">--</span><span class="delta danger">últimas runs</span></div>
+          </button>
+          <button class="card card-pad kpi kpi-click" type="button" data-kpi-action="scroll-pipelines" title="Taxa de sucesso">
+            <span class="label">Sucesso</span>
+            <div class="kpi-main"><span class="metric" data-kpi="success_rate">--</span><span class="delta">taxa</span></div>
+          </button>
         </div>
         <div class="two-col grid">
-          <section class="card">
+          <section class="card" id="pipelines-panel">
             <div class="section-head">
               <div>
                 <h2>Pipelines por host</h2>
@@ -63,12 +78,14 @@
               </div>
               <a class="btn" href="run-detail.html">Ver todas as runs</a>
             </div>
+            <div class="host-filters" data-host-filters role="toolbar" aria-label="Filtrar por host"></div>
             <div class="table-wrap">
               <table id="pipeline-table">
                 <thead>
                   <tr>
                     <th>Pipeline</th>
                     <th>Host</th>
+                    <th>Fonte</th>
                     <th>Estado</th>
                     <th>Dono</th>
                     <th>Agenda</th>
@@ -78,7 +95,7 @@
                   </tr>
                 </thead>
                 <tbody data-pipelines>
-                  <tr><td colspan="8">A carregar dados do Overseer.</td></tr>
+                  <tr><td colspan="9">A carregar dados do Overseer.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -90,35 +107,62 @@
                 <p data-inspector-state>aguardar dados</p>
               </div>
               <div class="inspector-actions">
+                <a class="btn" data-inspector-dag href="lineage.html" hidden>Ver DAG</a>
                 <button class="btn" type="button" data-edit-pipeline hidden>Editar</button>
                 <button class="btn" type="button" data-copy="">Copiar run</button>
               </div>
             </div>
-            <form class="inspector-edit" data-pipeline-edit hidden>
-              <label>Nome<input name="name" type="text" autocomplete="off"></label>
-              <label>Dono<input name="owner" type="text" autocomplete="off"></label>
-              <label>Agenda (cron ou manual)<input name="schedule" type="text" placeholder="0 2 * * * ou manual" autocomplete="off"></label>
-              <label>Criticidade
-                <select name="criticality">
-                  <option value="low">low</option>
-                  <option value="medium">medium</option>
-                  <option value="high">high</option>
-                  <option value="critical">critical</option>
-                </select>
-              </label>
-              <div class="inspector-edit-actions">
-                <button class="btn primary" type="submit">Guardar e sincronizar</button>
-                <button class="btn" type="button" data-cancel-edit>Cancelar</button>
-              </div>
-            </form>
-            <p class="subhead inspector-note">Última run por deployment (pipeline + host)</p>
+            <p class="subhead inspector-note">Runs recentes deste deployment</p>
             <div class="alert-list" data-recent-runs>
-              <div class="alert-item"><div><strong>A carregar runs</strong><p>Os dados serão preenchidos a partir de /v1/read/overview.</p></div><span class="pill">loading</span></div>
+              <div class="alert-item"><div><strong>A carregar runs</strong><p>Selecciona um pipeline na tabela.</p></div><span class="pill">loading</span></div>
             </div>
           </aside>
         </div>
       </section>
     </main>
+  </div>
+  <div class="edit-drawer" data-pipeline-edit hidden role="dialog" aria-modal="true" aria-labelledby="edit-drawer-title">
+    <div class="edit-drawer-backdrop" data-cancel-edit tabindex="-1"></div>
+    <form class="edit-drawer-panel">
+      <div class="edit-drawer-head">
+        <h2 id="edit-drawer-title">Editar deployment</h2>
+        <button class="btn icon-btn" type="button" data-cancel-edit aria-label="Fechar">×</button>
+      </div>
+      <p class="subhead" data-edit-target>—</p>
+      <label>Nome<input name="name" type="text" autocomplete="off"></label>
+      <label>Dono<input name="owner" type="text" autocomplete="off"></label>
+      <label>Agenda (cron ou manual)
+        <div class="schedule-row">
+          <input name="schedule" type="text" placeholder="0 2 * * * ou manual" autocomplete="off" list="cron-presets">
+          <datalist id="cron-presets">
+            <option value="manual">manual</option>
+            <option value="0 2 * * *">diário 02:00</option>
+            <option value="0 3 * * *">diário 03:00</option>
+            <option value="*/15 * * * *">cada 15 min</option>
+            <option value="15,45 * * * *">:15 e :45</option>
+            <option value="0 2 * * 1">segunda 02:00</option>
+          </datalist>
+        </div>
+      </label>
+      <label>Criticidade
+        <select name="criticality">
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+          <option value="critical">critical</option>
+        </select>
+      </label>
+      <label class="checkbox-row">
+        <input name="sync_remote" type="checkbox" checked>
+        <span>Sincronizar YAML e runner remoto (SSH)</span>
+      </label>
+      <p class="edit-hint">Alterações ao cron em Windows podem exigir actualização do Task Scheduler no host.</p>
+      <div class="inspector-edit-actions">
+        <button class="btn primary" type="submit">Guardar</button>
+        <button class="btn" type="button" data-cancel-edit>Cancelar</button>
+      </div>
+      <div class="sync-feedback" data-sync-feedback hidden aria-live="polite"></div>
+    </form>
   </div>
   <script src="js/overseer-config.js"></script>
   <script src="js/app.js"></script>

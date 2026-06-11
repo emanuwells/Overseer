@@ -1,5 +1,27 @@
 # Changelog
 
+## [5.5.0] - 2026-06-11T18:00:00+01:00
+
+### Deployments unificados, edição com sync SSH/YAML e revamp do dashboard
+
+**Motivo:**
+A tabela de Operações mostrava apenas pipelines registados na DB (ex.: 1 Medidata), enquanto runs de baze2 apareciam só no painel lateral. O sync PATCH falhava com `BAZE2` vs `baze2` nos YAMLs e `hosts.yaml`.
+
+**Alterações:**
+- `list_deployments()`: merge de catálogo YAML (`deploy/runners/*.yaml`), DB e telemetria (runs); `catalog_source` por linha.
+- `resolve_catalog_host_id()`: mapeamento case-insensitive para ficheiros YAML e SSH.
+- `POST /v1/catalog/reconcile`: regista pipelines do YAML na DB; `GET /v1/read/runner-hosts`.
+- PATCH de catálogo: reconcile implícito, resposta `sync` mais rica (DB/YAML/SSH).
+- Frontend: filtros por host, coluna fonte, drawer de edição com presets cron e toggle sync remoto; inspector com runs do deployment seleccionado; Ambiente com painel Sync e botão reconciliar.
+
+**Validação:**
+- `python -m pytest -q` (54 testes)
+
+**Pós-deploy prod:**
+- `POST /v1/catalog/reconcile` para alinhar DB com `baze2.yaml` e `WS1207.yaml`.
+
+---
+
 ## [5.4.3] - 2026-06-11T14:00:00+01:00
 
 ### Medidata: host real, última run e edição de agenda/owner

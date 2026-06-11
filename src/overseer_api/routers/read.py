@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from overseer_core import store
+from overseer_core import runner_ssh, store
 
 from ..auth import require_service_token
 
@@ -23,7 +23,16 @@ def read_database() -> dict[str, Any]:
 
 @router.get("/pipelines")
 def read_pipelines() -> dict[str, Any]:
-    return {"ok": True, "items": store.list_pipelines()}
+    return {"ok": True, "items": store.list_deployments()}
+
+
+@router.get("/runner-hosts")
+def read_runner_hosts() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "ssh_sync_enabled": runner_ssh.ssh_sync_enabled(),
+        "hosts": runner_ssh.runner_hosts_status(),
+    }
 
 
 @router.get("/pipelines/{pipeline_id}/dag")

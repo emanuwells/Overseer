@@ -5,10 +5,13 @@ const state = {
   overview: null,
   database: null,
   pipelines: [],
+  allRuns: [],
+  hostFilter: 'all',
   selectedDeploymentKey: sessionStorage.getItem('overseer_selected_deployment') || '',
   selectedNodeId: '',
   selectedPipeline: null,
   editOpen: false,
+  runnerHosts: null,
 };
 
 function esc(value) {
@@ -72,13 +75,64 @@ function effectiveHostId(item) {
   return '';
 }
 
+function hostKeyMatch(left, right) {
+  return String(left || '').trim().toUpperCase() === String(right || '').trim().toUpperCase();
+}
+
 function findPipelineRow(pipelineId, hostId) {
   const logicalId = logicalPipelineId(pipelineId);
   const hostKey = String(hostId || '').trim();
   return (state.pipelines || []).find((item) => (
     logicalPipelineId(item.pipeline_id) === logicalId
-    && String(effectiveHostId(item) || '') === hostKey
+    && hostKeyMatch(effectiveHostId(item), hostKey)
   )) || null;
+}
+
+function catalogSourceLabel(source) {
+  const raw = String(source || '').toLowerCase();
+  if (raw === 'db') return 'catálogo';
+  if (raw === 'yaml') return 'YAML';
+  if (raw === 'runs_only') return 'telemetria';
+  return raw || '—';
+}
+
+function criticalityClass(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw === 'critical' || raw === 'high') return 'danger';
+  if (raw === 'low') return 'ok';
+  return 'warn';
+}
+
+function updateTokenBanner() {
+  const banner = one('[data-token-banner]');
+  if (!banner) return;
+  banner.hidden = Boolean(apiToken());
+}
+
+function renderDeploymentRuns(item) {
+  if (!item) {
+    html('[data-recent-runs]', emptyBlock('Selecciona um pipeline na tabela.'));
+    return;
+  }
+  const key = deploymentKey(item);
+  const runs = (state.allRuns || [])
+    .filter((run) => runDeploymentKey(run) === key)
+    .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+    .slice(0, 8);
+  const runsUrl = `run-detail.html?${new URLSearchParams({
+    pipeline: item.pipeline_id,
+    host: effectiveHostId(item),
+  }).toString()}`;
+  const head = `<div class="inspector-runs-head"><a class="btn" href="${esc(runsUrl)}">Ver todas as runs</a></div>`;
+  html('[data-recent-runs]', head + (runs.length ? runs.map((run) => {
+    const stale = isStaleRun(run.started_at, run.status);
+    const klass = stale ? 'stale' : statusClass(run.status);
+    return `
+    <a class="alert-item alert-link" href="${esc(runDetailUrl(run))}">
+      <div><strong>${esc(run.run_id)}</strong><p>${esc(formatDate(run.started_at))} · ${esc(duration(run.duration_sec))}</p></div>
+      <span class="pill ${klass}">${esc(stale ? 'stale' : statusLabel(run.status))}</span>
+    </a>`;
+  }).join('') : emptyBlock('Sem runs para este deployment.')));
 }
 
 function setInspectorSelection(item) {
@@ -86,7 +140,7 @@ function setInspectorSelection(item) {
   const inspector = one('#inspector');
   if (!inspector || !item) return;
   text('[data-inspector-title]', `${pipelineDisplayName(item)} · ${hostDisplay(item)}`, inspector);
-  text('[data-inspector-state]', statusLabel(item.last_status), inspector);
+  text('[data-inspector-state]', `${statusLabel(item.last_status)} · ${catalogSourceLabel(item.catalog_source)}`, inspector);
   const copy = one('[data-copy]', inspector);
   if (copy) copy.dataset.copy = item.last_run_id || '';
   const editBtn = one('[data-edit-pipeline]', inspector);
@@ -95,37 +149,56 @@ function setInspectorSelection(item) {
     editBtn.disabled = !apiToken();
     editBtn.title = apiToken() ? 'Editar owner, agenda e criticidade' : 'Configure o token API para editar';
   }
+  const dagLink = one('[data-inspector-dag]', inspector);
+  if (dagLink) {
+    dagLink.hidden = !item.pipeline_id;
+    dagLink.href = lineageUrl(item.pipeline_id, effectiveHostId(item));
+  }
+  renderDeploymentRuns(item);
   if (!state.editOpen) hidePipelineEditForm();
 }
 
 function hidePipelineEditForm() {
   state.editOpen = false;
-  const form = one('[data-pipeline-edit]');
-  if (form) form.hidden = true;
+  const drawer = one('[data-pipeline-edit]');
+  if (drawer) drawer.hidden = true;
+  const feedback = one('[data-sync-feedback]');
+  if (feedback) feedback.hidden = true;
 }
 
 function showPipelineEditForm(item) {
-  const form = one('[data-pipeline-edit]');
+  const drawer = one('[data-pipeline-edit]');
+  const form = drawer?.querySelector('form');
   if (!form || !item) return;
   state.editOpen = true;
-  form.hidden = false;
+  drawer.hidden = false;
+  text('[data-edit-target]', `${pipelineDisplayName(item)} @ ${hostDisplay(item)}`);
   form.elements.name.value = item.name || item.pipeline_id || '';
   form.elements.owner.value = item.owner || '';
   form.elements.schedule.value = item.schedule || 'manual';
   form.elements.criticality.value = item.criticality || 'medium';
+  if (form.elements.sync_remote) form.elements.sync_remote.checked = true;
+  const feedback = one('[data-sync-feedback]');
+  if (feedback) feedback.hidden = true;
+  form.elements.name.focus();
 }
 
 function formatSyncFeedback(sync) {
-  if (!sync) return 'Metadados actualizados na base de dados.';
-  const parts = ['DB: ok'];
-  if (sync.yaml?.path) parts.push(`YAML: ${sync.yaml.path}`);
+  if (!sync) return { text: 'Metadados actualizados na base de dados.', kind: 'ok' };
+  const lines = ['DB: ok'];
+  let kind = 'ok';
+  if (sync.yaml?.path) lines.push(`YAML: ${sync.yaml.path}`);
   const ssh = sync.ssh;
-  if (ssh?.skipped) parts.push(`SSH: ignorado (${ssh.reason || 'desactivado'})`);
-  else if (ssh) {
-    parts.push(`SSH (${ssh.mode || 'remote'}): exit ${ssh.exit_code}`);
-    if (ssh.schedule_note) parts.push(ssh.schedule_note);
+  if (ssh?.skipped) {
+    lines.push(`SSH: ignorado (${ssh.reason || 'desactivado'})`);
+    kind = 'warn';
+  } else if (ssh) {
+    lines.push(`SSH (${ssh.mode || 'remote'}): exit ${ssh.exit_code}`);
+    if (!ssh.ok) kind = 'warn';
+    if (ssh.schedule_note) lines.push(ssh.schedule_note);
+    if (sync.ssh_stdout_tail) lines.push(sync.ssh_stdout_tail);
   }
-  return parts.join(' · ');
+  return { text: lines.join('\n'), kind };
 }
 
 async function savePipelineEdit(event) {
@@ -150,11 +223,17 @@ async function savePipelineEdit(event) {
       owner: form.elements.owner.value.trim() || undefined,
       schedule,
       criticality: form.elements.criticality.value,
-      sync_remote: true,
+      sync_remote: Boolean(form.elements.sync_remote?.checked),
     };
     const result = await apiWrite('PATCH', `/v1/catalog/pipelines/${encodeURIComponent(item.pipeline_id)}`, body);
-    hidePipelineEditForm();
-    setAlert(formatSyncFeedback(result.sync), result.sync?.ssh?.ok === false ? 'warn' : 'ok');
+    const feedback = formatSyncFeedback(result.sync);
+    const feedbackEl = one('[data-sync-feedback]');
+    if (feedbackEl) {
+      feedbackEl.hidden = false;
+      feedbackEl.className = `sync-feedback ${feedback.kind}`;
+      feedbackEl.textContent = feedback.text;
+    }
+    setAlert(feedback.text.replace(/\n/g, ' · '), feedback.kind);
     await loadDashboard();
     const refreshed = findPipelineRow(item.pipeline_id, hostId);
     if (refreshed) setInspectorSelection(refreshed);
@@ -168,8 +247,52 @@ function bindPipelineEdit() {
   one('[data-edit-pipeline]')?.addEventListener('click', () => {
     if (state.selectedPipeline) showPipelineEditForm(state.selectedPipeline);
   });
-  one('[data-cancel-edit]')?.addEventListener('click', hidePipelineEditForm);
-  one('[data-pipeline-edit]')?.addEventListener('submit', savePipelineEdit);
+  by('[data-cancel-edit]').forEach((btn) => btn.addEventListener('click', hidePipelineEditForm));
+  one('[data-pipeline-edit] form')?.addEventListener('submit', savePipelineEdit);
+}
+
+function bindHostFilters() {
+  const container = one('[data-host-filters]');
+  if (!container) return;
+  const hosts = [...new Set((state.pipelines || []).map((item) => effectiveHostId(item)).filter(Boolean))].sort();
+  const chips = [{ id: 'all', label: 'Todos' }, ...hosts.map((host) => ({ id: host, label: host }))];
+  container.innerHTML = chips.map((chip) => `
+    <button type="button" class="host-chip${state.hostFilter === chip.id ? ' is-active' : ''}" data-host-filter="${esc(chip.id)}">${esc(chip.label)}</button>
+  `).join('');
+  by('[data-host-filter]', container).forEach((button) => {
+    button.addEventListener('click', () => {
+      state.hostFilter = button.dataset.hostFilter || 'all';
+      applyPipelineFilters();
+      bindHostFilters();
+    });
+  });
+}
+
+function applyPipelineFilters() {
+  const table = one('#pipeline-table');
+  if (!table) return;
+  const stateFilter = one('[data-filter="#pipeline-table"]')?.value || 'all';
+  const query = one('[data-search="#pipeline-table"]')?.value.trim().toLowerCase() || '';
+  by('tbody tr[data-name]', table).forEach((row) => {
+    const hostOk = state.hostFilter === 'all' || hostKeyMatch(row.dataset.host, state.hostFilter);
+    const stateOk = stateFilter === 'all' || row.dataset.state === stateFilter;
+    const searchOk = !query || row.textContent.toLowerCase().includes(query);
+    row.hidden = !(hostOk && stateOk && searchOk);
+  });
+}
+
+function bindKpiActions() {
+  one('[data-kpi-action="scroll-pipelines"]')?.addEventListener('click', () => {
+    one('#pipelines-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  one('[data-kpi-action="filter-failed"]')?.addEventListener('click', () => {
+    const control = one('[data-filter="#pipeline-table"]');
+    if (control) {
+      control.value = 'danger';
+      control.dispatchEvent(new Event('change'));
+    }
+    one('#pipelines-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 function text(selector, value, root = document) {
@@ -365,6 +488,10 @@ function bindChrome(refreshFn) {
 function bindFilters() {
   by('[data-filter]').forEach((control) => {
     control.addEventListener('change', () => {
+      if (control.dataset.filter === '#pipeline-table') {
+        applyPipelineFilters();
+        return;
+      }
       const table = document.querySelector(control.dataset.filter);
       const value = control.value;
       if (!table) return;
@@ -378,6 +505,10 @@ function bindFilters() {
 function bindSearch() {
   by('[data-search]').forEach((input) => {
     input.addEventListener('input', () => {
+      if (input.dataset.search === '#pipeline-table') {
+        applyPipelineFilters();
+        return;
+      }
       const target = document.querySelector(input.dataset.search);
       const query = input.value.trim().toLowerCase();
       if (!target) return;
@@ -439,6 +570,7 @@ function renderDatabase(database) {
 
 function renderOverview(overview) {
   state.overview = overview;
+  state.allRuns = overview?.recent_runs || [];
   const summary = overview?.summary || {};
   text('[data-kpi="pipelines"]', summary.pipelines ?? 0);
   text('[data-kpi="runs"]', summary.runs ?? 0);
@@ -447,50 +579,36 @@ function renderOverview(overview) {
 
   const pipelines = dedupePipelines(overview?.pipelines || []);
   state.pipelines = pipelines;
-  text('[data-count="pipelines"]', `${pipelines.length} pipeline(s) registado(s).`);
+  text('[data-count="pipelines"]', `${pipelines.length} deployment(s) activo(s).`);
   html('[data-pipelines]', pipelines.length ? pipelines.map((item) => {
     const stale = isStaleRun(item.last_started_at, item.last_status);
     const statusKlass = stale ? 'stale' : statusClass(item.last_status);
-  const statusText = stale ? 'stale' : statusLabel(item.last_status);
+    const statusText = stale ? 'stale' : statusLabel(item.last_status);
+    const source = catalogSourceLabel(item.catalog_source);
     return `
-    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(effectiveHostId(item))}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
+    <tr data-search-row data-state="${stateBucket(item.last_status)}" data-name="${esc(pipelineDisplayName(item))}" data-pipeline="${esc(item.pipeline_id)}" data-host="${esc(effectiveHostId(item))}" data-owner="${esc(item.owner)}" data-schedule="${esc(item.schedule)}" data-criticality="${esc(item.criticality)}" data-source="${esc(item.catalog_source || '')}" data-state-label="${esc(statusText)}" data-last-run="${esc(item.last_run_id || '')}">
       <td data-label="Pipeline"><span class="name-cell"><span class="dot ${statusKlass}"></span><a href="${esc(lineageUrl(item.pipeline_id, item.host_id))}">${esc(pipelineDisplayName(item))}</a></span></td>
       <td data-label="Host">${esc(hostDisplay(item))}</td>
+      <td data-label="Fonte"><span class="pill" title="${esc(item.catalog_source || '')}">${esc(source)}</span></td>
       <td data-label="Estado"><span class="pill ${statusKlass}">${esc(statusText)}</span></td>
       <td data-label="Dono">${esc(item.owner)}</td>
-      <td data-label="Agenda">${esc(item.schedule)}</td>
+      <td data-label="Agenda"><span class="mono">${esc(item.schedule)}</span></td>
       <td data-label="Última run">${esc(formatDate(item.last_started_at))}</td>
       <td data-label="Duração">${esc(duration(item.last_duration_sec))}</td>
-      <td data-label="Criticidade">${esc(item.criticality)}</td>
+      <td data-label="Criticidade"><span class="pill ${criticalityClass(item.criticality)}">${esc(item.criticality)}</span></td>
     </tr>`;
-  }).join('') : emptyRow(8, 'Ainda não há pipelines registados por API.'));
+  }).join('') : emptyRow(9, 'Ainda não há deployments. Verifica o catálogo YAML ou telemetria.'));
 
-  const runs = overview?.recent_runs || [];
+  bindHostFilters();
+  applyPipelineFilters();
+
   if (pipelines[0] && !state.selectedPipeline) {
     setInspectorSelection(pipelines[0]);
   } else if (state.selectedPipeline) {
     const refreshed = findPipelineRow(state.selectedPipeline.pipeline_id, state.selectedPipeline.host_id);
     if (refreshed) setInspectorSelection(refreshed);
+    else renderDeploymentRuns(state.selectedPipeline);
   }
-  const recentByDeployment = new Map();
-  runs.forEach((run) => {
-    const key = runDeploymentKey(run);
-    const prev = recentByDeployment.get(key);
-    if (!prev || new Date(run.started_at) > new Date(prev.started_at)) recentByDeployment.set(key, run);
-  });
-  const recentRuns = Array.from(recentByDeployment.values())
-    .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
-    .slice(0, 10);
-  html('[data-recent-runs]', recentRuns.length ? recentRuns.map((run) => {
-    const stale = isStaleRun(run.started_at, run.status);
-    const klass = stale ? 'stale' : statusClass(run.status);
-    const pipelineLabel = logicalPipelineId(run.pipeline_id);
-    return `
-    <a class="alert-item alert-link" href="${esc(runDetailUrl(run))}">
-      <div><strong>${esc(pipelineLabel)}</strong><p>${esc(run.host_id || '--')} · ${esc(run.run_id)} · ${esc(formatDate(run.started_at))}</p></div>
-      <span class="pill ${klass}">${esc(stale ? 'stale' : statusLabel(run.status))}</span>
-    </a>`;
-  }).join('') : emptyBlock('Ainda não há runs recebidas.'));
 
   by('[data-pipelines] tr[data-name]').forEach((row) => {
     row.addEventListener('click', () => {
@@ -504,6 +622,7 @@ function renderOverview(overview) {
           owner: row.dataset.owner,
           schedule: row.dataset.schedule,
           criticality: row.dataset.criticality,
+          catalog_source: row.dataset.source,
           last_status: row.dataset.stateLabel,
           last_run_id: row.dataset.lastRun,
         };
@@ -515,12 +634,82 @@ function renderOverview(overview) {
 async function loadDashboard() {
   setSync('A carregar');
   setAlert();
+  updateTokenBanner();
   try {
     const [overview, database] = await Promise.all([api('/v1/read/overview'), api('/v1/read/database')]);
     renderOverview(overview.data);
     renderDatabase(database.database);
     setSync('Sincronizado', 'ok');
     if (!database.database?.reachable) setAlert('Base de dados indisponível.', 'error');
+  } catch (error) {
+    setSync('Erro', 'danger');
+    setAlert(error.message, 'error');
+  }
+}
+
+function renderRunnerHosts(payload) {
+  state.runnerHosts = payload;
+  const rows = (payload?.hosts || []).map((host) => `
+    <tr>
+      <td data-label="Host">${esc(host.host_id)}</td>
+      <td data-label="Plataforma">${esc(host.platform)}</td>
+      <td data-label="SSH"><span class="mono">${esc(host.ssh || '—')}</span></td>
+      <td data-label="Repo"><span class="mono">${esc(host.repo_path || '—')}</span></td>
+    </tr>
+  `).join('');
+  html('[data-runner-hosts]', rows || emptyRow(4, 'Sem hosts em deploy/runners/hosts.yaml.'));
+  const syncPill = one('[data-ssh-sync-flag]');
+  if (syncPill) {
+    const enabled = Boolean(payload?.ssh_sync_enabled);
+    syncPill.className = `pill ${enabled ? 'ok' : 'warn'}`;
+    syncPill.textContent = enabled ? 'SSH sync activo' : 'SSH sync desactivado';
+  }
+}
+
+async function reconcileCatalog(syncRemote = false) {
+  setSync('A reconciliar…');
+  try {
+    const result = await apiWrite('POST', '/v1/catalog/reconcile', { sync_remote: syncRemote });
+    const created = result.reconcile?.created?.length || 0;
+    const updated = result.reconcile?.updated?.length || 0;
+    setAlert(`Catálogo reconciliado: ${created} criado(s), ${updated} actualizado(s).`, 'ok');
+    setSync('Sincronizado', 'ok');
+    await loadEnvironment();
+  } catch (error) {
+    setSync('Erro', 'danger');
+    setAlert(error.message, 'error');
+  }
+}
+
+async function loadEnvironment() {
+  setSync('A carregar');
+  setAlert();
+  updateTokenBanner();
+  try {
+    const [database, heartbeatsResponse, triggersResponse, hosts] = await Promise.all([
+      api('/v1/read/database'),
+      api('/v1/read/heartbeats?limit=50'),
+      api('/v1/read/triggers?limit=50'),
+      api('/v1/read/runner-hosts').catch(() => ({ hosts: [], ssh_sync_enabled: false })),
+    ]);
+    renderDatabase(database.database);
+    renderRunnerHosts(hosts);
+    const heartbeats = heartbeatsResponse.items || [];
+    const triggers = triggersResponse.items || [];
+    text('[data-count-kpi="heartbeats"]', heartbeats.length);
+    text('[data-count-kpi="heartbeats_ok"]', heartbeats.filter((item) => item.status === 'ok').length);
+    text('[data-last-heartbeat]', formatDate(heartbeats[0]?.seen_at));
+    text('[data-count-kpi="triggers"]', triggers.length);
+    text('[data-count-kpi="queued"]', triggers.filter((item) => item.status === 'queued').length);
+    text('[data-count-kpi="claimed"]', triggers.filter((item) => item.status === 'claimed').length);
+    text('[data-count-kpi="completed"]', triggers.filter((item) => ['ok', 'done', 'completed'].includes(String(item.status).toLowerCase())).length);
+    const hostSet = new Set(heartbeats.map((item) => item.host_id || item.hostname || item.source_id).filter(Boolean));
+    html('[data-activity]', [
+      ...heartbeats.slice(0, 8).map((item) => `<div class="deploy-item"><strong>${esc(item.source_id)}</strong><p class="mono">${esc(item.host_id || item.hostname || '--')} · ${esc(item.pipeline_id || item.source_type)} · ${esc(formatDate(item.seen_at))} · ${esc(item.status)}</p></div>`),
+      ...triggers.slice(0, 5).map((item) => `<div class="deploy-item"><strong>${esc(item.pipeline_id)}</strong><p class="mono">${esc(item.host_id || '--')} · ${esc(item.trigger_id)} · ${esc(item.status)}</p></div>`),
+    ].join('') || `<div class="deploy-item"><strong>Sem atividade</strong><p class="mono">Ainda não há heartbeats ou triggers.</p></div>`);
+    text('[data-count-kpi="sources"]', hostSet.size);
+    setSync('Sincronizado', 'ok');
   } catch (error) {
     setSync('Erro', 'danger');
     setAlert(error.message, 'error');
@@ -793,36 +982,8 @@ async function loadLineage() {
   }
 }
 
-async function loadDeployments() {
-  setSync('A carregar');
-  setAlert();
-  try {
-    const [database, heartbeatsResponse, triggersResponse] = await Promise.all([
-      api('/v1/read/database'),
-      api('/v1/read/heartbeats?limit=50'),
-      api('/v1/read/triggers?limit=50'),
-    ]);
-    renderDatabase(database.database);
-    const heartbeats = heartbeatsResponse.items || [];
-    const triggers = triggersResponse.items || [];
-    text('[data-count-kpi="heartbeats"]', heartbeats.length);
-    text('[data-count-kpi="heartbeats_ok"]', heartbeats.filter((item) => item.status === 'ok').length);
-    text('[data-last-heartbeat]', formatDate(heartbeats[0]?.seen_at));
-    text('[data-count-kpi="triggers"]', triggers.length);
-    text('[data-count-kpi="queued"]', triggers.filter((item) => item.status === 'queued').length);
-    text('[data-count-kpi="claimed"]', triggers.filter((item) => item.status === 'claimed').length);
-    text('[data-count-kpi="completed"]', triggers.filter((item) => ['ok', 'done', 'completed'].includes(String(item.status).toLowerCase())).length);
-    const hosts = new Set(heartbeats.map((item) => item.host_id || item.hostname || item.source_id).filter(Boolean));
-    html('[data-activity]', [
-      ...heartbeats.slice(0, 8).map((item) => `<div class="deploy-item"><strong>${esc(item.source_id)}</strong><p class="mono">${esc(item.host_id || item.hostname || '--')} · ${esc(item.pipeline_id || item.source_type)} · ${esc(formatDate(item.seen_at))} · ${esc(item.status)}</p></div>`),
-      ...triggers.slice(0, 5).map((item) => `<div class="deploy-item"><strong>${esc(item.pipeline_id)}</strong><p class="mono">${esc(item.host_id || '--')} · ${esc(item.trigger_id)} · ${esc(item.status)}</p></div>`),
-    ].join('') || `<div class="deploy-item"><strong>Sem atividade</strong><p class="mono">Ainda não há heartbeats ou triggers.</p></div>`);
-    text('[data-count-kpi="sources"]', hosts.size);
-    setSync('Sincronizado', 'ok');
-  } catch (error) {
-    setSync('Erro', 'danger');
-    setAlert(error.message, 'error');
-  }
+function bindReconcile() {
+  one('[data-reconcile-catalog]')?.addEventListener('click', () => reconcileCatalog(false));
 }
 
 function init() {
@@ -832,7 +993,7 @@ function init() {
     dashboard: loadDashboard,
     runs: loadRuns,
     lineage: loadLineage,
-    deployments: loadDeployments,
+    deployments: loadEnvironment,
   };
   const load = loaders[view] || loadDashboard;
   bindChrome(load);
@@ -841,6 +1002,8 @@ function init() {
   bindCopy();
   bindTabs();
   bindPipelineEdit();
+  bindKpiActions();
+  bindReconcile();
   load();
 }
 

@@ -6,11 +6,18 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-08T10:12:15+01:00 |
+| Última atualização | 2026-06-11T18:00:00+01:00 |
 | Branch Git | `main` |
-| Estado | 4.3.0 implementado; runner por manifest, compose de produção e deploy nginx prontos no código |
+| Estado | 5.5.0 implementado localmente; deployments unificados (YAML+DB+runs), reconcile API, revamp dashboard |
 | Responsável / Agente | Cursor |
-| Última versão registada | 4.3.0 |
+| Última versão registada | 5.5.0 |
+
+## Nota v5.5.0 (2026-06-11)
+
+- `list_deployments()` unifica YAML + DB + runs; dashboard mostra todos os deployments (baze2 + WS1207).
+- Após deploy em prod: `POST /v1/catalog/reconcile` (token API) para registar pipelines baze2 na DB.
+- Edição no dashboard: PATCH → DB + `deploy/runners/<host>.yaml` + SSH se `OVERSEER_SSH_SYNC_ENABLED=1`.
+- `host_id` canónico: `BAZE2` resolve para ficheiro `baze2.yaml` e entrada em `hosts.yaml`.
 
 ## Objetivo Atual
 

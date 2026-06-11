@@ -38,7 +38,10 @@ Comandos rápidos do Overseer.
 | Activar sync na API | `OVERSEER_SSH_SYNC_ENABLED=1` no `.env` (requer chave SSH no host/container) |
 | Hosts registados | `deploy/runners/hosts.yaml` |
 | Editar pipeline (UI) | Dashboard → seleccionar linha → **Editar** → Guardar (DB + YAML + SSH) |
-| PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, etc. |
+| Reconciliar catálogo (UI) | Ambiente → separador **Sync** → **Reconciliar catálogo** |
+| Reconciliar catálogo (API) | `POST /v1/catalog/reconcile` com `{"sync_remote": false}` |
+| Hosts de sync (API) | `GET /v1/read/runner-hosts` |
+| PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, `sync_remote` |
 
 ## Docker
 

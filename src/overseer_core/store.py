@@ -587,6 +587,8 @@ def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any
     if not get_pipeline(logical_id, host_id):
         repair_deployment_data()
     if not get_pipeline(logical_id, host_id):
+        ensure_pipeline_in_catalog(logical_id, host_id)
+    if not get_pipeline(logical_id, host_id):
         raise ValueError(f"Pipeline não encontrado: {logical_id}@{host_id}")
     pipeline_id = logical_id
 
@@ -623,7 +625,7 @@ def normalize_runner(value: Any) -> str:
     return raw
 
 
-def list_pipelines() -> list[dict[str, Any]]:
+def _latest_runs_by_deployment() -> dict[str, dict[str, Any]]:
     latest_runs: dict[str, dict[str, Any]] = {}
     for run in list_runs(limit=5000):
         normalized = normalize_pipeline_row(run, from_run=True)
@@ -636,19 +638,156 @@ def list_pipelines() -> list[dict[str, Any]]:
         started = parse_dt(run.get("started_at")) or datetime.min
         if not current or started > (parse_dt(current.get("started_at")) or datetime.min):
             latest_runs[key] = run
+    return latest_runs
+
+
+def _catalog_payload_from_yaml_entry(entry: dict[str, Any], host_db: str, catalog_host: str) -> dict[str, Any]:
+    pipeline_id = str(entry["pipeline_id"])
+    steps = entry.get("steps") if isinstance(entry.get("steps"), list) else []
+    nodes = [
+        {
+            "module_id": str(step["module_id"]).strip(),
+            "label": str(step.get("module_id") or step["module_id"]),
+        }
+        for step in steps
+        if isinstance(step, dict) and str(step.get("module_id") or "").strip()
+    ]
+    return {
+        "pipeline_id": pipeline_id,
+        "host_id": host_db,
+        "name": str(entry.get("name") or pipeline_id),
+        "owner": str(entry.get("owner") or "data"),
+        "criticality": str(entry.get("criticality") or "medium").lower(),
+        "schedule": str(entry.get("schedule") or "manual"),
+        "metadata": {"host_id": catalog_host},
+        "nodes": nodes,
+        "edges": [],
+    }
+
+
+def ensure_pipeline_in_catalog(pipeline_id: str, host_id: str) -> bool:
+    """Regista na DB a partir do YAML se o deployment ainda não existir."""
+    from . import runner_catalog
+
+    logical_id = logical_pipeline_id(pipeline_id)
+    host_db = host_key(host_id)
+    if not host_db:
+        return False
+    if get_pipeline(logical_id, host_db):
+        return True
+    entry = runner_catalog.catalog_entry_for(host_id, logical_id)
+    if not entry:
+        return False
+    catalog_host = str(entry.get("catalog_host") or host_id)
+    register_pipeline_catalog(_catalog_payload_from_yaml_entry(entry, host_db, catalog_host))
+    return True
+
+
+def reconcile_catalog_from_yaml() -> dict[str, Any]:
+    """Regista na DB todos os pipelines definidos em deploy/runners/*.yaml."""
+    from . import runner_catalog
+
+    created: list[dict[str, str]] = []
+    updated: list[dict[str, str]] = []
+    skipped: list[dict[str, str]] = []
+    hosts: list[str] = []
+
+    for catalog_host, entries in runner_catalog.load_all_runner_catalogs().items():
+        hosts.append(catalog_host)
+        host_db = host_key(catalog_host)
+        for entry in entries:
+            pipeline_id = str(entry["pipeline_id"])
+            payload = _catalog_payload_from_yaml_entry(entry, host_db, catalog_host)
+            existing = get_pipeline(pipeline_id, host_db)
+            if not existing:
+                register_pipeline_catalog(payload)
+                created.append({"pipeline_id": pipeline_id, "host_id": host_db})
+                continue
+            register_pipeline_catalog(payload)
+            updated.append({"pipeline_id": pipeline_id, "host_id": host_db})
+
+    return {
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+        "hosts": sorted(set(hosts)),
+    }
+
+
+def list_deployments() -> list[dict[str, Any]]:
+    """Vista unificada: YAML + DB + telemetria (runs)."""
+    from . import runner_catalog
+
+    latest_runs = _latest_runs_by_deployment()
+    defaults = {"owner": "data", "criticality": "medium", "schedule": "manual"}
+    merged: dict[str, dict[str, Any]] = {}
+
+    for catalog_host, entries in runner_catalog.load_all_runner_catalogs().items():
+        host_id = host_key(catalog_host)
+        for entry in entries:
+            pipeline_id = str(entry["pipeline_id"])
+            key = deployment_key(pipeline_id, host_id)
+            item = merged.setdefault(
+                key,
+                {
+                    "pipeline_id": pipeline_id,
+                    "host_id": host_id,
+                    "catalog_source": "yaml",
+                    "catalog_host": catalog_host,
+                },
+            )
+            if entry.get("name"):
+                item["name"] = str(entry["name"])
+            if entry.get("owner"):
+                item["owner"] = str(entry["owner"])
+            if entry.get("schedule"):
+                item["schedule"] = str(entry["schedule"])
+            if entry.get("criticality"):
+                item["criticality"] = str(entry["criticality"]).lower()
 
     with get_engine().connect() as conn:
         pipeline_rows = conn.execute(
             select(pipelines_table).where(pipelines_table.c.active.is_(True))
         ).mappings().all()
 
-    enriched: list[dict[str, Any]] = []
     for row in pipeline_rows:
         normalized = normalize_pipeline_row(row_to_dict(row))
         if not normalized or not str(normalized.get("host_id") or "").strip():
             continue
-        item = dict(normalized)
-        latest = latest_runs.get(deployment_key_from_row(item))
+        key = deployment_key_from_row(normalized)
+        item = merged.setdefault(
+            key,
+            {
+                "pipeline_id": normalized["pipeline_id"],
+                "host_id": normalized["host_id"],
+                "catalog_source": "runs_only",
+            },
+        )
+        item["catalog_source"] = "db"
+        for field in ("name", "owner", "schedule", "criticality", "runner_host", "metadata", "active"):
+            if field in normalized and normalized[field] is not None:
+                item[field] = normalized[field]
+
+    for key, run in latest_runs.items():
+        normalized = normalize_pipeline_row(run, from_run=True)
+        if not normalized or not str(normalized.get("host_id") or "").strip():
+            continue
+        if key in merged:
+            continue
+        merged[key] = {
+            "pipeline_id": normalized["pipeline_id"],
+            "host_id": normalized["host_id"],
+            "name": str(run.get("pipeline_name") or normalized["pipeline_id"]),
+            "catalog_source": "runs_only",
+        }
+
+    enriched: list[dict[str, Any]] = []
+    for key, item in merged.items():
+        for field, value in defaults.items():
+            item.setdefault(field, value)
+        if not item.get("name"):
+            item["name"] = item["pipeline_id"]
+        latest = latest_runs.get(key)
         if latest:
             item["last_run_id"] = latest.get("run_id")
             item["last_status"] = latest.get("status")
@@ -657,6 +796,10 @@ def list_pipelines() -> list[dict[str, Any]]:
             item["last_duration_sec"] = latest.get("duration_sec")
         enriched.append(item)
     return dedupe_pipelines(enriched)
+
+
+def list_pipelines() -> list[dict[str, Any]]:
+    return list_deployments()
 
 
 def previous_completed_run(
@@ -1093,7 +1236,7 @@ def overview() -> dict[str, Any]:
             "success_rate": round((ok / total) * 100, 2) if total else 100.0,
         },
         "pipelines": pipelines,
-        "recent_runs": runs[:50],
+        "recent_runs": runs[:200],
         "heartbeats": list_heartbeats(limit=50),
         "triggers": list_triggers(limit=50),
     }

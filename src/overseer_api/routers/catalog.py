@@ -56,6 +56,10 @@ class PipelineCatalogBody(BaseModel):
         return self
 
 
+class ReconcileBody(BaseModel):
+    sync_remote: bool = False
+
+
 class PipelinePatchBody(BaseModel):
     host_id: str
     name: str | None = None
@@ -94,6 +98,20 @@ def register_pipeline(body: PipelineCatalogBody) -> dict[str, Any]:
     return {"ok": True, "dag": dag}
 
 
+@router.post("/reconcile")
+def reconcile_catalog(body: ReconcileBody | None = None) -> dict[str, Any]:
+    options = body or ReconcileBody()
+    try:
+        result = store.reconcile_catalog_from_yaml()
+        ssh_results: list[dict[str, Any]] = []
+        if options.sync_remote:
+            for host_id in result.get("hosts") or []:
+                ssh_results.append(runner_ssh.sync_remote_runner(host_id, schedule_changed=False))
+        return {"ok": True, "reconcile": result, "ssh": ssh_results or None}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.patch("/pipelines/{pipeline_id}")
 def patch_pipeline(pipeline_id: str, body: PipelinePatchBody) -> dict[str, Any]:
     host_id = body.host_id.strip()
@@ -106,28 +124,31 @@ def patch_pipeline(pipeline_id: str, body: PipelinePatchBody) -> dict[str, Any]:
     schedule_changed = body.schedule is not None
 
     try:
-        if host_id not in runner_ssh.list_known_hosts() and body.sync_remote:
-            available = ", ".join(runner_ssh.list_known_hosts()) or "(nenhum)"
-            raise ValueError(f"host_id desconhecido: {host_id}. Hosts disponíveis: {available}")
+        catalog_host = runner_ssh.resolve_catalog_host_id(host_id)
         dag = store.patch_pipeline_catalog(pipeline_id, host_id, fields)
         yaml_result: dict[str, Any] | None = None
         try:
-            yaml_result = runner_catalog.patch_runner_catalog_yaml(host_id, pipeline_id, fields)
+            yaml_result = runner_catalog.patch_runner_catalog_yaml(catalog_host, pipeline_id, fields)
         except (FileNotFoundError, ValueError) as exc:
             raise ValueError(str(exc)) from exc
 
         ssh_result: dict[str, Any] | None = None
         if body.sync_remote:
-            ssh_result = runner_ssh.sync_remote_runner(host_id, schedule_changed=schedule_changed)
+            ssh_result = runner_ssh.sync_remote_runner(catalog_host, schedule_changed=schedule_changed)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {
-        "ok": True,
-        "dag": dag,
-        "sync": {
-            "db": "ok",
-            "yaml": yaml_result,
-            "ssh": ssh_result,
-        },
+    sync_payload: dict[str, Any] = {
+        "db": "ok",
+        "yaml": yaml_result,
+        "ssh": ssh_result,
     }
+    if ssh_result:
+        sync_payload["ssh_enabled"] = bool(ssh_result.get("enabled"))
+        sync_payload["ssh_ok"] = bool(ssh_result.get("ok"))
+        if ssh_result.get("stdout_tail"):
+            sync_payload["ssh_stdout_tail"] = ssh_result["stdout_tail"]
+        if ssh_result.get("schedule_note"):
+            sync_payload["schedule_note"] = ssh_result["schedule_note"]
+
+    return {"ok": True, "dag": dag, "sync": sync_payload}

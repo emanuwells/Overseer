@@ -13,6 +13,7 @@ from overseer_core import runner_catalog, runner_ssh, store
 def sqlite_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("OVERSEER_DB_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("OVERSEER_ROOT", str(tmp_path))
     store._engine = None
     store.init_schema()
     yield
@@ -50,6 +51,27 @@ def _write_catalog(root: Path, host_id: str, pipeline_id: str) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def test_resolve_catalog_host_id_case_insensitive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OVERSEER_ROOT", str(tmp_path))
+    _write_catalog(tmp_path, "baze2", "demo")
+    assert runner_ssh.resolve_catalog_host_id("BAZE2", root=tmp_path) == "baze2"
+    assert runner_ssh.resolve_catalog_host_id("baze2", root=tmp_path) == "baze2"
+
+
+def test_patch_runner_catalog_yaml_uppercase_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OVERSEER_ROOT", str(tmp_path))
+    _write_catalog(tmp_path, "baze2", "demo")
+    result = runner_catalog.patch_runner_catalog_yaml(
+        "BAZE2",
+        "demo",
+        {"owner": "ops"},
+        root=tmp_path,
+    )
+    assert result["host_id"] == "baze2"
+    data = yaml.safe_load((tmp_path / "deploy" / "runners" / "baze2.yaml").read_text(encoding="utf-8"))
+    assert data["pipelines"][0]["owner"] == "ops"
 
 
 def test_patch_runner_catalog_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -27,6 +27,24 @@ def ssh_sync_enabled() -> bool:
     }
 
 
+def runner_hosts_status(root: Path | None = None) -> list[dict[str, Any]]:
+    hosts = load_hosts_config(root)
+    items: list[dict[str, Any]] = []
+    for host_id in sorted(hosts):
+        cfg = hosts[host_id]
+        if not isinstance(cfg, dict):
+            continue
+        items.append(
+            {
+                "host_id": host_id,
+                "ssh": str(cfg.get("ssh") or ""),
+                "platform": str(cfg.get("platform") or "linux"),
+                "repo_path": str(cfg.get("repo_path") or ""),
+            }
+        )
+    return items
+
+
 def hosts_file(root: Path | None = None) -> Path:
     return runners_hosts_dir(root) / "hosts.yaml"
 
@@ -48,14 +66,34 @@ def list_known_hosts(root: Path | None = None) -> list[str]:
     return sorted(load_hosts_config(root).keys())
 
 
+def resolve_catalog_host_id(host_id: str, root: Path | None = None) -> str:
+    """Mapeia host_id (ex. BAZE2) para o ID canónico em hosts.yaml / ficheiro YAML (ex. baze2)."""
+    raw = str(host_id or "").strip()
+    if not raw:
+        raise ValueError("host_id vazio")
+    hosts = load_hosts_config(root)
+    by_lower = {key.lower(): key for key in hosts}
+    if raw.lower() in by_lower:
+        return by_lower[raw.lower()]
+    from . import runner_catalog
+
+    for path in runner_catalog.list_runner_catalog_files(root):
+        if path.stem.lower() == raw.lower():
+            return path.stem
+    available = ", ".join(sorted(set(hosts) | {path.stem for path in runner_catalog.list_runner_catalog_files(root)}))
+    raise ValueError(f"host_id desconhecido: {host_id}. Hosts disponíveis: {available or '(nenhum)'}")
+
+
 def get_host_config(host_id: str, root: Path | None = None) -> dict[str, Any]:
     hosts = load_hosts_config(root)
-    if host_id not in hosts:
+    canonical = resolve_catalog_host_id(host_id, root)
+    if canonical not in hosts:
         available = ", ".join(sorted(hosts)) or "(nenhum)"
         raise ValueError(f"host_id desconhecido: {host_id}. Hosts disponíveis: {available}")
-    cfg = hosts[host_id]
+    host_id = canonical
+    cfg = hosts[canonical]
     if not isinstance(cfg, dict):
-        raise ValueError(f"Configuração inválida para host {host_id}")
+        raise ValueError(f"Configuração inválida para host {canonical}")
     return cfg
 
 
@@ -162,22 +200,23 @@ def sync_remote_runner(
     schedule_changed: bool = False,
     root: Path | None = None,
 ) -> dict[str, Any]:
+    canonical_host = resolve_catalog_host_id(host_id, root)
     if not ssh_sync_enabled():
         return {
             "enabled": False,
-            "host": host_id,
+            "host": canonical_host,
             "skipped": True,
             "reason": "OVERSEER_SSH_SYNC_ENABLED não está activo",
         }
 
-    cfg = get_host_config(host_id, root)
+    cfg = get_host_config(canonical_host, root)
     ssh_target = str(cfg.get("ssh") or "").strip()
     platform = str(cfg.get("platform") or "linux").strip().lower()
-    command = build_sync_command(host_id, cfg, schedule_changed=schedule_changed)
+    command = build_sync_command(canonical_host, cfg, schedule_changed=schedule_changed)
 
     result: dict[str, Any] = {
         "enabled": True,
-        "host": host_id,
+        "host": canonical_host,
         "ssh": ssh_target,
         "platform": platform,
         "skipped": False,

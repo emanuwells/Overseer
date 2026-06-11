@@ -117,6 +117,24 @@ curl -X POST http://127.0.0.1:8090/v1/catalog/pipelines ^
   -d "{\"pipeline_id\":\"demo_dag\",\"nodes\":[{\"module_id\":\"extract\"},{\"module_id\":\"load\"}],\"edges\":[{\"from_module_id\":\"extract\",\"to_module_id\":\"load\"}]}"
 ```
 
+Reconciliar o catálogo a partir de `deploy/runners/*.yaml` (DB ← YAML):
+
+```bash
+curl -X POST http://127.0.0.1:8090/v1/catalog/reconcile ^
+  -H "Authorization: Bearer $OVERSEER_API_TOKEN" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"sync_remote\": false}"
+```
+
+Editar metadados de um deployment (owner, cron, criticidade) com sync para YAML e runner remoto:
+
+```bash
+curl -X PATCH http://127.0.0.1:8090/v1/catalog/pipelines/traffic_flow ^
+  -H "Authorization: Bearer $OVERSEER_API_TOKEN" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"host_id\":\"baze2\",\"owner\":\"data\",\"schedule\":\"*/15 * * * *\",\"sync_remote\":true}"
+```
+
 Emitir uma run de demonstração:
 
 ```bash

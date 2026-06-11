@@ -11,6 +11,7 @@ from overseer_core import store
 def sqlite_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("OVERSEER_DB_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("OVERSEER_ROOT", str(tmp_path))
     store._engine = None
     store.init_schema()
     yield
