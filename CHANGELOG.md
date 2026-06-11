@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.6.1] - 2026-06-11T29:00:00+01:00
+
+### Host OS metadata e manutenção DB
+
+**Alterações:**
+- `deploy/runners/hosts.yaml`: `os_name`/`os_release` para baze2 (Ubuntu) e WS1207 (Windows 11).
+- `runner_hosts_status()` expõe `os_name` e `os_release` em `/v1/read/runner-hosts`.
+- `scripts/maintenance/overseer_db_maintenance.py`: nullificar CPU >100% e reconciliar runs running >6h.
+
+---
+
 ## [5.6.0] - 2026-06-11T28:00:00+01:00
 
 ### API read-first e revamp dual-frontend

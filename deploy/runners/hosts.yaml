@@ -3,9 +3,12 @@ hosts:
   baze2:
     ssh: eferreira@195.23.9.32
     platform: linux
+    os_name: Ubuntu
     repo_path: /home/eferreira/Dev/Repos/emanuwells/Overseer
   WS1207:
     ssh: DQSI@WS1207
     platform: windows
+    os_name: Windows
+    os_release: "11"
     # Caminho real no host Medidata (confirmar com Test-Path no WS1207)
     repo_path: C:\MAIATRON\Overseer

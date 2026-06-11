@@ -39,6 +39,8 @@ def runner_hosts_status(root: Path | None = None) -> list[dict[str, Any]]:
                 "host_id": host_id,
                 "ssh": str(cfg.get("ssh") or ""),
                 "platform": str(cfg.get("platform") or "linux"),
+                "os_name": str(cfg.get("os_name") or ""),
+                "os_release": str(cfg.get("os_release") or ""),
                 "repo_path": str(cfg.get("repo_path") or ""),
             }
         )
