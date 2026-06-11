@@ -610,10 +610,33 @@ def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
             ).first()
             if legacy:
                 existing = legacy
+        update_host_id = host_id
         if existing:
+            legacy_host = str(getattr(existing, "host_id", None) or existing.get("host_id") if isinstance(existing, dict) else getattr(existing, "host_id", "") or "")
+            if legacy_host:
+                update_host_id = legacy_host
+            current = get_pipeline(pipeline_id, update_host_id) or get_pipeline(pipeline_id, host_id)
+            if current:
+                for field in PATCHABLE_CATALOG_FIELDS:
+                    db_val = current.get(field)
+                    if db_val is not None and str(db_val).strip():
+                        values[field] = db_val
+                cur_meta = current.get("metadata")
+                if not isinstance(cur_meta, dict):
+                    cur_meta = json_load(current.get("metadata_json")) or {}
+                yaml_meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+                merged_meta = dict(cur_meta)
+                if yaml_meta.get("host_id"):
+                    merged_meta["host_id"] = yaml_meta["host_id"]
+                if yaml_meta.get("prev_schedule") and not merged_meta.get("prev_schedule"):
+                    merged_meta["prev_schedule"] = yaml_meta["prev_schedule"]
+                values["metadata_json"] = json_dump(merged_meta)
             conn.execute(
                 update(pipelines_table)
-                .where(pipelines_table.c.pipeline_id == pipeline_id)
+                .where(
+                    (pipelines_table.c.pipeline_id == pipeline_id)
+                    & (pipelines_table.c.host_id == update_host_id)
+                )
                 .values(**{k: v for k, v in values.items() if k != "created_at"})
             )
         else:
@@ -1300,6 +1323,8 @@ def find_pipeline_catalog(pipeline_id: str, host_id: str = "") -> dict[str, Any]
 
 
 def get_pipeline_dag(pipeline_id: str, host_id: str = "") -> dict[str, Any]:
+    from . import pipeline_inventory
+
     pipeline = get_pipeline(pipeline_id, host_id)
     with get_engine().connect() as conn:
         node_rows = conn.execute(
@@ -1312,10 +1337,13 @@ def get_pipeline_dag(pipeline_id: str, host_id: str = "") -> dict[str, Any]:
             .where(pipeline_edges_table.c.pipeline_id == pipeline_id)
             .order_by(pipeline_edges_table.c.from_module_id, pipeline_edges_table.c.to_module_id)
         ).mappings().all()
+    nodes = [row_to_dict(row) for row in node_rows]
+    inventory_nodes = pipeline_inventory.discover_inventory_nodes(pipeline, nodes)
     return {
         "pipeline": pipeline,
-        "nodes": [row_to_dict(row) for row in node_rows],
+        "nodes": nodes + inventory_nodes,
         "edges": [row_to_dict(row) for row in edge_rows],
+        "inventory_count": len(inventory_nodes),
     }
 
 

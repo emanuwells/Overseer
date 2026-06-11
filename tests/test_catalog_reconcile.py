@@ -86,8 +86,21 @@ def test_reconcile_updates_legacy_pipeline_row(sqlite_store, tmp_path: Path) -> 
     assert result["updated"]
     row = store.get_pipeline("demo_pipe", "BAZE2") or store.get_pipeline("demo_pipe", "")
     assert row is not None
-    assert row["owner"] == "data"
-    assert row["host_id"] == "BAZE2"
+    assert row["owner"] == "old"
+
+
+def test_reconcile_preserves_patched_owner(sqlite_store, tmp_path: Path) -> None:
+    _write_catalog(tmp_path)
+    store.reconcile_catalog_from_yaml()
+    store.patch_pipeline_catalog("demo_pipe", "BAZE2", {"owner": "eferreira"})
+    store.reconcile_catalog_from_yaml()
+    row = store.get_pipeline("demo_pipe", "BAZE2")
+    assert row is not None
+    assert row["owner"] == "eferreira"
+    deployments = store.list_deployments()
+    match = next((d for d in deployments if d.get("pipeline_id") == "demo_pipe"), None)
+    assert match is not None
+    assert match["owner"] == "eferreira"
 
 
 def test_reconcile_api_endpoint(sqlite_store, tmp_path: Path) -> None:

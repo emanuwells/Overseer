@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.7.1] - 2026-06-11T36:00:00+01:00
+
+### DB como fonte de verdade e inventário de código
+
+**Alterações:**
+- `register_pipeline_catalog`: reconcile YAML já não sobrescreve `owner`, `name`, `schedule`, `criticality` nem `runner_host` quando o pipeline existe na DB (PATCH/UI).
+- `get_pipeline_dag`: inventário de ficheiros `.py` no `cwd` de cada pipeline via SSH/local (`pipeline_inventory.py`).
+- Testes: `test_reconcile_preserves_patched_owner`, `test_pipeline_inventory.py`.
+
+**Pós-deploy:** não é necessário reconcile para corrigir owner; opcional `POST /v1/catalog/reconcile` com `{"sync_remote": false}` para actualizar DAG/nodes.
+
+---
+
 ## [5.7.0] - 2026-06-11T32:00:00+01:00
 
 ### Orquestração transversal e lineage rico
