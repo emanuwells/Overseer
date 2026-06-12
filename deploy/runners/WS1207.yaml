@@ -4,7 +4,7 @@
 pipelines:
   - id: medidata_pipeline
     name: Medidata Pipeline
-    owner: data
+    owner: eferreira
     criticality: medium
     schedule: manual
     task_match: "run_pipeline.py"
