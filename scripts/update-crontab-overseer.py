@@ -78,14 +78,31 @@ def main() -> int:
         if not matched:
             out.append(line)
 
+    missing = {str(p.get("id")) for p in pipelines} - replaced
+    appended: set[str] = set()
+    for item in pipelines:
+        pid = str(item.get("id") or "")
+        if not pid or pid not in missing:
+            continue
+        schedule = str(item.get("schedule") or "").strip()
+        run_sh = str(item.get("run_sh") or "")
+        log = str(item.get("log") or "/dev/null")
+        if not schedule or schedule == "manual" or not run_sh:
+            continue
+        out.append(f"{schedule} {run_sh} >> {log} 2>&1 # overseer:{pid}")
+        appended.add(pid)
+
     write_crontab(out)
     print(f"Backup: {backup_path}")
     print(f"Substituídas {len(replaced)} linhas: {', '.join(sorted(replaced))}")
-    missing = {str(p.get("id")) for p in pipelines} - replaced
-    if missing:
-        print(f"AVISO: não encontradas no crontab: {', '.join(sorted(missing))}", file=sys.stderr)
+    if appended:
+        print(f"Adicionadas {len(appended)} linhas: {', '.join(sorted(appended))}")
+    still_missing = missing - appended
+    if still_missing:
+        print(f"AVISO: não encontradas no crontab: {', '.join(sorted(still_missing))}", file=sys.stderr)
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

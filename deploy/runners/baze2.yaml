@@ -69,3 +69,15 @@ pipelines:
     steps:
       - module_id: wireforms_sync
         command: ["python3", "/home/eferreira/D4MAIA/Wireforms/wireforms_sync.py", "--sync"]
+  - id: warden_clean
+    name: Warden Clean
+    owner: ops
+    criticality: medium
+    schedule: "0 1 * * *"
+    log: /home/eferreira/D4MAIA/_crontab_logs/crontab_warden_clean.txt
+    cron_match: "warden_clean"
+    steps:
+      - module_id: warden_clean
+        command: ["bash", "/home/eferreira/MAIATRON/Warden/scripts/warden_clean.sh"]
+        cwd: /home/eferreira/MAIATRON/Warden
+
