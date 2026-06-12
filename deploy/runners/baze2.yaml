@@ -5,7 +5,7 @@
 pipelines:
   - id: backup_baze2
     name: Backup BaZe2 DB
-    owner: ops
+    owner: eferreira
     criticality: high
     schedule: "0 2 * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_backups.txt
@@ -16,7 +16,7 @@ pipelines:
 
   - id: baze2_info
     name: BaZe2 Info
-    owner: data
+    owner: eferreira
     criticality: medium
     schedule: "0 2 * * 1"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_info.txt
@@ -27,7 +27,7 @@ pipelines:
 
   - id: backup_webserver
     name: Backup Webserver NGINX
-    owner: ops
+    owner: eferreira
     criticality: high
     schedule: "0 3 * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_nginx.txt
@@ -38,7 +38,7 @@ pipelines:
 
   - id: weatherapi_4_maia
     name: WeatherAPI 4 Maia
-    owner: data
+    owner: eferreira
     criticality: medium
     schedule: "15,45 * * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_weather.txt
@@ -50,7 +50,7 @@ pipelines:
 
   - id: traffic_flow
     name: Yunex Traffic Flow
-    owner: data
+    owner: eferreira
     criticality: medium
     schedule: "*/15 * * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_traffic.txt
@@ -61,7 +61,7 @@ pipelines:
 
   - id: wireforms_sync
     name: Wireforms Sync
-    owner: data
+    owner: eferreira
     criticality: medium
     schedule: "0 23 * * 0"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_wireforms.txt
@@ -71,7 +71,7 @@ pipelines:
         command: ["python3", "/home/eferreira/D4MAIA/Wireforms/wireforms_sync.py", "--sync"]
   - id: warden_clean
     name: Warden Clean
-    owner: ops
+    owner: eferreira
     criticality: medium
     schedule: "0 1 * * *"
     log: /home/eferreira/D4MAIA/_crontab_logs/crontab_warden_clean.txt

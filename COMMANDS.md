@@ -43,6 +43,7 @@ Os frontends Overseer (`/ui/`) e MAIATRON Overseer são **read-only**. Catálogo
 | PATCH agenda/owner (exemplo) | `curl -X PATCH http://127.0.0.1:8090/v1/catalog/pipelines/traffic_flow -H "Authorization: Bearer $OVERSEER_API_TOKEN" -H "Content-Type: application/json" -d '{"host_id":"baze2","schedule":"0 2 * * *","sync_remote":true}'` |
 | Suspender pipeline manual | `curl -X PATCH .../medidata_pipeline -d '{"host_id":"WS1207","suspended":true,"sync_remote":false}'` |
 | Run now (agent) | `overseer-agent trigger medidata_pipeline --host-id WS1207 --by ops` |
+| Run now warden_clean (baze2) | `overseer-agent trigger warden_clean --host-id baze2 --by ops` |
 | Run now (curl) | `curl -X POST .../v1/orchestrate/triggers -d '{"pipeline_id":"medidata_pipeline","host_id":"WS1207","requested_by":"ops"}'` |
 | Purga pipelines legados | `python scripts/purge_legacy_pipelines.py --apply` |
 | Retenção telemetria 30d | `python scripts/overseer_retention.py --apply` |
