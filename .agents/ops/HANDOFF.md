@@ -6,11 +6,20 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-11T32:00:00+01:00 |
+| Última atualização | 2026-06-12T12:00:00+01:00 |
 | Branch Git | `main` |
-| Estado | 5.7.0 — dispatch SSH transversal; lineage rico; suspend manual |
+| Estado | 5.8.0 — frontends read-only; retenção 30d; purga legado DB |
 | Responsável / Agente | Cursor |
-| Última versão registada | 5.7.0 |
+| Última versão registada | 5.8.0 |
+
+## Nota v5.8.0 (2026-06-12)
+
+- Frontends Overseer `/ui/` e MAIATRON Overseer: **read-only** (sem PATCH/reconcile/trigger na UI).
+- Tab **Ambiente** substitui Orquestração no MAIATRON (hosts, DB, triggers, heartbeats).
+- `scripts/purge_legacy_pipelines.py` e `scripts/overseer_retention.py` (default 30 dias).
+- `microsoft_forms_2_datalake` em `EXCLUDED_PIPELINE_IDS`.
+- `overseer-agent trigger` exige `--host-id`.
+- Operações documentadas em `COMMANDS.md` secção «Operações (fora da UI)».
 
 ## Nota v5.7.0 (2026-06-11)
 

@@ -66,8 +66,13 @@ def cmd_exec(args: argparse.Namespace) -> int:
 
 
 def cmd_trigger(args: argparse.Namespace) -> int:
+    host_id = str(args.host_id or "").strip()
+    if not host_id:
+        print("host_id é obrigatório (--host-id).", file=sys.stderr)
+        return 2
     payload = {
         "pipeline_id": args.pipeline,
+        "host_id": host_id,
         "trigger_type": "run_now",
         "requested_by": args.by,
         "runner_host": args.runner,
@@ -114,6 +119,7 @@ def main() -> int:
 
     trigger = sub.add_parser("trigger", help="Enfileira trigger run_now.")
     trigger.add_argument("pipeline")
+    trigger.add_argument("--host-id", required=True, help="Host do deployment (ex. baze2, WS1207)")
     trigger.add_argument("--by", default="agent")
     trigger.add_argument("--runner", default="any")
     trigger.set_defaults(func=cmd_trigger)

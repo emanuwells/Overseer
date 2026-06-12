@@ -44,13 +44,13 @@
         <div class="hero-row">
           <div>
             <h1>Operações de pipelines</h1>
-            <p class="subhead">Estado por deployment (pipeline + host), edição de metadados com sync para YAML e runners remotos.</p>
+            <p class="subhead">Estado por deployment (pipeline + host). Interface read-only — alterações via runners e CLI (ver COMMANDS.md).</p>
           </div>
           <span class="pill" data-sync-state aria-live="polite">A carregar</span>
         </div>
         <div data-alert aria-live="polite"></div>
         <div class="token-banner" data-token-banner hidden>
-          <p>Para editar owner, agenda e criticidade, configure o token API em <code>js/overseer-config.js</code>.</p>
+          <p>Para aceder à API em produção, configure o token em <code>js/overseer-config.js</code>.</p>
         </div>
         <div class="kpis grid">
           <button class="card card-pad kpi kpi-click" type="button" data-kpi-action="scroll-pipelines" title="Ver tabela de deployments">
@@ -108,7 +108,6 @@
               </div>
               <div class="inspector-actions">
                 <a class="btn" data-inspector-dag href="lineage.html" hidden>Ver DAG</a>
-                <button class="btn" type="button" data-edit-pipeline hidden>Editar</button>
                 <button class="btn" type="button" data-copy="">Copiar run</button>
               </div>
             </div>
@@ -120,49 +119,6 @@
         </div>
       </section>
     </main>
-  </div>
-  <div class="edit-drawer" data-pipeline-edit hidden role="dialog" aria-modal="true" aria-labelledby="edit-drawer-title">
-    <div class="edit-drawer-backdrop" data-cancel-edit tabindex="-1"></div>
-    <form class="edit-drawer-panel">
-      <div class="edit-drawer-head">
-        <h2 id="edit-drawer-title">Editar deployment</h2>
-        <button class="btn icon-btn" type="button" data-cancel-edit aria-label="Fechar">×</button>
-      </div>
-      <p class="subhead" data-edit-target>—</p>
-      <label>Nome<input name="name" type="text" autocomplete="off"></label>
-      <label>Dono<input name="owner" type="text" autocomplete="off"></label>
-      <label>Agenda (cron ou manual)
-        <div class="schedule-row">
-          <input name="schedule" type="text" placeholder="0 2 * * * ou manual" autocomplete="off" list="cron-presets">
-          <datalist id="cron-presets">
-            <option value="manual">manual</option>
-            <option value="0 2 * * *">diário 02:00</option>
-            <option value="0 3 * * *">diário 03:00</option>
-            <option value="*/15 * * * *">cada 15 min</option>
-            <option value="15,45 * * * *">:15 e :45</option>
-            <option value="0 2 * * 1">segunda 02:00</option>
-          </datalist>
-        </div>
-      </label>
-      <label>Criticidade
-        <select name="criticality">
-          <option value="low">low</option>
-          <option value="medium">medium</option>
-          <option value="high">high</option>
-          <option value="critical">critical</option>
-        </select>
-      </label>
-      <label class="checkbox-row">
-        <input name="sync_remote" type="checkbox" checked>
-        <span>Sincronizar YAML e runner remoto (SSH)</span>
-      </label>
-      <p class="edit-hint" data-edit-hint>Com sync remoto activo, hosts Windows actualizam o Task Scheduler automaticamente quando a agenda muda.</p>
-      <div class="inspector-edit-actions">
-        <button class="btn primary" type="submit">Guardar</button>
-        <button class="btn" type="button" data-cancel-edit>Cancelar</button>
-      </div>
-      <div class="sync-feedback" data-sync-feedback hidden aria-live="polite"></div>
-    </form>
   </div>
   <script src="js/overseer-config.js"></script>
   <script src="js/app.js"></script>

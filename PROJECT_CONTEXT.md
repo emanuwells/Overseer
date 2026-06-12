@@ -9,7 +9,7 @@ Este ficheiro descreve o contexto específico do projeto Overseer. Deve ser lido
 | Nome | Overseer |
 | Tipo | Núcleo Docker para observabilidade de pipelines e DAGs |
 | Responsável | A confirmar |
-| Estado | Núcleo v5.6.0 read-first; catálogo DAG por API; frontends Overseer e MAIATRON via `/v1/read/*` |
+| Estado | Núcleo v5.8.0 read-only UI; catálogo DAG por API; frontends Overseer e MAIATRON só `/v1/read/*`; ops via CLI |
 | Escala | Projeto técnico não trivial, com API, DB, frontend, Docker, SDK e templates |
 
 ## Objetivo

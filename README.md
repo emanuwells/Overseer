@@ -1,7 +1,7 @@
 # Overseer
 
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20HTML%2FCSS%2FJS%20%7C%20MariaDB-29b6f6)
-![Version](https://img.shields.io/badge/version-5.4.1-2ecc71)
+![Version](https://img.shields.io/badge/version-5.8.0-2ecc71)
 ![Docker](https://img.shields.io/badge/docker-first-2496ed)
 ![License](https://img.shields.io/badge/license-A%20confirmar-lightgrey)
 
@@ -12,7 +12,7 @@ Overseer é um núcleo local para observar pipelines e DAGs por API. Recebe cat�
 - API de catálogo para registar pipelines, nodes e edges de DAG.
 - API de eventos para runs, módulos, logs e heartbeats.
 - Triggers operacionais sem execução local de código de pipelines.
-- Frontend em `/ui/dashboard.html` ligado aos endpoints reais.
+- Frontend read-only em `/ui/dashboard.html` (Operações, Runs, DAG, Ambiente).
 - SDK e agente Python para instrumentação em repositórios de pipelines externos.
 - Workflow Docker-first com API, UI e MariaDB local.
 - Alertas Slack (`#overseer`): falha imediata com `@channel`, digest diário às 08:30 e resolução imediata.
@@ -106,6 +106,7 @@ Usar `.env.example` como referência e nunca versionar `.env` real.
 | `OVERSEER_SLACK_WEBHOOK_URL` | Não | Webhook Slack para alertas e digest (ou `secrets/slack.json`). |
 | `OVERSEER_SLACK_DIGEST_HOUR` / `MINUTE` | Não | Digest diário; default `08:30` Europe/Lisbon. |
 | `OVERSEER_SSH_SYNC_ENABLED` | Não | Sync remoto de runners após PATCH de pipeline (`1` em prod). |
+| `OVERSEER_RETENTION_DAYS` | Não | Janela de retenção de telemetria; default `30`. |
 
 ## Uso Por API
 

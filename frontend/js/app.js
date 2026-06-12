@@ -10,7 +10,6 @@ const state = {
   selectedDeploymentKey: sessionStorage.getItem('overseer_selected_deployment') || '',
   selectedNodeId: '',
   selectedPipeline: null,
-  editOpen: false,
   runnerHosts: null,
 };
 
@@ -37,29 +36,6 @@ async function api(path) {
   if (response.status === 401) throw new Error('API devolveu 401. Confirma o token.');
   if (!response.ok) throw new Error(`API devolveu HTTP ${response.status}.`);
   return response.json();
-}
-
-async function apiWrite(method, path, body) {
-  const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
-  if (apiToken()) headers.Authorization = `Bearer ${apiToken()}`;
-  const response = await fetch(path, { method, headers, body: JSON.stringify(body) });
-  if (response.status === 401) throw new Error('API devolveu 401. Confirma o token.');
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = payload?.detail;
-    const message = Array.isArray(detail)
-      ? detail.map((item) => item.msg || item).join('; ')
-      : (typeof detail === 'string' ? detail : `API devolveu HTTP ${response.status}.`);
-    throw new Error(message);
-  }
-  return payload;
-}
-
-function isValidSchedule(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return false;
-  if (raw.toLowerCase() === 'manual') return true;
-  return raw.split(/\s+/).length === 5;
 }
 
 function effectiveHostId(item) {
@@ -156,119 +132,12 @@ function setInspectorSelection(item) {
   text('[data-inspector-state]', statusLabel(item.last_status), inspector);
   const copy = one('[data-copy]', inspector);
   if (copy) copy.dataset.copy = item.last_run_id || '';
-  const editBtn = one('[data-edit-pipeline]', inspector);
-  if (editBtn) {
-    editBtn.hidden = !effectiveHostId(item);
-    editBtn.disabled = !apiToken();
-    editBtn.title = apiToken() ? 'Editar owner, agenda e criticidade' : 'Configure o token API para editar';
-  }
   const dagLink = one('[data-inspector-dag]', inspector);
   if (dagLink) {
     dagLink.hidden = !item.pipeline_id;
     dagLink.href = lineageUrl(item.pipeline_id, effectiveHostId(item));
   }
   renderDeploymentRuns(item);
-  if (!state.editOpen) hidePipelineEditForm();
-}
-
-function hidePipelineEditForm() {
-  state.editOpen = false;
-  const drawer = one('[data-pipeline-edit]');
-  if (drawer) drawer.hidden = true;
-  const feedback = one('[data-sync-feedback]');
-  if (feedback) feedback.hidden = true;
-}
-
-function showPipelineEditForm(item) {
-  const drawer = one('[data-pipeline-edit]');
-  const form = drawer?.querySelector('form');
-  if (!form || !item) return;
-  state.editOpen = true;
-  drawer.hidden = false;
-  text('[data-edit-target]', `${pipelineDisplayName(item)} @ ${hostDisplay(item)}`);
-  form.elements.name.value = item.name || item.pipeline_id || '';
-  form.elements.owner.value = item.owner || '';
-  form.elements.schedule.value = item.schedule || 'manual';
-  form.elements.criticality.value = item.criticality || 'medium';
-  if (form.elements.sync_remote) form.elements.sync_remote.checked = true;
-  const feedback = one('[data-sync-feedback]');
-  if (feedback) feedback.hidden = true;
-  const hint = one('[data-edit-hint]');
-  if (hint) {
-    const isWindows = String(item.runner_platform || '').toLowerCase() === 'windows';
-    hint.textContent = isWindows
-      ? 'Host Windows: com sync remoto activo, a agenda actualiza o Task Scheduler após guardar (git pull + provision + triggers).'
-      : 'Com sync remoto activo, hosts Linux actualizam crontab quando a agenda muda.';
-  }
-  form.elements.name.focus();
-}
-
-function formatSyncFeedback(sync) {
-  if (!sync) return { text: 'Metadados actualizados na base de dados.', kind: 'ok' };
-  const lines = ['DB: ok'];
-  let kind = 'ok';
-  if (sync.yaml?.path) lines.push(`YAML: ${sync.yaml.path}`);
-  const ssh = sync.ssh;
-  if (ssh?.skipped) {
-    lines.push(`SSH: ignorado (${ssh.reason || 'desactivado'})`);
-    kind = 'warn';
-  } else if (ssh) {
-    lines.push(`SSH (${ssh.mode || 'remote'}): exit ${ssh.exit_code}`);
-    if (!ssh.ok) kind = 'warn';
-    if (ssh.schedule_note) lines.push(ssh.schedule_note);
-    if (sync.ssh_stdout_tail) lines.push(sync.ssh_stdout_tail);
-  }
-  return { text: lines.join('\n'), kind };
-}
-
-async function savePipelineEdit(event) {
-  event.preventDefault();
-  const item = state.selectedPipeline;
-  const hostId = effectiveHostId(item);
-  if (!hostId) {
-    setAlert('Selecciona um pipeline com host identificado para editar.', 'error');
-    return;
-  }
-  const form = event.currentTarget;
-  const schedule = form.elements.schedule.value.trim();
-  if (!isValidSchedule(schedule)) {
-    setAlert('Agenda inválida: use cron de 5 campos ou manual.', 'error');
-    return;
-  }
-  setSync('A guardar…');
-  try {
-    const body = {
-      host_id: hostId,
-      name: form.elements.name.value.trim() || undefined,
-      owner: form.elements.owner.value.trim() || undefined,
-      schedule,
-      criticality: form.elements.criticality.value,
-      sync_remote: Boolean(form.elements.sync_remote?.checked),
-    };
-    const result = await apiWrite('PATCH', `/v1/catalog/pipelines/${encodeURIComponent(item.pipeline_id)}`, body);
-    const feedback = formatSyncFeedback(result.sync);
-    const feedbackEl = one('[data-sync-feedback]');
-    if (feedbackEl) {
-      feedbackEl.hidden = false;
-      feedbackEl.className = `sync-feedback ${feedback.kind}`;
-      feedbackEl.textContent = feedback.text;
-    }
-    setAlert(feedback.text.replace(/\n/g, ' · '), feedback.kind);
-    await loadDashboard();
-    const refreshed = findPipelineRow(item.pipeline_id, hostId);
-    if (refreshed) setInspectorSelection(refreshed);
-  } catch (error) {
-    setSync('Erro', 'danger');
-    setAlert(error.message, 'error');
-  }
-}
-
-function bindPipelineEdit() {
-  one('[data-edit-pipeline]')?.addEventListener('click', () => {
-    if (state.selectedPipeline) showPipelineEditForm(state.selectedPipeline);
-  });
-  by('[data-cancel-edit]').forEach((btn) => btn.addEventListener('click', hidePipelineEditForm));
-  one('[data-pipeline-edit] form')?.addEventListener('submit', savePipelineEdit);
 }
 
 function bindHostFilters() {
@@ -415,7 +284,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', href: 'dashboard.html', label: 'Operações', hint: 'estado e KPIs' },
   { id: 'runs', href: 'run-detail.html', label: 'Runs', hint: 'histórico e detalhe' },
   { id: 'lineage', href: 'lineage.html', label: 'DAG', hint: 'catálogo e módulos' },
-  { id: 'deployments', href: 'deployments.html', label: 'Ambiente', hint: 'DB e heartbeats' },
+  { id: 'deployments', href: 'deployments.html', label: 'Ambiente', hint: 'DB, hosts e actividade' },
 ];
 
 function renderAppNav(currentId) {
@@ -665,21 +534,6 @@ function renderRunnerHosts(payload) {
     const enabled = Boolean(payload?.ssh_sync_enabled);
     syncPill.className = `pill ${enabled ? 'ok' : 'warn'}`;
     syncPill.textContent = enabled ? 'SSH sync activo' : 'SSH sync desactivado';
-  }
-}
-
-async function reconcileCatalog(syncRemote = false) {
-  setSync('A reconciliar…');
-  try {
-    const result = await apiWrite('POST', '/v1/catalog/reconcile', { sync_remote: syncRemote });
-    const created = result.reconcile?.created?.length || 0;
-    const updated = result.reconcile?.updated?.length || 0;
-    setAlert(`Catálogo reconciliado: ${created} criado(s), ${updated} actualizado(s).`, 'ok');
-    setSync('Sincronizado', 'ok');
-    await loadEnvironment();
-  } catch (error) {
-    setSync('Erro', 'danger');
-    setAlert(error.message, 'error');
   }
 }
 
@@ -998,10 +852,6 @@ async function loadLineage() {
   }
 }
 
-function bindReconcile() {
-  one('[data-reconcile-catalog]')?.addEventListener('click', () => reconcileCatalog(false));
-}
-
 function init() {
   const view = document.body.dataset.view || 'dashboard';
   renderAppNav(view);
@@ -1017,9 +867,7 @@ function init() {
   bindSearch();
   bindCopy();
   bindTabs();
-  bindPipelineEdit();
   bindKpiActions();
-  bindReconcile();
   load();
 }
 

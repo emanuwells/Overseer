@@ -31,21 +31,34 @@ Comandos rápidos do Overseer.
 | Resolvido | alerta imediato quando a run seguinte termina `ok` |
 | Desactivar digest | `OVERSEER_SLACK_DIGEST_ENABLED=false` |
 
+## Operações (fora da UI)
+
+Os frontends Overseer (`/ui/`) e MAIATRON Overseer são **read-only**. Catálogo, triggers e sync remoto fazem-se por CLI/API.
+
+| Ação | Comando |
+|---|---|
+| Token API (local) | Definir `OVERSEER_API_TOKEN` no `.env` ou `js/overseer-config.js` |
+| Reconciliar catálogo pós-deploy | `curl -sf -X POST http://127.0.0.1:8090/v1/catalog/reconcile -H "Authorization: Bearer $OVERSEER_API_TOKEN" -H "Content-Type: application/json" -d '{"sync_remote":false}'` |
+| Reconciliar + sync remoto | `curl ... -d '{"sync_remote":true}'` |
+| PATCH agenda/owner (exemplo) | `curl -X PATCH http://127.0.0.1:8090/v1/catalog/pipelines/traffic_flow -H "Authorization: Bearer $OVERSEER_API_TOKEN" -H "Content-Type: application/json" -d '{"host_id":"baze2","schedule":"0 2 * * *","sync_remote":true}'` |
+| Suspender pipeline manual | `curl -X PATCH .../medidata_pipeline -d '{"host_id":"WS1207","suspended":true,"sync_remote":false}'` |
+| Run now (agent) | `overseer-agent trigger medidata_pipeline --host-id WS1207 --by ops` |
+| Run now (curl) | `curl -X POST .../v1/orchestrate/triggers -d '{"pipeline_id":"medidata_pipeline","host_id":"WS1207","requested_by":"ops"}'` |
+| Purga pipelines legados | `python scripts/purge_legacy_pipelines.py --apply` |
+| Retenção telemetria 30d | `python scripts/overseer_retention.py --apply` |
+| Retenção (dry-run) | `python scripts/overseer_retention.py --dry-run` |
+| Cron retenção (prod) | `0 3 * * * cd ~/Dev/Repos/emanuwells/Overseer && docker compose -f docker-compose.prod.yml exec -T overseer-api python scripts/overseer_retention.py --apply` |
+
 ## Sync remoto de runners (SSH)
 
 | Ação | Comando |
 |---|---|
 | Activar sync na API | `OVERSEER_SSH_SYNC_ENABLED=1` no `.env` (requer chave SSH no host/container) |
 | Hosts registados | `deploy/runners/hosts.yaml` |
-| Editar pipeline (UI) | Dashboard → seleccionar linha → **Editar** → Guardar (DB + YAML + SSH) |
-| Reconciliar catálogo (UI) | Ambiente → separador **Sync** → **Reconciliar catálogo** |
-| Reconciliar catálogo (API) | `POST /v1/catalog/reconcile` com `{"sync_remote": false}` |
-| Hosts de sync (API) | `GET /v1/read/runner-hosts` |
-| PATCH API | `PATCH /v1/catalog/pipelines/{id}` com `host_id`, `owner`, `schedule`, `suspended`, `sync_remote` |
-| Run now (API) | `POST /v1/orchestrate/triggers` com `pipeline_id`, `host_id` (requer `OVERSEER_SSH_SYNC_ENABLED=1`) |
+| Hosts (API read) | `GET /v1/read/runner-hosts` |
+| Provision Linux (baze2) | `bash scripts/provision-runners.sh --register` |
+| Provision Windows (WS1207) | `.\scripts\windows\provision-runners.ps1 -Register` |
 | Run now cross-host | API em baze2 faz SSH ao worker (`baze2` local ou `DQSI@WS1207`) |
-| Suspender manual | `PATCH` com `"suspended": true` (Medidata e outros `schedule: manual`) |
-| Pós-deploy DAG | `POST /v1/catalog/reconcile` com `{"sync_remote": false}` |
 | Agenda Windows (Task Scheduler) | Após PATCH com `sync_remote`: `update-taskscheduler-schedule.ps1` no host (automático via SSH) |
 
 ## Docker

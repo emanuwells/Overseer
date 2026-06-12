@@ -270,7 +270,13 @@ def database_status() -> dict[str, Any]:
     return result
 
 
-EXCLUDED_PIPELINE_IDS = frozenset({"health_probe", "p_monitor_recent"})
+EXCLUDED_PIPELINE_IDS = frozenset({
+    "health_probe",
+    "p_monitor_recent",
+    "microsoft_forms_2_datalake",
+})
+
+LEGACY_PIPELINE_IDS = EXCLUDED_PIPELINE_IDS
 
 
 def is_excluded_pipeline(pipeline_id: str) -> bool:
@@ -1196,6 +1202,90 @@ def purge_pipeline_data(
             )
             counts["deactivated"] = bool(pipe_result.rowcount)
     return counts
+
+
+def purge_retention(
+    days: int = 30,
+    *,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Remove telemetry older than ``days``. Catalog rows are preserved."""
+    if days < 1:
+        raise ValueError("days must be >= 1")
+    cutoff = utcnow() - timedelta(days=days)
+    counts: dict[str, Any] = {
+        "days": days,
+        "cutoff": cutoff.isoformat(),
+        "dry_run": dry_run,
+        "runs": 0,
+        "modules": 0,
+        "logs": 0,
+        "triggers": 0,
+        "heartbeats": 0,
+    }
+
+    with get_engine().connect() as conn:
+        run_ids = [
+            str(row[0])
+            for row in conn.execute(
+                select(runs_table.c.run_id).where(runs_table.c.started_at < cutoff)
+            ).all()
+        ]
+        counts["runs"] = len(run_ids)
+
+        if run_ids:
+            counts["modules"] = int(
+                conn.execute(
+                    select(func.count()).select_from(modules_table).where(modules_table.c.run_id.in_(run_ids))
+                ).scalar_one()
+            )
+            counts["logs"] = int(
+                conn.execute(
+                    select(func.count()).select_from(logs_table).where(logs_table.c.run_id.in_(run_ids))
+                ).scalar_one()
+            )
+
+        counts["triggers"] = int(
+            conn.execute(
+                select(func.count()).select_from(triggers_table).where(triggers_table.c.created_at < cutoff)
+            ).scalar_one()
+        )
+        counts["heartbeats"] = int(
+            conn.execute(
+                select(func.count()).select_from(heartbeats_table).where(heartbeats_table.c.seen_at < cutoff)
+            ).scalar_one()
+        )
+
+    if dry_run:
+        return counts
+
+    with get_engine().begin() as conn:
+        if run_ids:
+            mod_result = conn.execute(delete(modules_table).where(modules_table.c.run_id.in_(run_ids)))
+            log_result = conn.execute(delete(logs_table).where(logs_table.c.run_id.in_(run_ids)))
+            run_result = conn.execute(delete(runs_table).where(runs_table.c.run_id.in_(run_ids)))
+            counts["modules"] = int(mod_result.rowcount or 0)
+            counts["logs"] = int(log_result.rowcount or 0)
+            counts["runs"] = int(run_result.rowcount or 0)
+
+        trig_result = conn.execute(delete(triggers_table).where(triggers_table.c.created_at < cutoff))
+        hb_result = conn.execute(delete(heartbeats_table).where(heartbeats_table.c.seen_at < cutoff))
+        counts["triggers"] = int(trig_result.rowcount or 0)
+        counts["heartbeats"] = int(hb_result.rowcount or 0)
+
+    return counts
+
+
+def purge_legacy_pipelines(*, dry_run: bool = False) -> dict[str, Any]:
+    """Purge runs/modules/logs and deactivate known legacy pipeline catalog rows."""
+    summary: dict[str, Any] = {"dry_run": dry_run, "pipelines": {}}
+    for pipeline_id in sorted(LEGACY_PIPELINE_IDS):
+        summary["pipelines"][pipeline_id] = purge_pipeline_data(
+            pipeline_id,
+            deactivate=True,
+            dry_run=dry_run,
+        )
+    return summary
 
 
 def record_module(payload: dict[str, Any]) -> dict[str, Any]:
