@@ -1,4 +1,4 @@
-# MCP Servers — Development
+# Servidores MCP — Desenvolvimento
 
 MCPs úteis para desenvolvimento profissional.
 
@@ -46,7 +46,7 @@ Regras:
 - não executar `down -v`, prune ou remoção sem confirmação;
 - cuidado com produção.
 
-## Browser Automation
+## Automação de Navegador
 
 Finalidade:
 
@@ -59,4 +59,4 @@ Regras:
 
 - não executar ações reais em produção;
 - preferir ambientes locais/staging;
-- não guardar credenciais no browser automatizado.
+- não guardar credenciais no navegador automatizado.

@@ -2,7 +2,7 @@
 
 Política de dependências e manifestos.
 
-## Regra Principal
+## Regra principal
 
 Se o projeto, script, pipeline, job, notebook ou automação precisar de dependências externas, deve existir manifesto adequado ao ecossistema.
 

@@ -2,7 +2,7 @@
 
 Estrutura transversal para segredos, SSH, `.env` e credenciais.
 
-## Regra Principal
+## Regra principal
 
 Segredos reais nunca devem ser versionados.
 
@@ -15,18 +15,18 @@ A IA deve tratar como sensível:
 - certificados;
 - ficheiros `.env` reais;
 - strings de ligação;
-- JSON de service accounts;
+- JSON de contas de serviço;
 - dumps de base de dados com dados reais.
 
-## Ordem Recomendada
+## Ordem recomendada
 
 1. SSH configurado fora do repositório.
 2. Variáveis de ambiente.
-3. Secret manager/plataforma de deploy.
+3. Gestor de segredos/plataforma de deploy.
 4. JSON de credenciais apenas quando o serviço exigir.
 5. Ficheiros locais ignorados pelo Git.
 
-## Estrutura Recomendada
+## Estrutura recomendada
 
 ```text
 projeto/
@@ -43,7 +43,7 @@ projeto/
     └── credentials/
 ```
 
-## Pode Ser Versionado
+## Pode ser versionado
 
 - `.env.example`;
 - `secrets/README.md`;
@@ -52,7 +52,7 @@ projeto/
 - nomes de variáveis;
 - documentação de configuração sem valores reais.
 
-## Nunca Versionar
+## Nunca versionar
 
 - `.env`;
 - `.env.local`;
@@ -62,10 +62,10 @@ projeto/
 - `*.key`;
 - `*.p12`;
 - `*.pfx`;
-- JSON real de service accounts;
+- JSON real de contas de serviço;
 - backups e dumps com dados reais.
 
-## `.gitignore` Base
+## `.gitignore` base
 
 ```gitignore
 .env
@@ -103,7 +103,7 @@ git remote -v
 
 A IA não pode imprimir, copiar, criar, substituir ou apagar chaves SSH sem autorização explícita.
 
-## JSON De Credenciais
+## JSON de credenciais
 
 JSON real só deve existir quando inevitável.
 
@@ -111,7 +111,7 @@ Regras:
 
 - usar `*.example.json` no Git;
 - guardar JSON real em `.secrets/credentials/` localmente;
-- em produção, preferir secret manager;
+- em produção, preferir gestor de segredos;
 - nunca imprimir o conteúdo real.
 
 ## Checklist
@@ -121,5 +121,5 @@ Regras:
 [ ] `.env.example` usa valores fictícios.
 [ ] JSON de credenciais é exemplo.
 [ ] SSH fica fora do repositório.
-[ ] `.gitignore` protege secrets.
+[ ] `.gitignore` protege segredos.
 ```

@@ -4,7 +4,7 @@ Convenções de nomes humanas, profissionais e previsíveis.
 
 ## Objetivo
 
-Criar projetos que pareçam mantidos por full-stack developers sénior: nomes claros, pesquisáveis e coerentes.
+Criar projetos que pareçam mantidos por programadores full-stack sénior: nomes claros, pesquisáveis e coerentes.
 
 ## Princípios
 
@@ -138,7 +138,7 @@ GET /users
 GET /users/:id
 POST /projects
 PATCH /projects/:id/status
-POST /auth/login
+POST /autenticação/login
 ```
 
 Evitar:

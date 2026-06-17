@@ -1,21 +1,21 @@
-# MCP Servers — Databases
+# Servidores MCP — bases de Dados
 
 MCPs de base de dados são úteis, mas críticos.
 
-## Quando Usar
+## Quando usar
 
 - inspeção de schema;
 - queries read-only;
 - validação de dados;
 - diagnóstico;
-- apoio a migrations.
+- apoio a migrações.
 
 ## Regras
 
 - preferir utilizadores read-only;
 - nunca guardar connection strings reais no Git;
 - confirmar base de dados e ambiente;
-- não executar `DROP`, `TRUNCATE`, `DELETE`, `UPDATE` ou migrations sem confirmação explícita;
+- não executar `DROP`, `TRUNCATE`, `DELETE`, `UPDATE` ou migrações sem confirmação explícita;
 - fazer backup antes de operações destrutivas;
 - registar comandos e impacto em handoff/changelog.
 
@@ -39,4 +39,4 @@ Usar placeholders nos exemplos:
 }
 ```
 
-Valores reais devem ir para `.env`, `.secrets/` ou secret manager.
+Valores reais devem ir para `.env`, `.secrets/` ou gestor de segredos.

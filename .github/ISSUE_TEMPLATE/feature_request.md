@@ -8,6 +8,6 @@ A confirmar.
 
 A confirmar.
 
-## Critérios De Aceitação
+## Critérios de Aceitação
 
 - [ ] A confirmar.

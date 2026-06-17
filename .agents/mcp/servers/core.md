@@ -1,6 +1,6 @@
-# MCP Servers — Core
+# Servidores MCP — Essenciais
 
-MCPs úteis em quase todos os projetos, desde que estejam disponíveis no IDE/CLI/agent.
+MCPs úteis em quase todos os projetos, desde que estejam disponíveis no IDE/CLI/agente.
 
 ## Filesystem
 
@@ -15,7 +15,7 @@ Regras:
 
 - limitar a pastas do projeto;
 - evitar acesso amplo à home do utilizador;
-- não ler secrets reais;
+- não ler segredos reais;
 - não apagar ficheiros sem aplicar `REPO_HYGIENE.md`.
 
 ## Git
@@ -56,7 +56,7 @@ Finalidade:
 
 Regras:
 
-- não guardar secrets;
+- não guardar segredos;
 - não guardar dados pessoais sensíveis;
 - preferir documentação versionada para decisões do projeto.
 
@@ -78,7 +78,7 @@ Finalidade:
 
 - decompor tarefas complexas;
 - evitar alterações impulsivas;
-- planear refactors, deploys e debug.
+- planear refatorizações, deploys e depuração.
 
 Regras:
 

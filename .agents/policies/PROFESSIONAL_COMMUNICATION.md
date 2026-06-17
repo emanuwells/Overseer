@@ -4,9 +4,9 @@ Política de comunicação, documentação e explicação técnica.
 
 ## Objetivo
 
-Garantir que o projeto é explicado como um repositório profissional, apresentável e escalável, ao nível de um developer sénior.
+Garantir que o projeto é explicado como um repositório profissional, apresentável e escalável, ao nível de um programador sénior.
 
-## Regra Principal
+## Regra principal
 
 Explicar conceitos, responsabilidades e decisões técnicas. Evitar descrições demasiado internas, frágeis ou casuais.
 
@@ -28,7 +28,7 @@ A camada de persistência centraliza o acesso à base de dados relacional e exp�
 - Usar linguagem profissional e precisa.
 - Preferir conceitos: persistência, autenticação, orquestração, domínio, integração, validação, observabilidade, pipelines, deploy.
 - Evitar detalhes internos irrelevantes quando não ajudam a compreender arquitetura.
-- Mostrar trade-offs quando há decisão técnica.
+- Mostrar compromissos técnicos quando há decisão técnica.
 - Indicar limitações reais com honestidade.
 - Escrever documentação preparada para equipa técnica, recrutador, cliente ou maintainer futuro.
 
@@ -41,7 +41,7 @@ A camada de persistência centraliza o acesso à base de dados relacional e exp�
 - Explicações que dependem de nomes internos do utilizador.
 - Linguagem demasiado informal em documentação.
 
-## Template Mental
+## Modelo mental
 
 Ao explicar um componente, responder:
 

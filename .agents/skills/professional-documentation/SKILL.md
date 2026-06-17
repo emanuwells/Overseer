@@ -3,9 +3,9 @@ name: professional-documentation
 description: Garante documentação conceptual, sénior e apresentável.
 ---
 
-# Professional Documentation
+# Documentação Profissional
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
@@ -19,7 +19,7 @@ Garante documentação conceptual, sénior e apresentável.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

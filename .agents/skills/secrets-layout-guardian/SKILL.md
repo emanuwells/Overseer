@@ -1,17 +1,17 @@
 ---
-name: secrets-layout-guardian
-description: Protege secrets, SSH, env vars e JSON de credenciais.
+name: segredos-layout-guardian
+description: Protege segredos, SSH, env vars e JSON de credenciais.
 ---
 
-# Secrets Layout Guardian
+# Guardião de Segredos e Estrutura Local
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
 ## Objetivo
 
-Protege secrets, SSH, env vars e JSON de credenciais.
+Protege segredos, SSH, env vars e JSON de credenciais.
 
 ## Procedimento
 
@@ -19,7 +19,7 @@ Protege secrets, SSH, env vars e JSON de credenciais.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

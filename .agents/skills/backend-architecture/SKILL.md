@@ -3,9 +3,9 @@ name: backend-architecture
 description: Organiza APIs, serviços, validação, erros e logs.
 ---
 
-# Backend Architecture
+# Arquitetura Backend
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
@@ -19,7 +19,7 @@ Organiza APIs, serviços, validação, erros e logs.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

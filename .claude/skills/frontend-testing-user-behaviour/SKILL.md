@@ -3,9 +3,9 @@ name: frontend-testing-user-behaviour
 description: Testa comportamento observável do utilizador.
 ---
 
-# Frontend Testing User Behaviour
+# Testes Frontend do Comportamento do Utilizador
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
@@ -19,7 +19,7 @@ Testa comportamento observável do utilizador.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

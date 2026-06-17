@@ -1,6 +1,6 @@
-# MCP Servers — Browser Automation
+# Servidores MCP — Automação de Navegador
 
-MCPs de browser são úteis para validar frontend e fluxos E2E.
+MCPs de navegador são úteis para validar frontend e fluxos E2E.
 
 ## Finalidade
 
@@ -10,7 +10,7 @@ MCPs de browser são úteis para validar frontend e fluxos E2E.
 - capturar screenshots;
 - verificar formulários;
 - validar estados loading/error/empty;
-- apoio a Lighthouse/Core Web Vitals quando integrado.
+- apoio a Lighthouse/Essenciais Web Vitals quando integrado.
 
 ## Regras
 
@@ -20,9 +20,9 @@ MCPs de browser são úteis para validar frontend e fluxos E2E.
 - limpar estado quando necessário;
 - documentar fluxos testados.
 
-## Quality Gates Relacionados
+## Critérios de Qualidade Relacionados
 
-- frontend build;
+- build de frontend;
 - lint/typecheck;
 - testes;
 - acessibilidade básica;

@@ -1,17 +1,17 @@
 ---
 name: api-contract-guardian
-description: Protege endpoints, payloads, status codes e auth.
+description: Protege endpoints, payloads, status codes e autenticação.
 ---
 
-# API Contract Guardian
+# Guardião de Contratos de API
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
 ## Objetivo
 
-Protege endpoints, payloads, status codes e auth.
+Protege endpoints, payloads, status codes e autenticação.
 
 ## Procedimento
 
@@ -19,7 +19,7 @@ Protege endpoints, payloads, status codes e auth.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

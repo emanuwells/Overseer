@@ -1,17 +1,17 @@
 ---
 name: frontend-accessibility-wcag
-description: Revê semântica, teclado, foco, contraste e labels.
+description: Revê semântica, teclado, foco, contraste e rótulos.
 ---
 
-# Frontend Accessibility WCAG
+# Acessibilidade Frontend WCAG
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
 ## Objetivo
 
-Revê semântica, teclado, foco, contraste e labels.
+Revê semântica, teclado, foco, contraste e rótulos.
 
 ## Procedimento
 
@@ -19,7 +19,7 @@ Revê semântica, teclado, foco, contraste e labels.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

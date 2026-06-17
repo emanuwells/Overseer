@@ -1,0 +1,45 @@
+# Env reais
+.env
+.env.*
+!.env.example
+
+# Segredos locais
+.secrets/
+.secrets/**
+
+# Credenciais reais
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*credentials*.json
+
+# Exemplos seguros
+!*.example.json
+!secrets/
+!secrets/README.md
+!secrets/examples/
+!secrets/examples/*.example.json
+!secrets/examples/*.example
+
+# Dependências
+node_modules/
+vendor/
+.venv/
+__pycache__/
+
+# Builds/cache
+dist/
+build/
+coverage/
+.cache/
+.tmp/
+temp/
+
+# Sistema/IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json

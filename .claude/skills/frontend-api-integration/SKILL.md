@@ -1,17 +1,17 @@
 ---
 name: frontend-api-integration
-description: Integra APIs com contratos, tipos, erros e auth.
+description: Integra APIs com contratos, tipos, erros e autenticação.
 ---
 
-# Frontend API Integration
+# Integração Frontend com API
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
 ## Objetivo
 
-Integra APIs com contratos, tipos, erros e auth.
+Integra APIs com contratos, tipos, erros e autenticação.
 
 ## Procedimento
 
@@ -19,7 +19,7 @@ Integra APIs com contratos, tipos, erros e auth.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

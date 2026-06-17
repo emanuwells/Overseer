@@ -1,17 +1,17 @@
 ---
 name: frontend-skill-orchestrator
-description: Coordena Skills frontend relevantes.
+description: Coordena competências frontend relevantes.
 ---
 
-# Frontend Skill Orchestrator
+# Orquestrador de Competências Frontend
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
 ## Objetivo
 
-Coordena Skills frontend relevantes.
+Coordena competências frontend relevantes.
 
 ## Procedimento
 
@@ -19,7 +19,7 @@ Coordena Skills frontend relevantes.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

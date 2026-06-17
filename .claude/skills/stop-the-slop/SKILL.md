@@ -3,9 +3,9 @@ name: stop-the-slop
 description: Remove texto vago, genérico, informal ou enganador.
 ---
 
-# Stop The Slop
+# Controlo de Qualidade contra Ruído
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
@@ -19,7 +19,7 @@ Remove texto vago, genérico, informal ou enganador.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras

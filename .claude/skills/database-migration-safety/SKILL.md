@@ -1,17 +1,17 @@
 ---
 name: database-migration-safety
-description: Reduz risco em schema, migrations e dados.
+description: Reduz risco em schema, migrações e dados.
 ---
 
-# Database Migration Safety
+# Segurança de Migrações de base de Dados
 
-## Quando Usar
+## Quando usar
 
 Usar quando a tarefa tocar neste domínio.
 
 ## Objetivo
 
-Reduz risco em schema, migrations e dados.
+Reduz risco em schema, migrações e dados.
 
 ## Procedimento
 
@@ -19,7 +19,7 @@ Reduz risco em schema, migrations e dados.
 2. Confirmar contexto real do projeto.
 3. Aplicar políticas relevantes em `.agents/policies/`.
 4. Fazer a alteração mínima e profissional.
-5. Validar com quality gates aplicáveis.
+5. Validar com critérios de qualidade aplicáveis.
 6. Atualizar documentação, comandos, handoff e changelog quando necessário.
 
 ## Regras
