@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import threading
 import time
 from typing import Any
 
 import psutil
+
+logger = logging.getLogger("overseer.run_telemetry")
 
 
 def _telemetry_has_value(key: str, metadata: dict[str, Any]) -> bool:
@@ -34,8 +37,8 @@ def collect_process_telemetry(
             cpu_sample = proc.cpu_percent(interval=None)
             if cpu_sample is not None:
                 cpu = max(cpu, float(cpu_sample))
-        except Exception:
-            pass
+        except (psutil.NoSuchProcess, psutil.AccessDenied, OSError) as exc:
+            logger.debug("Telemetria de processo indisponível: %s", exc)
     result: dict[str, float] = {}
     if rss > 0:
         usage_mem_mb = round(rss / (1024 * 1024), 2)
@@ -54,8 +57,8 @@ class TelemetryTracker:
         self._parent = psutil.Process()
         try:
             self._parent.cpu_percent()
-        except Exception:
-            pass
+        except (psutil.NoSuchProcess, psutil.AccessDenied, OSError) as exc:
+            logger.debug("cpu_percent inicial falhou: %s", exc)
         self.sample()
 
     def sample(self, process: psutil.Process | None = None) -> None:
@@ -68,7 +71,7 @@ class TelemetryTracker:
                 cpu_sample = proc.cpu_percent(interval=None)
                 if cpu_sample is not None:
                     self.peak_cpu = max(self.peak_cpu, float(cpu_sample))
-            except Exception:
+            except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
                 continue
 
     def as_metadata(self) -> dict[str, float]:
@@ -140,7 +143,8 @@ def run_subprocess_with_telemetry(
     try:
         child_ps = psutil.Process(proc.pid)
         child_ps.cpu_percent()
-    except Exception:
+    except (psutil.NoSuchProcess, psutil.AccessDenied, OSError) as exc:
+        logger.debug("Processo-filho não monitorável (pid=%s): %s", proc.pid, exc)
         child_ps = None
 
     def _sample_loop() -> None:

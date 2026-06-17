@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
 import socket
@@ -180,7 +181,10 @@ def json_load(value: Any) -> Any:
         return None
     try:
         return json.loads(str(value))
-    except Exception:
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        logging.getLogger("overseer.store").warning(
+            "json_load falhou (input truncado: %.120s): %s", str(value)[:120], exc,
+        )
         return None
 
 
@@ -266,7 +270,8 @@ def database_status() -> dict[str, Any]:
             }
         result["reachable"] = True
     except Exception as exc:
-        result["error"] = exc.__class__.__name__
+        result["error"] = f"{exc.__class__.__name__}: {exc}"
+        logging.getLogger("overseer.store").warning("database_status falhou: %s", result["error"])
     return result
 
 
@@ -1120,7 +1125,9 @@ def finish_run(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
                         )
                     finished = get_run(run_id) or finished
     except Exception:
-        pass
+        logging.getLogger("overseer.store").exception(
+            "Slack notification falhou para run %s (pipeline=%s)", run_id, pipeline_id,
+        )
     return finished
 
 

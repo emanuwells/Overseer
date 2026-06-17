@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import platform
 import socket
@@ -7,6 +8,8 @@ import time
 from contextlib import ContextDecorator
 from datetime import datetime
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger("overseer.monitor")
 
 from overseer_core.run_telemetry import TelemetryTracker, enrich_finish_metadata
 from overseer_sdk.client import OverseerClient
@@ -65,6 +68,11 @@ class OverseerMonitor:
                     metadata={"adapter": "overseer_monitor"},
                 )
             except Exception:
+                logger.warning(
+                    "Falha ao iniciar run na API Overseer para pipeline %s",
+                    self.pipeline_id,
+                    exc_info=True,
+                )
                 self.run_id = None
 
     def finish(
@@ -105,6 +113,11 @@ class OverseerMonitor:
         try:
             data = self.client.finish_run(run_id, **payload)
         except Exception:
+            logger.warning(
+                "Falha ao finalizar run %s na API Overseer",
+                run_id,
+                exc_info=True,
+            )
             return None
         run = data.get("run") or {}
         return {"id": run.get("run_id"), "run_id": run.get("run_id"), "frontend_url": self.get_frontend_url(run.get("run_id"))}
@@ -177,5 +190,10 @@ class _MonitorStep(ContextDecorator):
                 metadata=self.context,
             )
         except Exception:
-            pass
+            logger.warning(
+                "Falha ao registar módulo %s (run=%s) na API Overseer",
+                self.module_id,
+                run_id,
+                exc_info=True,
+            )
         return False

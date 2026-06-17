@@ -110,8 +110,8 @@ def is_local_ssh_target(ssh_target: str) -> bool:
         local_names = {socket.gethostname().lower(), socket.getfqdn().lower()}
         if host_part in local_names:
             return True
-    except Exception:
-        pass
+    except OSError as exc:
+        logger.debug("Resolução de hostname falhou ao verificar SSH target local: %s", exc)
     return False
 
 
