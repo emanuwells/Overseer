@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,28 @@ def sqlite_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def test_manual_schedule_never_stale() -> None:
     assert deployment_health.schedule_stale_threshold_hours("manual") is None
     assert not deployment_health.is_stale_deployment([], {"schedule": "manual"})
+
+
+def test_daily_schedule_stale_threshold_is_24h() -> None:
+    assert deployment_health.schedule_stale_threshold_hours("30 7 * * *") == 24.0
+
+
+def test_daily_schedule_becomes_stale_after_24h() -> None:
+    stale_started_at = store.utcnow() - timedelta(hours=25)
+    fresh_started_at = store.utcnow() - timedelta(hours=23)
+
+    assert deployment_health.is_stale_deployment(
+        [{"started_at": stale_started_at}],
+        {"schedule": "30 7 * * *"},
+    )
+    assert not deployment_health.is_stale_deployment(
+        [{"started_at": fresh_started_at}],
+        {"schedule": "30 7 * * *"},
+    )
+
+
+def test_active_scheduled_deployment_without_runs_is_stale() -> None:
+    assert deployment_health.is_stale_deployment([], {"schedule": "30 7 * * *"})
 
 
 def test_enrich_deployment_flags(sqlite_store) -> None:

@@ -8,7 +8,7 @@ pipelines:
     name: Medidata Pipeline
     owner: data
     criticality: medium
-    schedule: manual
+    schedule: "30 7 * * *"
     task_match: "run_pipeline.py"
     log: "C:\\MAIATRON\\Medidata_Pipeline\\pipeline\\overseer_run.log"
     steps:

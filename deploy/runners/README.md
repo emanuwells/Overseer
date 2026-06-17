@@ -47,8 +47,9 @@ Com `OVERSEER_SSH_SYNC_ENABLED=1` na API (baze2), o botão **Run now** envia
 `POST /v1/orchestrate/triggers` com `host_id`. A API faz SSH ao worker e arranca
 `~/overseer-runners/<pipeline_id>/run.sh` (Linux) ou `run.ps1` (Windows) em background.
 
-Pipelines `manual` (ex. Medidata) podem ser **suspensos** com `PATCH` e
-`suspended: true` sem alterar o schedule.
+Pipelines podem ser **suspensos** com `PATCH` e `suspended: true` sem alterar
+o schedule. O Medidata (`WS1207`) tem schedule diário `30 7 * * *`; se passar
+mais de 24h sem run, deve aparecer como `stale`.
 
 ## Alterar pipelines (já migrado)
 

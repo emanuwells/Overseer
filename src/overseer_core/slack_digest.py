@@ -74,6 +74,17 @@ def unresolved_deployments() -> list[dict[str, Any]]:
     return open_rows
 
 
+def stale_deployments() -> list[dict[str, Any]]:
+    """Deployments activos sem run dentro da janela esperada pelo schedule."""
+    stale_rows = [
+        row
+        for row in store.list_pipelines()
+        if row.get("active", True) and row.get("is_stale")
+    ]
+    stale_rows.sort(key=lambda row: int(row.get("stale_hours") or 0), reverse=True)
+    return stale_rows
+
+
 def _failure_error_message(last_run_id: str | None) -> str:
     if not last_run_id:
         return ""
@@ -96,6 +107,7 @@ def build_digest_text() -> str:
     success_rate = round((ok / total) * 100, 1) if total else 100.0
 
     unresolved = unresolved_deployments()
+    stale = stale_deployments()
     now = datetime.now(DIGEST_TZ)
     schedule_label = f"{digest_hour():02d}:{digest_minute():02d}"
 
@@ -120,6 +132,22 @@ def build_digest_text() -> str:
         lines.append("_Estas falhas serão repetidas neste digest até a próxima run OK._")
     else:
         lines.append("_Sem falhas em aberto — todos os pipelines com última run não-failed._")
+
+    if stale:
+        lines.append(f"*Pipelines stale ({len(stale)}) — sem run dentro da janela esperada:*")
+        for row in stale[:12]:
+            pid = row.get("pipeline_id") or "-"
+            name = row.get("name") or pid
+            host = row.get("host_id") or "-"
+            last_run = row.get("last_started_at") or "sem run"
+            stale_hours = row.get("stale_hours")
+            hours_label = f"{stale_hours}h" if stale_hours is not None else "sem histórico"
+            schedule = row.get("schedule") or "manual"
+            lines.append(
+                f"• `{name}` (`{pid}`) @ `{host}` — última run {last_run} · {hours_label} · schedule `{schedule}`"
+            )
+    else:
+        lines.append("_Sem pipelines stale._")
 
     recent_failures = [row for row in runs if row.get("status") == "failed"]
     if recent_failures and not unresolved:

@@ -194,6 +194,32 @@ Duas tarefas de infraestrutura garantem visibilidade contínua:
   o túnel ou a API caírem, o heartbeat fica `degraded`, visível no painel
   Ambiente do frontend.
 
+O heartbeat Windows também tenta recolher inventário read-only do Task Scheduler
+antes de contactar a API. O script `scripts/windows/collect-taskscheduler-info.ps1`
+lê `%USERPROFILE%\overseer-runners\catalog.json`, procura as tasks por
+`task_name`, `run_ps` ou `task_match`, e anexa o resumo em
+`payload.task_scheduler`. A recolha inclui estado, ações, triggers, última
+execução, próxima execução e último resultado. Se a recolha falhar, o heartbeat
+continua a ser enviado com `task_scheduler.ok=false` e uma mensagem curta de
+erro.
+
+Validação local na máquina Windows:
+
+```powershell
+.\scripts\windows\collect-taskscheduler-info.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"
+.\scripts\windows\heartbeat.ps1
+```
+
+Validação na API:
+
+```text
+GET /v1/read/heartbeats?limit=1
+```
+
+O frontend, em `Ambiente > Task Scheduler`, mostra o último inventário recebido
+por host e o detalhe read-only por pipeline. Não existem ações de execução,
+criação ou alteração de scheduled tasks nesse fluxo.
+
 ## Validação De Fluxo
 
 Com o Overseer arrancado:

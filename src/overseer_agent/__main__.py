@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -37,14 +40,34 @@ def _probe_api(api_url: str) -> bool:
         return False
 
 
-def cmd_heartbeat(_: argparse.Namespace) -> int:
+def _load_payload_file(path: str | None) -> dict[str, Any]:
+    if not path:
+        return {}
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ValueError(f"payload-file inacessível: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"payload-file JSON inválido: linha {exc.lineno}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("payload-file deve conter um objeto JSON")
+    return payload
+
+
+def cmd_heartbeat(args: argparse.Namespace) -> int:
     api_url = get_api_url()
     client = OverseerClient(api_url=api_url, api_token=get_api_token())
     api_reachable = _probe_api(api_url)
+    try:
+        payload = _load_payload_file(args.payload_file)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    payload.update({"agent_version": __version__, "api_reachable": api_reachable})
     data = client.heartbeat(
         source_type="agent",
         status="ok" if api_reachable else "degraded",
-        payload={"agent_version": __version__, "api_reachable": api_reachable},
+        payload=payload,
     )
     print(f"heartbeat ok: {data['heartbeat']['source_id']} (api_reachable={api_reachable})")
     return 0
@@ -107,6 +130,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     heartbeat = sub.add_parser("heartbeat", help="Regista heartbeat do agente.")
+    heartbeat.add_argument("--payload-file", default=None, help="Objeto JSON local a juntar ao payload do heartbeat.")
     heartbeat.set_defaults(func=cmd_heartbeat)
 
     exec_cmd = sub.add_parser("exec", help="Executa um comando e regista run/logs na API.")

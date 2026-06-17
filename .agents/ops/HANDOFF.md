@@ -6,11 +6,20 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 
 | Campo | Valor |
 |---|---|
-| Última atualização | 2026-06-12T12:00:00+01:00 |
+| Última atualização | 2026-06-17 |
 | Branch Git | `main` |
-| Estado | 5.8.0 — frontends read-only; retenção 30d; purga legado DB |
+| Estado | 5.8.1 — heartbeat Windows com inventário Task Scheduler; staleness diário 24h; Medidata agendado às 07:30 |
 | Responsável / Agente | Cursor |
-| Última versão registada | 5.8.0 |
+| Última versão registada | 5.8.1 |
+
+## Nota v5.8.1 (2026-06-17)
+
+- `medidata_pipeline @ WS1207` passa a ter schedule diário `30 7 * * *` no catálogo.
+- Staleness diário é avaliado com threshold de 24h; deployments com cron ativo e sem runs também contam como `stale`.
+- Digest Slack diário passa a listar deployments `stale`, além das falhas cuja última run ficou `failed`.
+- Heartbeat Windows passa a anexar inventário read-only do Task Scheduler em `payload.task_scheduler`.
+- Ambiente UI passa a mostrar resumo Task Scheduler por host e detalhe por pipeline, sem ações de execução ou alteração.
+- Pós-deploy recomendado: reconciliar catálogo e sincronizar runner `WS1207` para aplicar a agenda no Task Scheduler.
 
 ## Nota v5.8.0 (2026-06-12)
 
@@ -85,6 +94,7 @@ Manter o Overseer como núcleo Docker-first para observabilidade de pipelines ex
 
 ### Em Curso
 
+- Validação real em `WS1207`: correr `.\scripts\windows\heartbeat.ps1` e confirmar `payload.task_scheduler` em `/v1/read/heartbeats?limit=1`.
 - Deploy em `eferreira@195.23.9.32` (SSH): backup do crontab, clone do repo, `.env`, compose de produção, nginx e migração dos pipelines do crontab.
 
 ### Por Fazer
@@ -93,6 +103,7 @@ Manter o Overseer como núcleo Docker-first para observabilidade de pipelines ex
 - Rodar a password sudo exposta na conversa e migrar para chave SSH.
 - Decidir licença real do projeto; documentação mantém `A confirmar`.
 - Validar Run now Medidata (`WS1207`) e Pause wireforms em prod após deploy 5.7.0.
+- Validar inventário Task Scheduler em `WS1207` após pull/deploy desta iteração.
 
 ### Bloqueios / Perguntas Abertas
 
@@ -220,6 +231,8 @@ Para integrar um pipeline real:
 | `GET /ui/deployments.html` pós-template | Passou | HTTP 200 |
 | `GET /ui/js/app.js` pós-template | Passou | HTTP 200 |
 | `node --check frontend\js\app.js` | Passou | Sintaxe JS válida |
+| `python -m pytest tests/test_task_scheduler_heartbeat.py -q` | Passou | 4 testes; 1 aviso de depreciação do TestClient |
+| Parsing PowerShell Task Scheduler/heartbeat | Passou | `[scriptblock]::Create(...)` nos dois scripts |
 | Browser in-app | N/A | Ferramenta não disponível via `tool_search` |
 
 ## Checklist De Entrega

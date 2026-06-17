@@ -1,6 +1,6 @@
 # Pack de Políticas para Agentes de IA
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.2.4-3498db)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-5.8.1-3498db)
 ![Estado](https://img.shields.io/badge/estado-stable-2ecc71)
 ![Licença](https://img.shields.io/badge/licen%C3%A7a-propriet%C3%A1ria-lightgrey)
 
@@ -69,7 +69,7 @@ projeto/
 
 ## Versão
 
-1.2.3
+5.8.1
 
 
 ## MCP

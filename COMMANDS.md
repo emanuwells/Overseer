@@ -41,7 +41,7 @@ Os frontends Overseer (`/ui/`) e MAIATRON Overseer são **read-only**. Catálogo
 | Reconciliar catálogo pós-deploy | `curl -sf -X POST http://127.0.0.1:8090/v1/catalog/reconcile -H "Authorization: Bearer $OVERSEER_API_TOKEN" -H "Content-Type: application/json" -d '{"sync_remote":false}'` |
 | Reconciliar + sync remoto | `curl ... -d '{"sync_remote":true}'` |
 | PATCH agenda/owner (exemplo) | `curl -X PATCH http://127.0.0.1:8090/v1/catalog/pipelines/traffic_flow -H "Authorization: Bearer $OVERSEER_API_TOKEN" -H "Content-Type: application/json" -d '{"host_id":"baze2","schedule":"0 2 * * *","sync_remote":true}'` |
-| Suspender pipeline manual | `curl -X PATCH .../medidata_pipeline -d '{"host_id":"WS1207","suspended":true,"sync_remote":false}'` |
+| Suspender pipeline | `curl -X PATCH .../medidata_pipeline -d '{"host_id":"WS1207","suspended":true,"sync_remote":false}'` |
 | Run now (agent) | `overseer-agent trigger medidata_pipeline --host-id WS1207 --by ops` |
 | Run now warden_clean (baze2) | `overseer-agent trigger warden_clean --host-id baze2 --by ops` |
 | Run now (curl) | `curl -X POST .../v1/orchestrate/triggers -d '{"pipeline_id":"medidata_pipeline","host_id":"WS1207","requested_by":"ops"}'` |
@@ -102,10 +102,14 @@ Executar **na máquina WS1207** (PowerShell como DQSI), com repo actualizado e S
 | 3. Túnel activo | `Get-ScheduledTask -TaskName "Overseer SSH Tunnel"` → `Start-ScheduledTask` se parado |
 | 4. Task Medidata | Programa: `powershell.exe` · Args: `-ExecutionPolicy Bypass -File "%USERPROFILE%\overseer-runners\medidata_pipeline\run.ps1"` |
 | 5. Migrar 1.ª vez | `.\scripts\windows\migrate-taskscheduler.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"` |
+| 6. Inventário Task Scheduler | `.\scripts\windows\collect-taskscheduler-info.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"` |
+| 7. Heartbeat com inventário | `.\scripts\windows\heartbeat.ps1` |
+
+Agenda esperada no catálogo: `30 7 * * *` (diário às 07:30). Se passar mais de 24h sem run, o deployment deve aparecer como `stale`.
 
 Onboarding completo (máquina nova): `.\scripts\windows\bootstrap-windows.ps1 -RepoPath C:\MAIATRON\Overseer -SshTarget eferreira@195.23.9.32`
 
-Validar no prod: última run `medidata_pipeline` com `host_id=WS1207` em `/v1/read/runs?pipeline_id=medidata_pipeline`.
+Validar no prod: última run `medidata_pipeline` com `host_id=WS1207` em `/v1/read/runs?pipeline_id=medidata_pipeline` e último heartbeat com `payload.task_scheduler` em `/v1/read/heartbeats?limit=1`.
 
 ## Agent no host Linux (após refactor `src/`)
 

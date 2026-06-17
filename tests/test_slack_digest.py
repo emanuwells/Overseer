@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -54,6 +55,32 @@ def test_build_digest_always_mentions_channel_without_failures(sqlite_store) -> 
     text = slack_digest.build_digest_text()
     assert "<!channel>" in text
     assert "em aberto" not in text.lower() or "sem falhas" in text.lower()
+
+
+def test_build_digest_includes_stale_deployments(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "medidata_pipeline",
+            "host_id": "WS1207",
+            "name": "Medidata Pipeline",
+            "schedule": "30 7 * * *",
+            "nodes": [{"module_id": "run_pipeline"}],
+            "edges": [],
+        }
+    )
+    run = store.start_run(
+        {
+            "pipeline_id": "medidata_pipeline",
+            "host_id": "WS1207",
+            "started_at": store.utcnow() - timedelta(hours=25),
+        }
+    )
+    store.finish_run(run["run_id"], {"status": "ok"})
+
+    text = slack_digest.build_digest_text()
+    assert "pipelines stale" in text.lower()
+    assert "medidata_pipeline" in text
+    assert "WS1207" in text
 
 
 def test_next_digest_at_0830(monkeypatch: pytest.MonkeyPatch) -> None:

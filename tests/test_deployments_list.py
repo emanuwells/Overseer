@@ -50,6 +50,29 @@ def _write_baze2_catalog(root: Path) -> None:
     )
 
 
+def _write_ws1207_catalog(root: Path) -> None:
+    catalog_dir = root / "deploy" / "runners"
+    catalog_dir.mkdir(parents=True)
+    (catalog_dir / "WS1207.yaml").write_text(
+        yaml.dump(
+            {
+                "pipelines": [
+                    {
+                        "id": "medidata_pipeline",
+                        "name": "Medidata Pipeline",
+                        "owner": "eferreira",
+                        "criticality": "medium",
+                        "schedule": "30 7 * * *",
+                        "steps": [{"module_id": "run_pipeline", "command": ["python", "run_pipeline.py"]}],
+                    },
+                ]
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_list_deployments_merges_yaml_and_runs(sqlite_store, tmp_path: Path) -> None:
     _write_baze2_catalog(tmp_path)
     store.start_run({"pipeline_id": "traffic_flow", "host_id": "baze2", "pipeline_name": "Traffic Flow"})
@@ -61,6 +84,19 @@ def test_list_deployments_merges_yaml_and_runs(sqlite_store, tmp_path: Path) -> 
     assert traffic["host_id"] == "BAZE2"
     assert traffic["last_status"] == "running"
     assert traffic["catalog_source"] in {"yaml", "db", "runs_only"}
+
+
+def test_list_deployments_marks_windows_daily_pipeline_without_runs_as_stale(
+    sqlite_store,
+    tmp_path: Path,
+) -> None:
+    _write_ws1207_catalog(tmp_path)
+    rows = store.list_deployments()
+    medidata = next(row for row in rows if row["pipeline_id"] == "medidata_pipeline")
+    assert medidata["host_id"] == "WS1207"
+    assert medidata["schedule"] == "30 7 * * *"
+    assert medidata["is_stale"] is True
+    assert medidata["is_at_risk"] is True
 
 
 def test_list_deployments_excludes_health_probe(sqlite_store, tmp_path: Path) -> None:

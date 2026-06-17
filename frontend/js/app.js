@@ -207,7 +207,7 @@ function setSync(label, kind = '') {
 
 function statusClass(status) {
   const raw = String(status || '').toLowerCase();
-  if (['ok', 'success', 'done', 'completed'].includes(raw)) return 'ok';
+  if (['ok', 'success', 'done', 'completed', 'ready'].includes(raw)) return 'ok';
   if (['warning', 'warn', 'queued', 'running', 'claimed', 'late'].includes(raw)) return 'warn';
   if (!raw) return '';
   return 'danger';
@@ -537,6 +537,88 @@ function renderRunnerHosts(payload) {
   }
 }
 
+function taskSchedulerHostId(heartbeat, scheduler) {
+  return scheduler?.host_id || heartbeat.host_id || heartbeat.hostname || heartbeat.source_id || '--';
+}
+
+function taskSchedulerIssueCount(scheduler) {
+  if (!scheduler) return 0;
+  const pipelineIssues = (scheduler.pipelines || []).filter((item) => (
+    !item.task_found || (item.last_task_result !== null && item.last_task_result !== undefined && Number(item.last_task_result) !== 0)
+  )).length;
+  return pipelineIssues + (scheduler.ok === false ? 1 : 0);
+}
+
+function latestTaskSchedulerSnapshots(heartbeats) {
+  const snapshots = new Map();
+  (heartbeats || []).forEach((heartbeat) => {
+    const scheduler = heartbeat.payload?.task_scheduler;
+    if (!scheduler || typeof scheduler !== 'object') return;
+    const hostId = taskSchedulerHostId(heartbeat, scheduler);
+    const current = snapshots.get(hostId);
+    const seenAt = new Date(scheduler.collected_at || heartbeat.seen_at || 0).getTime();
+    const currentSeenAt = current ? new Date(current.scheduler.collected_at || current.heartbeat.seen_at || 0).getTime() : -1;
+    if (!current || seenAt >= currentSeenAt) {
+      snapshots.set(hostId, { hostId, heartbeat, scheduler });
+    }
+  });
+  return [...snapshots.values()].sort((left, right) => String(left.hostId).localeCompare(String(right.hostId)));
+}
+
+function taskResultLabel(value) {
+  if (value === null || value === undefined || value === '') return '--';
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric === 0) return '0';
+  return String(value);
+}
+
+function renderTaskSchedulerInventory(heartbeats) {
+  const snapshots = latestTaskSchedulerSnapshots(heartbeats);
+  const pipelineRows = snapshots.flatMap((snapshot) => (
+    (snapshot.scheduler.pipelines || []).map((pipeline) => ({ ...pipeline, host_id: snapshot.hostId }))
+  ));
+  const issueCount = snapshots.reduce((total, snapshot) => total + taskSchedulerIssueCount(snapshot.scheduler), 0);
+  const latestCollected = snapshots
+    .map((snapshot) => snapshot.scheduler.collected_at || snapshot.heartbeat.seen_at)
+    .filter(Boolean)
+    .sort((left, right) => new Date(right) - new Date(left))[0];
+
+  text('[data-task-scheduler-kpi="hosts"]', snapshots.length);
+  text('[data-task-scheduler-kpi="tasks"]', pipelineRows.filter((item) => item.task_found).length);
+  text('[data-task-scheduler-kpi="issues"]', issueCount);
+  text('[data-task-scheduler-latest]', formatDate(latestCollected));
+
+  html('[data-task-scheduler-hosts]', snapshots.length ? snapshots.map((snapshot) => {
+    const scheduler = snapshot.scheduler;
+    const pipelines = scheduler.pipelines || [];
+    const issues = taskSchedulerIssueCount(scheduler);
+    const ok = scheduler.ok !== false && issues === 0;
+    return `
+      <tr>
+        <td data-label="Host">${esc(snapshot.hostId)}</td>
+        <td data-label="Tasks">${esc(pipelines.filter((item) => item.task_found).length)} / ${esc(pipelines.length)}</td>
+        <td data-label="Erros">${esc(issues)}</td>
+        <td data-label="Recolha">${esc(formatDate(scheduler.collected_at || snapshot.heartbeat.seen_at))}</td>
+        <td data-label="Estado"><span class="pill ${ok ? 'ok' : 'danger'}">${esc(ok ? 'ok' : (scheduler.error || 'atenção'))}</span></td>
+      </tr>`;
+  }).join('') : emptyRow(5, 'Sem inventário Task Scheduler nos heartbeats recentes.'));
+
+  html('[data-task-scheduler-pipelines]', pipelineRows.length ? pipelineRows.map((pipeline) => {
+    const result = taskResultLabel(pipeline.last_task_result);
+    const resultOk = result === '--' || result === '0';
+    const taskLabel = pipeline.task_found ? `${pipeline.task_path || ''}${pipeline.task_name || ''}` : (pipeline.expected_task_name || '--');
+    const pipelineLabelData = pipelineLabel(null, pipeline.pipeline_id, pipeline.host_id);
+    return `
+      <tr>
+        <td data-label="Pipeline">${pipelineLabelHtml(pipelineLabelData, pipeline.host_id)}</td>
+        <td data-label="Task"><span class="mono">${esc(taskLabel)}</span></td>
+        <td data-label="Estado"><span class="pill ${pipeline.task_found ? statusClass(pipeline.state) || 'ok' : 'danger'}">${esc(pipeline.task_found ? (pipeline.state || '--') : 'não encontrada')}</span></td>
+        <td data-label="Próxima execução">${esc(formatDate(pipeline.next_run_time))}</td>
+        <td data-label="Último resultado"><span class="pill ${resultOk ? 'ok' : 'danger'}">${esc(result)}</span></td>
+      </tr>`;
+  }).join('') : emptyRow(5, 'Sem pipelines Task Scheduler nos heartbeats recentes.'));
+}
+
 async function loadEnvironment() {
   setSync('A carregar');
   setAlert();
@@ -552,6 +634,7 @@ async function loadEnvironment() {
     renderRunnerHosts(hosts);
     const heartbeats = heartbeatsResponse.items || [];
     const triggers = triggersResponse.items || [];
+    renderTaskSchedulerInventory(heartbeats);
     text('[data-count-kpi="heartbeats"]', heartbeats.length);
     text('[data-count-kpi="heartbeats_ok"]', heartbeats.filter((item) => item.status === 'ok').length);
     text('[data-last-heartbeat]', formatDate(heartbeats[0]?.seen_at));

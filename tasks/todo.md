@@ -6,30 +6,35 @@ Não usar este ficheiro como histórico completo. Manter apenas tarefas úteis p
 
 ## Iteração Atual
 
-**Data:** YYYY-MM-DD  
-**Estado:** Em curso  
-**Risco:** Baixo | Médio | Alto | Crítico
+**Data:** 2026-06-17  
+**Estado:** Validada localmente  
+**Risco:** Médio
 
 ### Objetivo
 
-- Definir o objetivo concreto da iteração.
+- Enviar inventário read-only do Task Scheduler Windows no heartbeat do Overseer e mostrá-lo na vista Ambiente.
 
 ### Feito
 
-- [ ] Ainda sem tarefas concluídas.
+- [x] Criado `scripts/windows/collect-taskscheduler-info.ps1` para observar tasks por `task_name`, `run_ps` ou `task_match`.
+- [x] `scripts/windows/heartbeat.ps1` passa a anexar `payload.task_scheduler` e mantém heartbeat mesmo se a recolha falhar.
+- [x] `overseer-agent heartbeat --payload-file` junta payload local ao payload padrão.
+- [x] Vista Ambiente mostra resumo Task Scheduler por host e detalhe por pipeline.
+- [x] Testes adicionados para payload externo, payload inválido, persistência e leitura do inventário.
 
 ### Pendente
 
-- [ ] Identificar trabalho necessário.
-- [ ] Executar alterações.
-- [ ] Validar resultado.
-- [ ] Atualizar documentação/changelog quando aplicável.
+- [ ] Validar em `WS1207` com `.\scripts\windows\heartbeat.ps1`.
+- [ ] Confirmar em `/v1/read/heartbeats?limit=1` que `payload.task_scheduler` contém os pipelines do `catalog.json`.
+- [ ] Após deploy, reconciliar catálogo e re-provisionar `WS1207` se houver alterações de agenda.
 
 ### Bloqueios / Riscos
 
-- N/A.
+- Não foi executado deploy, SSH nem validação real no Task Scheduler de `WS1207` nesta iteração local.
+- A recolha é observacional; não cria, arranca, altera nem remove scheduled tasks.
 
 ### Próximos Passos
 
-1. Preencher esta secção no início da próxima iteração não trivial.
-2. Fechar ou remover itens obsoletos quando for seguro.
+1. Correr `.\scripts\windows\provision-runners.ps1 -Register` na máquina Windows quando o repo estiver atualizado.
+2. Correr `.\scripts\windows\heartbeat.ps1`.
+3. Confirmar `payload.task_scheduler` na API e no separador `Ambiente > Task Scheduler`.

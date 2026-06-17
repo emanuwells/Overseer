@@ -69,7 +69,7 @@ def schedule_stale_threshold_hours(schedule: str) -> float | None:
         return 24.0 * 35
 
     if dom == "*" and month == "*" and dow == "*":
-        return 36.0
+        return 24.0
 
     return 168.0
 
@@ -113,7 +113,7 @@ def is_stale_deployment(items: list[dict[str, Any]], cat: dict[str, Any]) -> boo
     if not items:
         last_started = cat.get("last_started_at")
         if not last_started:
-            return False
+            return True
         hours = hours_since(last_started)
         return hours is not None and hours > threshold
 

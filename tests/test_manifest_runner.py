@@ -88,7 +88,7 @@ def test_run_manifest_success(tmp_path, monkeypatch):
     def fake_run(command, **kwargs):
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
-    monkeypatch.setattr("overseer_sdk.manifest_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("overseer_sdk.manifest_runner.run_subprocess_with_telemetry", fake_run)
     exit_code = run_manifest(manifest, client=client)
 
     assert exit_code == 0
@@ -105,7 +105,7 @@ def test_run_manifest_stops_on_failure(tmp_path, monkeypatch):
     def fake_run(command, **kwargs):
         return subprocess.CompletedProcess(command, 2, stdout="", stderr="boom")
 
-    monkeypatch.setattr("overseer_sdk.manifest_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("overseer_sdk.manifest_runner.run_subprocess_with_telemetry", fake_run)
     exit_code = run_manifest(manifest, client=client)
 
     assert exit_code == 2

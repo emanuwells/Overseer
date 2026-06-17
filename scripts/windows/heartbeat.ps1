@@ -33,5 +33,43 @@ if (-not (Test-Path -LiteralPath $Python)) {
     throw "Python do venv não encontrado em $Python. Corre install-runner.ps1 primeiro."
 }
 
-& $Python -m overseer_agent heartbeat
-exit $LASTEXITCODE
+function ConvertTo-ShortHeartbeatError {
+    param([object]$ErrorValue)
+    $message = [string]$ErrorValue
+    $message = $message -replace '[\r\n]+', ' '
+    if ($message.Length -gt 240) { return $message.Substring(0, 240) }
+    return $message
+}
+
+$PayloadFile = Join-Path ([System.IO.Path]::GetTempPath()) ("overseer-heartbeat-payload-{0}.json" -f ([guid]::NewGuid().ToString("N")))
+$Collector = Join-Path $PSScriptRoot "collect-taskscheduler-info.ps1"
+$CatalogJson = Join-Path $RunnersRoot "catalog.json"
+
+try {
+    try {
+        if (-not (Test-Path -LiteralPath $Collector)) {
+            throw "Collector Task Scheduler não encontrado: $Collector"
+        }
+        & $Collector -CatalogJson $CatalogJson | Set-Content -LiteralPath $PayloadFile -Encoding UTF8
+    }
+    catch {
+        $fallback = [ordered]@{
+            task_scheduler = [ordered]@{
+                ok = $false
+                collected_at = (Get-Date).ToUniversalTime().ToString("o")
+                host_id = $env:OVERSEER_HOST_ID
+                error = ConvertTo-ShortHeartbeatError $_
+                pipelines = @()
+            }
+        }
+        $fallback | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $PayloadFile -Encoding UTF8
+    }
+
+    & $Python -m overseer_agent heartbeat --payload-file $PayloadFile
+    exit $LASTEXITCODE
+}
+finally {
+    if (Test-Path -LiteralPath $PayloadFile) {
+        Remove-Item -LiteralPath $PayloadFile -Force
+    }
+}

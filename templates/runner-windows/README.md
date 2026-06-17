@@ -80,10 +80,33 @@ $venv = Join-Path $env:LOCALAPPDATA "overseer-venv"
 
 5. Apontar o Task Scheduler para o `run.ps1` (ver `migrate-taskscheduler.ps1`).
 
+## Heartbeat E Inventário Task Scheduler
+
+O `heartbeat.ps1` envia o heartbeat normal do agente e, antes disso, tenta
+recolher inventário read-only do Task Scheduler através de
+`collect-taskscheduler-info.ps1`. A recolha usa
+`%USERPROFILE%\overseer-runners\catalog.json` e procura cada pipeline por
+`task_name`, `run_ps` ou `task_match`.
+
+O payload enviado para `/v1/events/heartbeat` mantém `agent_version` e
+`api_reachable`, e acrescenta `payload.task_scheduler` com:
+
+- `ok`, `collected_at` e `host_id`;
+- pipeline observado, task encontrada, estado, próxima execução e último
+  resultado;
+- ações e triggers configurados;
+- `task_found=false` quando não há correspondência.
+
+Se o inventário falhar, o heartbeat não é bloqueado: o payload segue com
+`task_scheduler.ok=false` e uma mensagem curta em `error`.
+
 ## Validação
 
 ```powershell
 & "$env:USERPROFILE\overseer-runners\forms_to_lake__WIN-ETL01\run.ps1"
+.\scripts\windows\collect-taskscheduler-info.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"
+.\scripts\windows\heartbeat.ps1
 ```
 
-Depois confirmar a run, os módulos e os heartbeats no frontend central.
+Depois confirmar a run, os módulos, os heartbeats e o separador
+`Ambiente > Task Scheduler` no frontend central.
