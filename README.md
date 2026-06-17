@@ -1,144 +1,155 @@
-# Pack de Políticas para Agentes de IA
+# Overseer
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-5.8.1-3498db)
 ![Estado](https://img.shields.io/badge/estado-stable-2ecc71)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-5.8.2-3498db)
 ![Licença](https://img.shields.io/badge/licen%C3%A7a-propriet%C3%A1ria-lightgrey)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
 
-Pack universal para repositórios profissionais assistidos por IA, com documentação em português europeu.
+Núcleo Docker-first de observabilidade para pipelines e DAGs externos. O Overseer recebe catálogo e telemetria por API, persiste eventos operacionais na base de dados e expõe uma interface read-only — sem executar o código dos pipelines.
 
-Foi desenhado para manter projetos simples, limpos, seguros, escaláveis e apresentáveis ao nível de programadores sénior.
+## Funcionalidades
 
-## Objetivo
+- **Catálogo DAG** — registo idempotente de pipelines, nodes e edges via `/v1/catalog/pipelines`.
+- **Telemetria** — runs, módulos, logs e heartbeats em `/v1/events/*`.
+- **Leitura operacional** — overview, deployments, runs, DAG e estado da DB em `/v1/read/*`.
+- **Orquestração** — triggers com dispatch SSH a workers Linux e Windows.
+- **Interface read-only** — dashboard, runs, lineage e ambiente em `/ui/`.
+- **Observabilidade Windows** — heartbeat com inventário read-only do Task Scheduler (v5.8.1).
+- **Staleness diário** — deployments com agenda activa e sem runs há mais de 24h aparecem como `stale`.
 
-Este pack define:
+## Arquitectura
 
-- regras para IAs em `AGENTS.md`;
-- raiz limpa para projetos;
-- ficheiros obrigatórios `VERSION` e `LICENSE` na raiz;
-- políticas em `.agents/policies/`;
-- operação em `.agents/ops/`;
-- competências em `.agents/skills/`;
-- compatibilidade opcional com Claude em `.claude/skills/`;
-- comandos rápidos em `COMMANDS.md`;
-- comunicação técnica profissional;
-- estrutura de segredos transversal;
-- naming humano e profissional;
-- higiene iterativa do repositório.
-
-## Estrutura
-
-```text
-projeto/
-├── AGENTS.md
-├── README.md
-├── PROJECT_CONTEXT.md
-├── COMMANDS.md
-├── CHANGELOG.md
-├── VERSION
-├── LICENSE
-├── .env.example
-├── .gitignore
-├── .agents/
-│   ├── policies/
-│   ├── ops/
-│   └── skills/
-├── docs/
-├── tasks/
-├── scripts/
-├── src/ ou frontend/backend/
-└── tests/
+```mermaid
+flowchart LR
+    ui[Frontend /ui] --> read[/v1/read/]
+    pipeline[Pipeline externo] --> catalog[/v1/catalog/pipelines/]
+    pipeline --> events[/v1/events/]
+    pipeline --> triggers[/v1/orchestrate/triggers/]
+    catalog --> db[(MariaDB ou DB externa)]
+    events --> db
+    triggers --> db
+    read --> db
 ```
+
+O Overseer não executa pipelines. Cada repositório de pipeline mantém o seu código; a observabilidade liga-se por API ou por manifest YAML nos runners (`~/overseer-runners/` ou `%USERPROFILE%\overseer-runners\`).
+
+## Stack
+
+| Área | Tecnologia |
+|---|---|
+| API | FastAPI, Uvicorn |
+| Frontend | HTML, CSS e JavaScript estático |
+| Base de dados | MariaDB local; SQLAlchemy para outros dialectos |
+| SDK / Agent | Python, HTTPX, pacote `overseer-core` |
+| Configuração | `.env`, variáveis `OVERSEER_*` |
+| Docker | Dockerfile Python, Docker Compose |
+| Testes | `pytest` |
 
 ## Instalação
 
-1. Copiar o conteúdo do ZIP para a raiz do projeto.
-2. Renomear `PROJECT_CONTEXT.template.md` para `PROJECT_CONTEXT.md`.
-3. Usar `.gitignore.template` como base para `.gitignore`.
-4. Preencher os campos `A confirmar`.
-5. Manter `COMMANDS.md` curto e atualizado.
-6. Em projetos com Claude Code, manter `.claude/skills/`.
+O caminho oficial é Docker-first (Windows, Linux e macOS).
 
-## Filosofia
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
 
-- Poucos ficheiros na raiz.
-- Políticas fora da raiz.
-- Competências específicas, não genéricas.
-- Explicações conceptuais e profissionais.
-- Menos perguntas ao utilizador, mais decisões seguras.
-- Escalabilidade sem burocracia.
+Atalhos por sistema operativo:
 
-## Versão
+| Sistema | Comando |
+|---|---|
+| Windows CMD | `scripts\overseer-up.cmd` |
+| PowerShell | `.\scripts\overseer-up.ps1` |
+| Linux/macOS | `sh scripts/overseer-up.sh` |
 
-5.8.1
+Para ligar a uma base de dados oficial existente, copiar `.env.official.example` para `.env` e preencher `OVERSEER_DB_URL`.
 
+Python local é necessário apenas para desenvolvimento e testes:
 
-## MCP
+```bash
+pip install -r requirements.txt && pip install -e .
+```
 
-A versão 1.1.0 adiciona uma camada MCP em `.agents/mcp/` com:
+## Variáveis de ambiente
 
-- política MCP;
-- exemplos genéricos;
-- exemplos para Cursor, VS Code e Claude;
-- documentação de MCPs core, desenvolvimento, bases de dados e automação de navegador;
-- modelos seguros sem segredos.
+| Variável | Obrigatória | Descrição | Exemplo |
+|---|---:|---|---|
+| `OVERSEER_API_TOKEN` | Não | Token Bearer para APIs protegidas | `change-me-local-token` |
+| `OVERSEER_API_PORT` | Não | Porta HTTP local | `8090` |
+| `OVERSEER_DB_URL` | Não | URL SQLAlchemy canónica | `mysql+pymysql://overseer:overseer@mysql:3306/Overseer?charset=utf8mb4` |
+| `MYSQL_PASSWORD` | Não | Password MariaDB local | `overseer` |
+| `MYSQL_ROOT_PASSWORD` | Não | Password root MariaDB local | `overseer` |
+| `OVERSEER_SSH_SYNC_ENABLED` | Não | Activar sync remoto de runners via SSH | `1` |
+| `OVERSEER_SLACK_WEBHOOK_URL` | Não | Webhook Slack para alertas e digest | — |
 
-As configurações reais devem ficar fora do Git quando tiverem tokens, caminhos sensíveis ou credenciais.
+Lista completa e comandos operacionais em [`COMMANDS.md`](COMMANDS.md).
 
-## Correção 1.1.1
+## Integração de pipelines
 
-A versão 1.1.1 reforça a gestão evolutiva de MCPs: a IA pode propor, acrescentar, ajustar ou remover MCPs em modelos/documentação, mas deve pedir confirmação antes de alterar configurações reais com risco, segredos, caminhos sensíveis ou permissões elevadas.
+Pipelines externos comunicam com o Overseer por API. O contrato está documentado em [`docs/pipeline-integration.md`](docs/pipeline-integration.md).
 
+| Modelo | Uso |
+|---|---|
+| SDK no repo do pipeline | Instrumentação directa com `overseer_bootstrap.py` (`templates/pipeline-repo/`) |
+| Manifest YAML no host | Observabilidade sem alterar código (`templates/runner/` e `templates/runner-windows/`) |
+| Catálogo por host | `deploy/runners/<hostname>.yaml` — ver [`deploy/runners/README.md`](deploy/runners/README.md) |
 
-## Versão 1.2.0
+Exemplo em produção: **Medidata Pipeline** em `WS1207` (Windows, Task Scheduler, agenda `30 7 * * *`).
 
-A versão 1.2.0 reforça o contrato de conformidade para agentes e adiciona política obrigatória para badges de tecnologias no README.
+## Verificação
 
-Inclui:
+```bash
+python -m pytest -q
+docker compose config
+docker compose build
+```
 
-- `.agents/ops/AGENT_COMPLIANCE.md`;
-- `.agents/policies/README_BADGES_POLICY.md`;
-- atualização de `AGENTS.md`;
-- atualização de `README.template.md` com badges técnicos obrigatórios.
+Com a stack activa:
 
+| Verificação | URL / comando |
+|---|---|
+| Health | `http://127.0.0.1:8090/v1/health` |
+| Dashboard | `http://127.0.0.1:8090/ui/dashboard.html` |
+| Estado DB | `http://127.0.0.1:8090/v1/read/database` |
+| Demo telemetria | `docker compose exec overseer-api python scripts/overseer_emit_demo.py` |
 
-## Correção 1.2.1
+## Estrutura do repositório
 
-A versão 1.2.1 adiciona uma política explícita de auditoria minuciosa e remoção segura.
+```text
+Overseer/
+├── src/
+│   ├── overseer_api/
+│   ├── overseer_core/
+│   ├── overseer_agent/
+│   ├── overseer_sdk/
+│   └── overseer_monitor/
+├── frontend/
+├── scripts/
+├── templates/
+├── deploy/
+├── openapi/
+├── tests/
+├── docker-compose.yml
+├── docker-compose.prod.yml
+├── Dockerfile
+└── pyproject.toml
+```
 
-Inclui:
+## Documentação relacionada
 
-- `.agents/policies/CLEANUP_AUDIT_POLICY.md`;
-- regra obrigatória para apagar ficheiros/pastas comprovadamente inúteis;
-- proteção contra remoções ambíguas, sensíveis ou pertencentes ao utilizador;
-- evidência obrigatória de removidos, mantidos e candidatos a confirmação.
+| Ficheiro | Conteúdo |
+|---|---|
+| [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) | Contexto, fluxos e critérios de verificação |
+| [`COMMANDS.md`](COMMANDS.md) | Comandos rápidos (Docker, ops, prod, WS1207) |
+| [`docs/pipeline-integration.md`](docs/pipeline-integration.md) | Contrato de integração de pipelines |
+| [`docs/adr/`](docs/adr/) | Decisões arquitecturais |
+| [`.agents/`](.agents/) | Políticas e operação para agentes IA |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico de versões |
 
+## Licença
 
-## Correção 1.2.2
-
-A versão 1.2.2 simplifica o pack final removendo `PACK_AUDIT.md` da raiz.
-
-O histórico de auditoria do pack fica concentrado no `CHANGELOG.md`, evitando ruído nos repositórios criados a partir do modelo.
-
-
-## Correção 1.2.3
-
-A versão 1.2.3 normaliza a documentação para PT-PT e acrescenta uma política explícita de idioma e acentuação.
-
-Inclui:
-
-- `.agents/policies/LANGUAGE_POLICY.md`;
-- regra obrigatória para documentação em português europeu;
-- obrigação de acentuação correta em documentação, comentários e textos técnicos;
-- preservação de nomes técnicos convencionais, como `README.md`, `CHANGELOG.md`, `.env`, `Dockerfile`, comandos e identificadores de código.
-
-
-## Correção 1.2.4
-
-A versão 1.2.4 torna obrigatórios os ficheiros `VERSION` e `LICENSE` na raiz do repositório.
-
-Inclui:
-
-- `VERSION` com a versão SemVer atual;
-- `LICENSE` com declaração proprietária segura por defeito;
-- `.agents/policies/VERSION_LICENSE_POLICY.md`;
-- obrigação de manter versão, licença, README, badges, changelog e manifestos coerentes.
+Licença proprietária — todos os direitos reservados. Ver [`LICENSE`](LICENSE).

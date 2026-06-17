@@ -8,9 +8,15 @@ Este ficheiro preserva o estado operacional verificável do projeto entre sessõ
 |---|---|
 | Última atualização | 2026-06-17 |
 | Branch Git | `main` |
-| Estado | 5.8.1 — heartbeat Windows com inventário Task Scheduler; staleness diário 24h; Medidata agendado às 07:30 |
+| Estado | 5.8.2 — README do núcleo Overseer; documentação obsoleta corrigida |
 | Responsável / Agente | Cursor |
-| Última versão registada | 5.8.1 |
+| Última versão registada | 5.8.2 |
+
+## Nota v5.8.2 (2026-06-17)
+
+- `README.md` reescrito como documentação do produto Overseer (não do pack IA).
+- `.env.example` alinhado com variáveis `OVERSEER_*` de desenvolvimento local.
+- `COMMANDS.md` e `deploy/runners/README.md`: removida referência a script inexistente `upgrade-windows-runner.ps1`.
 
 ## Nota v5.8.1 (2026-06-17)
 

@@ -98,7 +98,8 @@ Executar **na máquina WS1207** (PowerShell como DQSI), com repo actualizado e S
 | Passo | Comando |
 |---|---|
 | 1. Pull repo | `cd C:\MAIATRON\Overseer` (ou o teu clone) → `git pull origin main` |
-| 2. Upgrade agente | `.\scripts\windows\upgrade-windows-runner.ps1 -SshTarget eferreira@195.23.9.32 -TestMedidata` |
+| 2. Reinstalar agente | `.\scripts\windows\install-runner.ps1 -RepoPath C:\MAIATRON\Overseer -SshTarget eferreira@195.23.9.32` |
+| 2b. Reprovisionar Medidata | `.\scripts\windows\provision-runners.ps1 -Register` ou `.\scripts\windows\setup-medidata-overseer.ps1 -SshTarget eferreira@195.23.9.32` |
 | 3. Túnel activo | `Get-ScheduledTask -TaskName "Overseer SSH Tunnel"` → `Start-ScheduledTask` se parado |
 | 4. Task Medidata | Programa: `powershell.exe` · Args: `-ExecutionPolicy Bypass -File "%USERPROFILE%\overseer-runners\medidata_pipeline\run.ps1"` |
 | 5. Migrar 1.ª vez | `.\scripts\windows\migrate-taskscheduler.ps1 -CatalogJson "$env:USERPROFILE\overseer-runners\catalog.json"` |

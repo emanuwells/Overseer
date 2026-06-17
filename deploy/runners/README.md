@@ -22,11 +22,15 @@ Ficheiros com prefixo `_` (ex.: `_example.yaml`, `_medidata.yaml`) são
 |----------|------|-----|
 | `baze2.yaml` | Servidor prod Linux | Pipelines D4MAIA |
 | `WS1207.yaml` | Máquina Medidata Windows | Pipeline Medidata (`host_id=WS1207`, Task Scheduler) |
-
-Após atualizar o repo (layout `src/`), na WS1207 correr
-`scripts\windows\upgrade-windows-runner.ps1 -TestMedidata` antes de analisar runs.
 | `_medidata.yaml` | Template | Copiar para `<hostname>.yaml` na máquina Medidata |
 | `_example.yaml` | Template | Exemplo genérico Windows |
+
+Após atualizar o repo na WS1207, reinstalar o agente e reprovisionar antes de analisar runs:
+
+```powershell
+.\scripts\windows\install-runner.ps1 -RepoPath C:\MAIATRON\Overseer -SshTarget eferreira@195.23.9.32
+.\scripts\windows\provision-runners.ps1 -Register
+```
 
 ## Nova máquina Windows
 
