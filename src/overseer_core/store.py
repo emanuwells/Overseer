@@ -32,6 +32,8 @@ from sqlalchemy import (
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.url import make_url
 
+from .helpers import safe_metadata
+
 metadata = MetaData()
 _engine: Engine | None = None
 
@@ -386,9 +388,9 @@ def effective_host_id(row: dict[str, Any], *, from_run: bool = False) -> str:
     explicit = str(row.get("host_id") or "").strip()
     if explicit:
         return host_key(explicit)
-    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
-    if metadata.get("host_id"):
-        return host_key(metadata["host_id"])
+    meta = safe_metadata(row)
+    if meta.get("host_id"):
+        return host_key(meta["host_id"])
     _, legacy_host = split_legacy_pipeline_id(str(row.get("pipeline_id") or ""))
     if legacy_host:
         return host_key(legacy_host)
@@ -403,9 +405,9 @@ def resolve_host_id(payload: dict[str, Any]) -> str:
     explicit = str(payload.get("host_id") or "").strip()
     if explicit:
         return host_key(explicit)
-    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
-    if metadata.get("host_id"):
-        return host_key(metadata["host_id"])
+    meta = safe_metadata(payload)
+    if meta.get("host_id"):
+        return host_key(meta["host_id"])
     hostname = str(payload.get("hostname") or "").strip()
     if hostname:
         return host_key(hostname)
@@ -574,6 +576,13 @@ def row_to_dict(row: Any) -> dict[str, Any]:
     return data
 
 
+def _get_row(table: Table, pk_column: Column, pk_value: Any) -> dict[str, Any] | None:
+    """Leitura genérica de uma linha por chave primária."""
+    with get_engine().connect() as conn:
+        row = conn.execute(select(table).where(pk_column == pk_value)).mappings().first()
+    return row_to_dict(row) if row else None
+
+
 def _resolve_pipeline_host(payload: dict[str, Any]) -> tuple[str, str]:
     pipeline_id = str(payload["pipeline_id"]).strip()
     host_id = resolve_host_id(payload)
@@ -627,10 +636,10 @@ def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
                     db_val = current.get(field)
                     if db_val is not None and str(db_val).strip():
                         values[field] = db_val
-                cur_meta = current.get("metadata")
-                if not isinstance(cur_meta, dict):
+                cur_meta = safe_metadata(current)
+                if not cur_meta:
                     cur_meta = json_load(current.get("metadata_json")) or {}
-                yaml_meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+                yaml_meta = safe_metadata(payload)
                 merged_meta = dict(cur_meta)
                 if yaml_meta.get("host_id"):
                     merged_meta["host_id"] = yaml_meta["host_id"]
@@ -693,7 +702,7 @@ def patch_pipeline_catalog(pipeline_id: str, host_id: str, fields: dict[str, Any
     pipeline_id = logical_id
 
     current = get_pipeline(pipeline_id, host_id) or {}
-    current_meta = current.get("metadata") if isinstance(current.get("metadata"), dict) else json_load(current.get("metadata_json"))
+    current_meta = safe_metadata(current) or json_load(current.get("metadata_json"))
     if not isinstance(current_meta, dict):
         current_meta = {}
 
@@ -986,7 +995,7 @@ def list_deployments() -> list[dict[str, Any]]:
             continue
         for field, value in defaults.items():
             item.setdefault(field, value)
-        meta = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        meta = safe_metadata(item)
         if meta.get("suspended"):
             item["suspended"] = True
         elif "suspended" not in item:
@@ -1068,8 +1077,8 @@ def finish_run(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     duration = payload.get("duration_sec")
     if duration is None and started:
         duration = max(0.0, (ended - started).total_seconds())
-    existing_meta = run.get("metadata") if isinstance(run.get("metadata"), dict) else {}
-    incoming_meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+    existing_meta = safe_metadata(run)
+    incoming_meta = safe_metadata(payload)
     merged_meta = {**existing_meta, **incoming_meta}
     final_status = normalize_status(payload.get("status"))
     with get_engine().begin() as conn:
@@ -1465,35 +1474,23 @@ def get_pipeline_dag(
 
 
 def get_run(run_id: str) -> dict[str, Any] | None:
-    with get_engine().connect() as conn:
-        row = conn.execute(select(runs_table).where(runs_table.c.run_id == run_id)).mappings().first()
-    return row_to_dict(row) if row else None
+    return _get_row(runs_table, runs_table.c.run_id, run_id)
 
 
 def get_module(event_id: int) -> dict[str, Any] | None:
-    with get_engine().connect() as conn:
-        row = conn.execute(select(modules_table).where(modules_table.c.event_id == event_id)).mappings().first()
-    return row_to_dict(row) if row else None
+    return _get_row(modules_table, modules_table.c.event_id, event_id)
 
 
 def get_log(log_id: int) -> dict[str, Any] | None:
-    with get_engine().connect() as conn:
-        row = conn.execute(select(logs_table).where(logs_table.c.log_id == log_id)).mappings().first()
-    return row_to_dict(row) if row else None
+    return _get_row(logs_table, logs_table.c.log_id, log_id)
 
 
 def get_heartbeat(heartbeat_id: int) -> dict[str, Any] | None:
-    with get_engine().connect() as conn:
-        row = conn.execute(
-            select(heartbeats_table).where(heartbeats_table.c.heartbeat_id == heartbeat_id)
-        ).mappings().first()
-    return row_to_dict(row) if row else None
+    return _get_row(heartbeats_table, heartbeats_table.c.heartbeat_id, heartbeat_id)
 
 
 def get_trigger(trigger_id: str) -> dict[str, Any] | None:
-    with get_engine().connect() as conn:
-        row = conn.execute(select(triggers_table).where(triggers_table.c.trigger_id == trigger_id)).mappings().first()
-    return row_to_dict(row) if row else None
+    return _get_row(triggers_table, triggers_table.c.trigger_id, trigger_id)
 
 
 def list_runs(

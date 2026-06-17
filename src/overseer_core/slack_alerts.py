@@ -10,14 +10,14 @@ from typing import Any
 from overseer_sdk.slack_notifier import SlackNotifier
 
 from . import deployment_health, store
+from .helpers import env_flag
 from .repo_paths import repo_root
 
 logger = logging.getLogger("overseer.slack")
 
 
 def mention_channel_enabled() -> bool:
-    flag = os.getenv("OVERSEER_SLACK_MENTION_CHANNEL", "true").strip().lower()
-    return flag not in {"0", "false", "no", "off"}
+    return env_flag("OVERSEER_SLACK_MENTION_CHANNEL", default=True)
 
 
 def with_channel_mention(text: str) -> str:
@@ -62,13 +62,29 @@ def _host_label(run: dict[str, Any]) -> str:
     return str(run.get("hostname") or run.get("host_id") or "-")
 
 
-def notify_failed_run(run: dict[str, Any]) -> bool:
-    """Alerta imediato quando uma run falha. Inclui @channel."""
+def _send_slack_alert(run: dict[str, Any], lines: list[str], *, label: str) -> bool:
+    """Envia alerta Slack com boilerplate partilhado (notifier + run URL + @channel)."""
     notifier = get_slack_notifier()
     if not notifier.is_enabled:
-        logger.info("Slack disabled; skip failed-run alert for %s", run.get("run_id"))
+        logger.info("Slack disabled; skip %s alert for %s", label, run.get("run_id"))
         return False
 
+    run_url = _run_url(run)
+    if run_url:
+        lines.append(f"*Run:* <{run_url}|Abrir no MAIATRON (#{_run_row_id(run)})>")
+    elif label == "failed-run":
+        lines.append(f"*Run ID:* `{run.get('run_id')}`")
+
+    text = with_channel_mention("\n".join(lines))
+    try:
+        return bool(notifier.send_message(text))
+    except Exception as exc:
+        logger.error("Failed to send Slack %s alert: %s", label, exc)
+        return False
+
+
+def notify_failed_run(run: dict[str, Any]) -> bool:
+    """Alerta imediato quando uma run falha. Inclui @channel."""
     pipeline_id = str(run.get("pipeline_id") or "-")
     pipeline_name = str(run.get("pipeline_name") or pipeline_id)
     error = str(run.get("error_message") or "").strip()
@@ -84,28 +100,11 @@ def notify_failed_run(run: dict[str, Any]) -> bool:
     if error:
         lines.append(f"*Erro:* {error}")
     lines.append("_Será relembrado no digest diário (08:30) até ficar resolvido._")
-
-    run_url = _run_url(run)
-    if run_url:
-        lines.append(f"*Run:* <{run_url}|Abrir no MAIATRON (#{_run_row_id(run)})>")
-    else:
-        lines.append(f"*Run ID:* `{run.get('run_id')}`")
-
-    text = with_channel_mention("\n".join(lines))
-    try:
-        return bool(notifier.send_message(text))
-    except Exception as exc:
-        logger.error("Failed to send Slack alert: %s", exc)
-        return False
+    return _send_slack_alert(run, lines, label="failed-run")
 
 
 def notify_resolved_run(run: dict[str, Any], failed_run: dict[str, Any] | None = None) -> bool:
     """Alerta imediato quando uma falha fica resolvida (run ok após failed)."""
-    notifier = get_slack_notifier()
-    if not notifier.is_enabled:
-        logger.info("Slack disabled; skip resolved alert for %s", run.get("run_id"))
-        return False
-
     pipeline_id = str(run.get("pipeline_id") or "-")
     pipeline_name = str(run.get("pipeline_name") or pipeline_id)
     lines = [
@@ -119,14 +118,4 @@ def notify_resolved_run(run: dict[str, Any], failed_run: dict[str, Any] | None =
         failed_at = failed_run.get("ended_at") or failed_run.get("started_at")
         if failed_at:
             lines.append(f"*Falhou em:* {failed_at}")
-
-    run_url = _run_url(run)
-    if run_url:
-        lines.append(f"*Run:* <{run_url}|Abrir no MAIATRON (#{_run_row_id(run)})>")
-
-    text = with_channel_mention("\n".join(lines))
-    try:
-        return bool(notifier.send_message(text))
-    except Exception as exc:
-        logger.error("Failed to send Slack resolved alert: %s", exc)
-        return False
+    return _send_slack_alert(run, lines, label="resolved")

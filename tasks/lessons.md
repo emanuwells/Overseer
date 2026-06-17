@@ -26,3 +26,10 @@ Registar apenas informação com valor futuro. Não duplicar changelog, logs ext
 **Aprendizagem:** O payload JSON do heartbeat é o canal adequado para inventário periódico, autenticado e tolerante a falhas.  
 **Impacto:** `overseer-agent heartbeat --payload-file` permite anexar dados locais preservando `agent_version` e `api_reachable`; falhas de recolha devem degradar só o bloco local, não o heartbeat.  
 **Refs:** `scripts/windows/collect-taskscheduler-info.ps1`, `scripts/windows/heartbeat.ps1`, `src/overseer_agent/__main__.py`
+
+### 2026-06-17 — Padrões repetidos devem ser centralizados cedo
+
+**Contexto:** Guardas `isinstance(row.get("metadata"), dict)` repetidos em 9+ locais; parsing de env flags booleanas com sets truthy/falsy idênticos em 3 módulos; processamento stdout/stderr SSH duplicado.  
+**Aprendizagem:** Criar utilitários partilhados (`helpers.py`) mal um padrão apareça em 3+ locais. Manter helpers com interface mínima (`env_flag(name, default)`, `safe_metadata(row, key)`).  
+**Impacto:** Manutenção simplificada; alterações futuras num único ponto; menos risco de divergência entre módulos.  
+**Refs:** `src/overseer_core/helpers.py`, `src/overseer_core/store.py`, `src/overseer_core/runner_ssh.py`

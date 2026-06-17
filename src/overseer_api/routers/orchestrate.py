@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from overseer_core import runner_ssh, store
+from overseer_core.helpers import safe_metadata
 
 from ..auth import require_service_token
 
@@ -32,10 +33,7 @@ class CompleteBody(BaseModel):
 def _pipeline_suspended(catalog: dict[str, Any] | None) -> bool:
     if not catalog:
         return False
-    meta = catalog.get("metadata")
-    if not isinstance(meta, dict):
-        meta = {}
-    return bool(meta.get("suspended"))
+    return bool(safe_metadata(catalog).get("suspended"))
 
 
 @router.post("/triggers")

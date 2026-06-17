@@ -9,6 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from . import store
+from .helpers import env_flag
 from .slack_alerts import get_slack_notifier, with_channel_mention
 
 logger = logging.getLogger("overseer.slack_digest")
@@ -17,11 +18,9 @@ DIGEST_TZ = ZoneInfo("Europe/Lisbon")
 
 
 def digest_enabled() -> bool:
-    flag = os.getenv("OVERSEER_SLACK_DIGEST_ENABLED", "").strip().lower()
-    if flag in {"0", "false", "no", "off"}:
-        return False
-    if flag in {"1", "true", "yes", "on"}:
-        return True
+    raw = os.getenv("OVERSEER_SLACK_DIGEST_ENABLED", "").strip().lower()
+    if raw:
+        return env_flag("OVERSEER_SLACK_DIGEST_ENABLED")
     return get_slack_notifier().is_enabled
 
 

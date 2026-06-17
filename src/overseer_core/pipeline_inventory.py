@@ -9,6 +9,7 @@ from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from . import runner_ssh
+from .helpers import safe_metadata
 
 logger = logging.getLogger("overseer.pipeline_inventory")
 
@@ -17,10 +18,7 @@ DISCOVERY_TIMEOUT = int(os.getenv("OVERSEER_INVENTORY_TIMEOUT", "20"))
 
 
 def _node_metadata(node: dict[str, Any]) -> dict[str, Any]:
-    meta = node.get("metadata")
-    if isinstance(meta, dict):
-        return meta
-    return {}
+    return safe_metadata(node)
 
 
 def workspace_paths_from_nodes(nodes: list[dict[str, Any]]) -> list[str]:
@@ -95,7 +93,7 @@ def discover_inventory_nodes(
     if not pipeline:
         return []
     host_id = str(pipeline.get("host_id") or "").strip()
-    meta = pipeline.get("metadata") if isinstance(pipeline.get("metadata"), dict) else {}
+    meta = safe_metadata(pipeline)
     catalog_host = str(meta.get("host_id") or host_id).strip()
     if not catalog_host:
         return []

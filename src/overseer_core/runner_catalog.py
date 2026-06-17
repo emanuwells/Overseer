@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from .helpers import safe_metadata
 from .repo_paths import repo_root
 
 logger = logging.getLogger("overseer.runner_catalog")
@@ -222,7 +223,7 @@ def dag_to_yaml_steps(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) 
     steps: list[dict[str, Any]] = []
     for module_id in order:
         node = node_by_id[module_id]
-        meta = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
+        meta = safe_metadata(node)
         step: dict[str, Any] = {"module_id": module_id}
         label = node.get("label")
         if label and str(label) != module_id:
@@ -270,7 +271,7 @@ def sync_pipeline_yaml_from_db(
         if str(node.get("type") or "task") != "inventory"
     ]
     edges = dag.get("edges") or []
-    meta = pipeline.get("metadata") if isinstance(pipeline.get("metadata"), dict) else {}
+    meta = safe_metadata(pipeline)
     schedule = str(pipeline.get("schedule") or "manual")
 
     found = False

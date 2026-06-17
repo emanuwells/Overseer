@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import shlex
 import socket
 import subprocess
@@ -13,18 +12,14 @@ from typing import Any
 import paramiko
 import yaml
 
+from .helpers import env_flag
 from .repo_paths import repo_root
 
 logger = logging.getLogger("overseer.runner_ssh")
 
 
 def ssh_sync_enabled() -> bool:
-    return os.getenv("OVERSEER_SSH_SYNC_ENABLED", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    return env_flag("OVERSEER_SSH_SYNC_ENABLED")
 
 
 def runner_hosts_status(root: Path | None = None) -> list[dict[str, Any]]:
@@ -198,6 +193,32 @@ def build_sync_command(
     return f"cd {repo_q} && git pull && {prov}"
 
 
+def _dispatch_ssh(
+    ssh_target: str,
+    command: str,
+    *,
+    timeout: int = 900,
+) -> dict[str, Any]:
+    """Executa via local ou SSH e normaliza stdout/stderr."""
+    if is_local_ssh_target(ssh_target):
+        run = _run_local(command, timeout=timeout)
+        mode = "local"
+    else:
+        run = _run_ssh(ssh_target, command, timeout=timeout)
+        mode = "ssh"
+    stdout = str(run.get("stdout") or "")
+    stderr = str(run.get("stderr") or "")
+    result: dict[str, Any] = {
+        "mode": mode,
+        "exit_code": run.get("exit_code", 1),
+        "stdout_tail": stdout[-2000:] if len(stdout) > 2000 else stdout,
+        "ok": run.get("exit_code", 1) == 0,
+    }
+    if stderr:
+        result["stderr_tail"] = stderr[-1000:] if len(stderr) > 1000 else stderr
+    return result
+
+
 def sync_remote_runner(
     host_id: str,
     *,
@@ -218,29 +239,15 @@ def sync_remote_runner(
     platform = str(cfg.get("platform") or "linux").strip().lower()
     command = build_sync_command(canonical_host, cfg, schedule_changed=schedule_changed)
 
+    run_result = _dispatch_ssh(ssh_target, command)
     result: dict[str, Any] = {
         "enabled": True,
         "host": canonical_host,
         "ssh": ssh_target,
         "platform": platform,
         "skipped": False,
+        **run_result,
     }
-
-    if is_local_ssh_target(ssh_target):
-        result["mode"] = "local"
-        run = _run_local(command)
-    else:
-        result["mode"] = "ssh"
-        run = _run_ssh(ssh_target, command)
-
-    result["commands"] = [run]
-    result["exit_code"] = run.get("exit_code", 1)
-    stdout = str(run.get("stdout") or "")
-    result["stdout_tail"] = stdout[-2000:] if len(stdout) > 2000 else stdout
-    stderr = str(run.get("stderr") or "")
-    if stderr:
-        result["stderr_tail"] = stderr[-1000:] if len(stderr) > 1000 else stderr
-    result["ok"] = result["exit_code"] == 0
 
     if platform == "windows" and schedule_changed:
         result["schedule_note"] = (
@@ -316,6 +323,7 @@ def execute_pipeline_run(
         root=root,
     )
 
+    run_result = _dispatch_ssh(ssh_target, command, timeout=120)
     result: dict[str, Any] = {
         "enabled": True,
         "host": canonical,
@@ -323,23 +331,9 @@ def execute_pipeline_run(
         "ssh": ssh_target,
         "platform": platform,
         "skipped": False,
+        "command": command,
+        **run_result,
     }
-
-    if is_local_ssh_target(ssh_target):
-        result["mode"] = "local"
-        run = _run_local(command, timeout=120)
-    else:
-        result["mode"] = "ssh"
-        run = _run_ssh(ssh_target, command, timeout=120)
-
-    result["command"] = command
-    result["exit_code"] = run.get("exit_code", 1)
-    stdout = str(run.get("stdout") or "")
-    result["stdout_tail"] = stdout[-2000:] if len(stdout) > 2000 else stdout
-    stderr = str(run.get("stderr") or "")
-    if stderr:
-        result["stderr_tail"] = stderr[-1000:] if len(stderr) > 1000 else stderr
-    result["ok"] = result["exit_code"] == 0
 
     if not result["ok"]:
         logger.warning(

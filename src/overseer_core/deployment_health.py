@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from . import store
+from .helpers import safe_metadata
 
 _MANUAL_SCHEDULES = frozenset({"manual", "paused", ""})
 
@@ -18,8 +19,8 @@ def catalog_schedule(cat: dict[str, Any]) -> str:
 def catalog_prev_schedule(cat: dict[str, Any]) -> str | None:
     if cat.get("prev_schedule"):
         return str(cat["prev_schedule"])
-    meta = cat.get("metadata")
-    if isinstance(meta, dict) and meta.get("prev_schedule"):
+    meta = safe_metadata(cat)
+    if meta.get("prev_schedule"):
         return str(meta["prev_schedule"])
     return None
 
@@ -206,7 +207,7 @@ def run_resource_metrics(runs: list[dict[str, Any]]) -> tuple[float, float, floa
     for row in runs:
         if row.get("duration_sec") is not None:
             durations.append(float(row["duration_sec"]))
-        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        metadata = safe_metadata(row)
         cpu = min(metadata_cpu(metadata), 100.0)
         memory = metadata_memory(metadata)
         if memory > 0:
