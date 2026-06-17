@@ -332,11 +332,14 @@ def ensure_schema_columns() -> None:
             if "metadata_json" not in existing:
                 conn.execute(text("ALTER TABLE overseer_pipelines ADD COLUMN metadata_json TEXT NULL"))
         for table, ddl in _HOST_ID_TABLES.items():
+            if table not in _HOST_ID_TABLES:
+                continue
             if not inspector.has_table(table):
                 continue
             cols = {column["name"] for column in inspector.get_columns(table)}
             if "host_id" not in cols:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN host_id {ddl}"))
+                safe_table = table.replace("`", "``")
+                conn.execute(text(f"ALTER TABLE `{safe_table}` ADD COLUMN host_id {ddl}"))
         if inspector.has_table("overseer_runs"):
             run_cols = {column["name"] for column in inspector.get_columns("overseer_runs")}
             if "run_local_id" not in run_cols:

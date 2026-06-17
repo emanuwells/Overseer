@@ -142,7 +142,18 @@ def _run_local(command: str, *, cwd: Path | None = None, timeout: int = 900) -> 
 
 def _run_ssh(ssh_target: str, command: str, *, timeout: int = 900) -> dict[str, Any]:
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    reject_unknown = os.getenv("OVERSEER_SSH_REJECT_UNKNOWN_HOSTS", "true").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+    if reject_unknown:
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    else:
+        logger.warning("SSH host key verification disabled — accepting unknown hosts")
+        client.set_missing_host_key_policy(paramiko.WarningPolicy())
     username: str | None = None
     hostname = ssh_target
     if "@" in ssh_target:

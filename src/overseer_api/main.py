@@ -60,20 +60,31 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    docs_enabled = os.getenv("OVERSEER_DOCS_ENABLED", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     app = FastAPI(
         title="Overseer API",
         version=API_VERSION,
         description="API canónica para observabilidade de pipelines e DAGs.",
         lifespan=lifespan,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
 
-    origins = os.getenv("OVERSEER_CORS_ORIGINS", "*").split(",")
+    origins_raw = os.getenv("OVERSEER_CORS_ORIGINS", "").strip()
+    origins = [o.strip() for o in origins_raw.split(",") if o.strip()] if origins_raw else []
+    allow_all = not origins or origins == ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[origin.strip() for origin in origins if origin.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=origins if not allow_all else ["*"],
+        allow_credentials=not allow_all,
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
     )
 
     app.include_router(health.router)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from overseer_core import runner_ssh, store
 
@@ -51,7 +51,7 @@ def read_pipeline_dag(
 
 @router.get("/runs")
 def read_runs(
-    limit: int = 200,
+    limit: int = Query(default=200, ge=1, le=1000),
     pipeline_id: str | None = None,
     host_id: str | None = None,
 ) -> dict[str, Any]:
@@ -78,16 +78,16 @@ def read_modules(run_id: str | None = None, pipeline_id: str | None = None) -> d
 def read_logs(
     run_id: str | None = None,
     pipeline_id: str | None = None,
-    limit: int = 500,
+    limit: int = Query(default=500, ge=1, le=2000),
 ) -> dict[str, Any]:
     return {"ok": True, "items": store.list_logs(run_id=run_id, pipeline_id=pipeline_id, limit=limit)}
 
 
 @router.get("/heartbeats")
-def read_heartbeats(limit: int = 200) -> dict[str, Any]:
+def read_heartbeats(limit: int = Query(default=200, ge=1, le=1000)) -> dict[str, Any]:
     return {"ok": True, "items": store.list_heartbeats(limit=limit)}
 
 
 @router.get("/triggers")
-def read_triggers(limit: int = 200) -> dict[str, Any]:
+def read_triggers(limit: int = Query(default=200, ge=1, le=1000)) -> dict[str, Any]:
     return {"ok": True, "items": store.list_triggers(limit=limit)}
