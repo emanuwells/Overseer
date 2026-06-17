@@ -21,9 +21,14 @@ Estado operacional das iterações em curso.
 
 ### Pendente
 
-- [ ] Deploy prod Linux (pull, compose, reconcile).
-- [ ] Deploy WS1207 (pull, install-runner, provision-runners, heartbeat).
-- [ ] Validar `payload.task_scheduler` em `/v1/read/heartbeats?limit=1`.
+- [ ] Deploy WS1207 bloqueado: SSH `DQSI@WS1207` indisponível a partir de prod e desta máquina (HP-Z2-EF). Executar manualmente na consola WS1207.
+- [ ] Confirmar `payload.task_scheduler` em `/v1/read/heartbeats?limit=1` após reprovisionar WS1207.
+
+### Deploy prod (2026-06-17)
+
+- [x] `git pull`, `docker compose -f docker-compose.prod.yml up --build -d`, health OK.
+- [x] `POST /v1/catalog/reconcile` com `sync_remote:false` (medidata_pipeline actualizado; sync remoto falhou por DNS WS1207 no prod).
+- [ ] WS1207: comandos em `COMMANDS.md` secção Medidata.
 
 ### Próximos Passos
 
