@@ -1,5 +1,7 @@
 # ADR 0001 — Núcleo API E Observabilidade DAG
 
+> **Nota histórica:** decisões sobre frontend estático e ausência de Vite foram **substituídas** pela SPA React (Vite) documentada em `docs/architecture/frontend.md`. O restante (API `/v1`, tabelas `overseer_*`, pipelines externos) mantém-se válido.
+
 ## Estado
 
 Aceite.

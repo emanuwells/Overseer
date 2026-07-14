@@ -17,3 +17,7 @@ Antes de substituir a história Git, criar e verificar um bundle completo fora d
 ## Frontend Node em repositórios no Google Drive
 
 `npm install` directamente em `frontend/node_modules` num checkout sincronizado com Google Drive falha com EPERM/EBADF. Gerar `package-lock.json` e validar `npm run build` num diretório temporário local (ou no stage Docker). O build de produção deve depender do Dockerfile, não de `node_modules` versionado.
+
+## `.gitignore` com padrões amplos
+
+A regra `templates/` na raiz ignorava também `docs/resources/templates/`, impedindo versionar `.env.example`. Preferir âncoras à raiz (`/templates/`) quando o padrão for legado local, não documentação versionada.

@@ -78,6 +78,9 @@ python scripts/overseer_retention.py --apply
 python scripts/drop_legacy_tables.py --dry-run
 python scripts/drop_legacy_tables.py --apply
 python scripts/maintenance/overseer_db_maintenance.py --pipeline-id <pipeline-id>
+python scripts/audit_db_schema.py
+python scripts/scan_git_secrets.py
+python scripts/slack_daily_digest.py --dry-run
 ```
 
 Utilize `--apply` apenas depois de rever o resultado do modo de simulação. Não execute `docker compose down -v`, purgas, alterações de schema ou operações destrutivas sem backup e confirmação explícita.

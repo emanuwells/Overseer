@@ -26,7 +26,7 @@
 - [x] Executar testes, validação Docker e auditoria de dados.
 - [x] Publicar a história limpa e validar o GitHub.
 - [x] Migrar produção e confirmar health.
-- [ ] Alterar a visibilidade para pública numa sessão GitHub autenticada.
+- [x] Alterar a visibilidade para pública numa sessão GitHub autenticada.
 
 ## Harmonização nomes, UX e deploy — 2026-07-14
 
@@ -35,3 +35,12 @@
 - [x] Modal, Drawer, DeploymentPicker, refactor Operações/Runs/DAG.
 - [x] README (diagrama genérico), CHANGELOG 5.8.31, `.env.example`.
 - [x] Validar pytest + build frontend + deploy baze2 + smoke URLs.
+
+## Limpeza repo público — 2026-07-14
+
+- [x] Remover scripts de migração one-shot obsoletos.
+- [x] Adicionar `docs/resources/templates/.env.example` e corrigir `.gitignore`.
+- [x] Alinhar README, arquitetura, ADR, SECURITY e `scripts/README.md`.
+- [x] Deploy produção e alinhar git.
+
+## Publicação agnóstica — 2026-07-14

@@ -4,6 +4,22 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.34] - 2026-07-14
+
+### Added
+
+- `docs/resources/templates/.env.example` — template de configuração (corrigido `.gitignore` que bloqueava `docs/resources/templates/`).
+- `scripts/README.md` — índice dos scripts suportados.
+
+### Removed
+
+- Migrações one-shot obsoletas: `migrate_host_id.sql`, `migrate_pipeline_host_suffix.py`, `maintenance/assign_run_local_ids.py` (backfill integrado em `init_schema()`).
+
+### Changed
+
+- README, `database.md`, `deployment.md`, ADR 0001 e SECURITY alinhados com repo público e SPA React.
+- Badge de versão e variáveis de retenção documentadas no README.
+
 ## [5.8.33] - 2026-07-14
 
 ### Added

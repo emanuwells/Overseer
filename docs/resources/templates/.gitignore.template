@@ -1,0 +1,82 @@
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Segredos e credenciais
+secrets/*
+!secrets/README.md
+!secrets/examples/
+!secrets/examples/**
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+
+# Dependências
+node_modules/
+vendor/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Builds e caches
+dist/
+build/
+.out/
+out/
+coverage/
+.cache/
+.tmp/
+tmp/
+.parcel-cache/
+.next/
+.nuxt/
+.vite/
+frontend/node_modules/
+frontend/dist/
+
+# Runtime local
+runtime/*
+!runtime/.gitkeep
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE local
+.vscode/settings.local.json
+.idea/
+
+# Cursor / MCP
+.cursor/mcp.json
+.cursor/**/local.*
+.cursor/**/secrets.*
+
+# Dados locais
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.dump
+*.sql.gz
+
+# Artefactos temporários comuns
+*.tmp
+*.temp
+*.swp
+*.swo

@@ -17,7 +17,7 @@ Reportar vulnerabilidades, exposição de segredos ou risco de produção ao res
 
 ```text
 [ ] Segredos fora do Git.
-[ ] Variáveis documentadas em `.env.example`.
+[ ] Variáveis documentadas em `docs/resources/templates/.env.example`.
 [ ] Autenticação/autorização revista.
 [ ] Logs sem dados sensíveis.
 [ ] Rollback conhecido.

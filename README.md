@@ -1,7 +1,7 @@
 # Overseer
 
 ![Estado](https://img.shields.io/badge/estado-estável-2ecc71)
-![Versão](https://img.shields.io/badge/versão-5.8.29-3498db)
+![Versão](https://img.shields.io/badge/versão-5.8.34-3498db)
 ![Licença](https://img.shields.io/badge/licença-proprietária-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -10,19 +10,15 @@ O Overseer é um serviço Docker-first de observabilidade para pipelines e DAGs 
 
 O serviço observa pipelines; não incorpora o respetivo código nem substitui o orquestrador que os executa. Esta separação permite integrar processos Python, tarefas agendadas, jobs de CI ou outros runners sem acoplar o seu ciclo de vida ao Overseer.
 
-## Contrato para agentes e contribuidores
-
-Trabalho neste repositório segue [`AGENTS.md`](AGENTS.md): hierarquia de autoridade, fontes de verdade, classificação de risco, fluxo operacional e modelo de equipa IA. Antes de alterações não triviais, leia também [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) e [`COMMANDS.md`](COMMANDS.md).
-
 ## Documentação normativa
 
-| Documento | Finalidade |
-|---|---|
-| [`AGENTS.md`](AGENTS.md) | Contrato operacional para agentes e ferramentas de IA |
-| [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) | Contexto técnico vivo do produto |
-| [`COMMANDS.md`](COMMANDS.md) | Comandos reais de desenvolvimento, testes e deploy |
-| [`docs/architecture/`](docs/architecture/) | Arquitetura por camada |
-| [`docs/ai/DAILY_AGENT_WORKFLOW.md`](docs/ai/DAILY_AGENT_WORKFLOW.md) | Fluxo diário recomendado para agentes |
+| Documento                                                             | Finalidade                                            |
+| --------------------------------------------------------------------- | ----------------------------------------------------- |
+| [`AGENTS.md`](AGENTS.md)                                             | Contrato operacional para agentes e ferramentas de IA |
+| [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md)                           | Contexto técnico vivo do produto                     |
+| [`COMMANDS.md`](COMMANDS.md)                                         | Comandos reais de desenvolvimento, testes e deploy    |
+| [`docs/architecture/`](docs/architecture/)                           | Arquitetura por camada                                |
+| [`docs/ai/DAILY_AGENT_WORKFLOW.md`](docs/ai/DAILY_AGENT_WORKFLOW.md) | Fluxo diário recomendado para agentes                |
 
 ## O que resolve
 
@@ -121,19 +117,22 @@ O servidor Vite faz proxy de `/v1` para a API. Para produção ou Docker, `npm r
 
 ## Configuração
 
-| Variável | Finalidade | Desenvolvimento |
-|---|---|---|
-| OVERSEER_API_PORT | Porta HTTP publicada pelo Compose | 8090 |
-| OVERSEER_API_TOKEN | Token exigido nos endpoints protegidos | valor local do exemplo |
-| OVERSEER_CORS_ORIGINS | Origens autorizadas, separadas por vírgulas | * |
-| OVERSEER_DB_URL | Ligação SQLAlchemy à base de dados | MariaDB do Compose |
-| OVERSEER_RUNNERS_DIR | Diretório privado com hosts e catálogos | ./deploy/runners |
-| OVERSEER_RUNTIME_DIR | Estado persistente fora da imagem | ./runtime |
-| OVERSEER_SSH_SYNC_ENABLED | Ativa sincronização remota por SSH | 1 |
-| OVERSEER_SLACK_WEBHOOK_URL | Webhook de Slack, opcional | não definido |
-| OVERSEER_SLACK_DIGEST_ENABLED | Ativa o resumo diário | herda a presença do webhook |
-| OVERSEER_SLACK_DIGEST_HOUR | Hora do digest em Europe/Lisbon | 8 |
-| OVERSEER_SLACK_DIGEST_MINUTE | Minuto do digest | 30 |
+| Variável                     | Finalidade                                   | Desenvolvimento              |
+| ----------------------------- | -------------------------------------------- | ---------------------------- |
+| OVERSEER_API_PORT             | Porta HTTP publicada pelo Compose            | 8090                         |
+| OVERSEER_API_TOKEN            | Token exigido nos endpoints protegidos       | valor local do exemplo       |
+| OVERSEER_CORS_ORIGINS         | Origens autorizadas, separadas por vírgulas | *                            |
+| OVERSEER_DB_URL               | Ligação SQLAlchemy à base de dados        | MariaDB do Compose           |
+| OVERSEER_RUNNERS_DIR          | Diretório privado com hosts e catálogos    | ./deploy/runners             |
+| OVERSEER_RUNTIME_DIR          | Estado persistente fora da imagem            | ./runtime                    |
+| OVERSEER_SSH_SYNC_ENABLED     | Ativa sincronização remota por SSH         | 1                            |
+| OVERSEER_SLACK_WEBHOOK_URL    | Webhook de Slack, opcional                   | não definido                |
+| OVERSEER_SLACK_DIGEST_ENABLED | Ativa o resumo diário                       | herda a presença do webhook |
+| OVERSEER_SLACK_DIGEST_HOUR    | Hora do digest em Europe/Lisbon              | 8                            |
+| OVERSEER_SLACK_DIGEST_MINUTE  | Minuto do digest                             | 30                           |
+| OVERSEER_NAME_PREFIX_STRIP    | Prefixos removidos em nomes (API, UI, Slack) | `Yunex `                     |
+| OVERSEER_RETENTION_DAYS       | Janela de retenção de telemetria             | 30                           |
+| OVERSEER_RETENTION_AUTO       | Purge automático no arranque da API          | true                         |
 
 O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartbeats e triggers em fila permanecem consultáveis pela API e pela interface, mas não são enviados no resumo. Um digest saudável não menciona @channel; a menção fica reservada a situações acionáveis.
 
@@ -172,19 +171,19 @@ O backend usa FastAPI e SQLAlchemy. O frontend usa React, TypeScript, Vite, Reac
 
 ## Estrutura do repositório
 
-| Diretório | Conteúdo |
-|---|---|
-| src/ | API, domínio, persistência, SDK, agente e monitorização |
-| frontend/ | SPA React (código-fonte e `dist/` após build) |
-| openapi/ | contrato público da API |
-| docker/ | imagem e ficheiros Compose |
-| deploy/ | exemplos públicos de configuração operacional |
-| runtime/ | estado local ignorado pelo Git |
-| scripts/ | arranque, manutenção, integração e provisionamento |
-| tests/ | testes automatizados |
-| docs/ | arquitetura, operação, governação e exemplos |
-| tasks/ | estado de trabalho e aprendizagens reutilizáveis |
-| tools/ | adaptadores IA opcionais |
+| Diretório | Conteúdo                                                   |
+| ---------- | ----------------------------------------------------------- |
+| src/       | API, domínio, persistência, SDK, agente e monitorização |
+| frontend/  | SPA React (código-fonte e`dist/` após build)            |
+| openapi/   | contrato público da API                                    |
+| docker/    | imagem e ficheiros Compose                                  |
+| deploy/    | exemplos públicos de configuração operacional            |
+| runtime/   | estado local ignorado pelo Git                              |
+| scripts/   | arranque, deploy, manutenção e integração ([índice](scripts/README.md)) |
+| tests/     | testes automatizados                                        |
+| docs/      | arquitetura, operação, governação e exemplos            |
+| tasks/     | estado de trabalho e aprendizagens reutilizáveis           |
+| tools/     | adaptadores IA opcionais                                    |
 
 ## Operação e produção
 
@@ -196,4 +195,4 @@ O rollback restaura o checkout e a imagem anteriores, mantendo configuração e 
 
 Consulte [.github/SECURITY.md](.github/SECURITY.md) para comunicar vulnerabilidades sem expor detalhes publicamente. As regras de contribuição estão em [docs/governance/CONTRIBUTING.md](docs/governance/CONTRIBUTING.md).
 
-O código é publicado sob licença proprietária. A visibilidade do repositório não concede direitos de utilização, modificação ou redistribuição além dos expressamente indicados em [LICENSE](LICENSE).
+O repositório é público para consulta e avaliação. O código permanece sob [licença proprietária](LICENSE); a visibilidade pública não concede direitos de utilização, modificação ou redistribuição sem autorização escrita do titular.

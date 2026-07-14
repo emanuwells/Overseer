@@ -2,7 +2,7 @@
 
 ## Responsabilidade
 
-O fluxo oficial do Overseer é Docker-first. O Compose local/prod arranca API, frontend estático servido pela API e base de dados relacional, mantendo scripts auxiliares para provisionamento, manutenção e integração de runners externos.
+O fluxo oficial do Overseer é Docker-first. O Compose local/prod arranca API, SPA React servida pela API (ou nginx em `/Overseer/`) e base de dados relacional, com scripts auxiliares para provisionamento, manutenção e integração de runners externos.
 
 ## Ambientes
 

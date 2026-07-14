@@ -14,7 +14,7 @@ venv/
 # OS / IDE / adaptadores legados na raiz
 .agents/
 .claude/
-templates/
+/templates/
 *.egg-info/
 
 # OS / IDE

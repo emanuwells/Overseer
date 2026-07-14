@@ -20,10 +20,19 @@ A camada de dados guarda o estado operacional do Overseer: catálogo de pipeline
 - A UI lê dados através de `/v1/read/*`; não escreve diretamente na base de dados.
 - Triggers são registados como sinais operacionais e podem envolver dispatch externo configurado.
 
+## Tabelas ativas
+
+| Grupo | Tabelas |
+|---|---|
+| Canónicas (`overseer_*`) | `overseer_pipelines`, `overseer_pipeline_nodes`, `overseer_pipeline_edges`, `overseer_runs`, `overseer_modules`, `overseer_logs`, `overseer_heartbeats`, `overseer_triggers` |
+| Governação (MAIATRON-HUB) | `overseer_identity_mappings`, `overseer_identity_mapping_requests`, `overseer_permission_requests`, `overseer_pipeline_permissions` |
+
+Tabelas legado (`pipeline_*`, `orchestrator_*_local`, medidata, alertas antigos) foram removidas do schema de produção. Para auditoria ou drop em outros ambientes: `scripts/audit_db_schema.py` e `scripts/drop_legacy_tables.py`.
+
 ## Migrações E Compatibilidade
 
 - Alterações de schema devem ser pequenas, reversíveis quando possível e cobertas por testes.
-- Dados legados fora do contrato `overseer_*` não devem ser assumidos como fonte ativa sem decisão explícita.
+- Dados fora do contrato `overseer_*` e governação listada acima não são fonte ativa.
 - Campos JSON devem degradar de forma tolerante quando payloads externos tiverem informação parcial.
 
 ## Segurança
