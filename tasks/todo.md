@@ -34,4 +34,4 @@
 - [x] Testes unitários e regressão Slack para nomes canónicos.
 - [x] Modal, Drawer, DeploymentPicker, refactor Operações/Runs/DAG.
 - [x] README (diagrama genérico), CHANGELOG 5.8.31, `.env.example`.
-- [ ] Validar pytest + build frontend + deploy baze2 + smoke URLs.
+- [x] Validar pytest + build frontend + deploy baze2 + smoke URLs.
