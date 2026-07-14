@@ -96,7 +96,7 @@ export OVERSEER_REPO_PATH=/caminho/para/Overseer
 bash scripts/deploy-prod.sh
 ```
 
-O deploy faz `git pull`, `docker compose ... prod up --build`, health check e `deploy-nginx-frontend.sh` (build `/Overseer/`).
+O deploy faz `git pull`, `docker compose ... prod up --build`, health check, `deploy-nginx-frontend.sh` e, com sudo, `install-nginx-overseer.sh`.
 
 Comandos manuais:
 

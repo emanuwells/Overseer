@@ -17,6 +17,7 @@ bash scripts/ensure-env.sh
 docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.prod.yml up --build -d
 curl -sf http://127.0.0.1:8090/v1/health
 sudo OVERSEER_ENV_FILE=secrets/.env bash scripts/deploy-nginx-frontend.sh
+bash scripts/install-nginx-overseer.sh
 "@
 
 Write-Host "==> Deploy em ${SshTarget}:${RepoPath}"

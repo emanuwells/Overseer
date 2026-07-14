@@ -11,17 +11,6 @@ WEB_ROOT="${OVERSEER_WEB_ROOT:-/usr/share/nginx/html/Overseer}"
 LOCATIONS_SRC="$REPO_ROOT/deploy/nginx/overseer-locations.conf"
 LOCATIONS_DST="/etc/nginx/overseer-locations.conf"
 BUILD_DIR="${OVERSEER_FRONTEND_BUILD_DIR:-}"
-SPA_ROUTES=(operations runs dag environment)
-
-ensure_spa_fallbacks() {
-  local root="$1"
-  local route
-  for route in "${SPA_ROUTES[@]}"; do
-    mkdir -p "$root/$route"
-    cp "$root/index.html" "$root/$route/index.html"
-  done
-  echo "==> Fallbacks SPA criados para: ${SPA_ROUTES[*]}"
-}
 
 echo "==> A construir frontend para nginx (base /Overseer/)"
 build_nginx_frontend() {
@@ -59,7 +48,8 @@ mkdir -p "$WEB_ROOT"
 cp -r "$FRONTEND_SRC"/. "$WEB_ROOT"/
 rm -f "$WEB_ROOT"/dashboard.html "$WEB_ROOT"/deployments.html "$WEB_ROOT"/lineage.html "$WEB_ROOT"/run-detail.html
 rm -rf "$WEB_ROOT"/css "$WEB_ROOT"/js
-ensure_spa_fallbacks "$WEB_ROOT"
+# Remover fallbacks legados (causam 301 desnecessários quando nginx tem try_files SPA).
+rm -rf "$WEB_ROOT"/operations "$WEB_ROOT"/runs "$WEB_ROOT"/dag "$WEB_ROOT"/environment
 
 ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
 if [ -f "$ENV_FILE" ]; then
@@ -91,9 +81,7 @@ if cp "$LOCATIONS_SRC" "$LOCATIONS_DST" 2>/dev/null; then
   nginx -t
 else
   echo "AVISO: sem permissão para $LOCATIONS_DST; frontend publicado, nginx locations inalterado."
-  echo "       Para deep links sem trailing slash, execute como root:"
-  echo "         sudo cp $LOCATIONS_SRC $LOCATIONS_DST"
-  echo "         sudo nginx -t && sudo systemctl reload nginx"
+  echo "       Execute no servidor: bash scripts/install-nginx-overseer.sh"
 fi
 
 echo "==> Concluído. UI: http://<host>/Overseer/"

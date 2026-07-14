@@ -9,7 +9,7 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 ### Fixed
 
 - Nginx SPA em `/Overseer/`: `root` + `try_files` em vez de `alias` (deep links como `/Overseer/operations`).
-- `deploy-nginx-frontend.sh` cria fallbacks por rota quando nginx não pode ser recarregado.
+- `deploy-nginx-frontend.sh` remove fallbacks legados por rota; usar `install-nginx-overseer.sh` no servidor.
 
 ## [5.8.29] - 2026-07-14
 
