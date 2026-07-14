@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Wrapper de execução de um pipeline via manifest, para usar no crontab.
+# Não altera o código do pipeline: apenas orquestra e reporta ao Overseer.
+#
+# Exemplo de linha de crontab:
+#   0 6 * * * /home/overseer/overseer-runners/forms_to_lake/run.sh >> /home/overseer/overseer-runners/forms_to_lake/run.log 2>&1
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
+# Configuração partilhada (URL + token) e, se existir, override local.
+set -a
+[ -f "$HERE/../.env.overseer" ] && source "$HERE/../.env.overseer"
+[ -f "$HERE/.env.overseer" ] && source "$HERE/.env.overseer"
+set +a
+
+OVERSEER_VENV="${OVERSEER_VENV:-$HOME/overseer-venv}"
+
+"$OVERSEER_VENV/bin/overseer-agent" manifest "$HERE/manifest.yaml" --by cron

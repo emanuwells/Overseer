@@ -1,0 +1,27 @@
+# Normalização de line endings
+* text=auto eol=lf
+
+# Windows scripts
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Markdown e documentação
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binários
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.7z binary
+*.exe binary
+*.dll binary

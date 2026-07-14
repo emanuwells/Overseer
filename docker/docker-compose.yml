@@ -1,0 +1,51 @@
+services:
+  overseer-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      OVERSEER_ROOT: /app
+      OVERSEER_API_HOST: 0.0.0.0
+      OVERSEER_API_PORT: 8090
+      OVERSEER_API_TOKEN: ${OVERSEER_API_TOKEN:-}
+      OVERSEER_DB_URL: ${OVERSEER_DB_URL:-mysql+pymysql://overseer:${MYSQL_PASSWORD:-overseer}@mysql:3306/Overseer?charset=utf8mb4}
+      OVERSEER_CORS_ORIGINS: ${OVERSEER_CORS_ORIGINS:-*}
+      OVERSEER_API_URL: http://127.0.0.1:8090
+      OVERSEER_SLACK_WEBHOOK_URL: ${OVERSEER_SLACK_WEBHOOK_URL:-}
+      OVERSEER_SLACK_CHANNEL: ${OVERSEER_SLACK_CHANNEL:-#overseer}
+      OVERSEER_SLACK_MENTION_CHANNEL: ${OVERSEER_SLACK_MENTION_CHANNEL:-true}
+      OVERSEER_SLACK_DIGEST_ENABLED: ${OVERSEER_SLACK_DIGEST_ENABLED:-true}
+      OVERSEER_SLACK_DIGEST_HOUR: ${OVERSEER_SLACK_DIGEST_HOUR:-8}
+      OVERSEER_SLACK_DIGEST_MINUTE: ${OVERSEER_SLACK_DIGEST_MINUTE:-30}
+      OVERSEER_SSH_SYNC_ENABLED: ${OVERSEER_SSH_SYNC_ENABLED:-1}
+    ports:
+      - "${OVERSEER_API_PORT:-8090}:8090"
+    volumes:
+      - ${OVERSEER_RUNTIME_DIR:-./runtime}:/app/runtime
+      - ${OVERSEER_RUNNERS_DIR:-./deploy/runners}:/app/deploy/runners:rw
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-overseer}
+      MYSQL_DATABASE: Overseer
+      MYSQL_USER: overseer
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-overseer}
+    ports:
+      - "${OVERSEER_DB_PORT:-3307}:3306"
+    volumes:
+      - overseer_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  overseer_mysql_data:

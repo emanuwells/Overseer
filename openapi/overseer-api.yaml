@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+  title: Overseer API
+  version: 5.4.1
+  description: API canónica para observabilidade de pipelines e DAGs. Slack digest 08:30 Europe/Lisbon.
+paths:
+  /:
+    get:
+      summary: Redireciona para o dashboard em /ui/dashboard.html.
+  /ui:
+    get:
+      summary: Redireciona para o dashboard em /ui/dashboard.html.
+  /v1/health:
+    get:
+      summary: Estado da API e conectividade à base de dados.
+  /v1/catalog/pipelines/{pipeline_id}:
+    patch:
+      summary: Actualiza metadata (owner, schedule, etc.) com sync DB + YAML + SSH.
+      parameters:
+        - in: path
+          name: pipeline_id
+          required: true
+          schema:
+            type: string
+  /v1/catalog/pipelines:
+    post:
+      summary: Regista ou atualiza o catálogo de um pipeline e o seu DAG.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pipeline_id
+              properties:
+                pipeline_id:
+                  type: string
+                name:
+                  type: string
+                owner:
+                  type: string
+                criticality:
+                  type: string
+                schedule:
+                  type: string
+                metadata:
+                  type: object
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - module_id
+                    properties:
+                      module_id:
+                        type: string
+                      label:
+                        type: string
+                      type:
+                        type: string
+                      metadata:
+                        type: object
+                edges:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - from_module_id
+                      - to_module_id
+                    properties:
+                      from_module_id:
+                        type: string
+                      to_module_id:
+                        type: string
+                      metadata:
+                        type: object
+  /v1/read/overview:
+    get:
+      summary: Snapshot operacional para o dashboard.
+  /v1/read/database:
+    get:
+      summary: Estado seguro da ligação à base de dados, com URL mascarada e contagens por tabela.
+  /v1/read/pipelines:
+    get:
+      summary: Lista pipelines registados por API.
+  /v1/read/pipelines/{pipeline_id}/dag:
+    get:
+      summary: Devolve catálogo, nodes e edges do DAG de um pipeline.
+      parameters:
+        - in: query
+          name: host_id
+          schema:
+            type: string
+          description: Desambigua deployments multi-host.
+  /v1/read/runs:
+    get:
+      summary: Lista runs recentes.
+  /v1/read/runs/{run_id}:
+    get:
+      summary: Detalhe de uma run com módulos e logs.
+  /v1/read/modules:
+    get:
+      summary: Lista eventos de módulo por run ou pipeline.
+  /v1/read/logs:
+    get:
+      summary: Lista logs por run ou pipeline.
+  /v1/read/heartbeats:
+    get:
+      summary: Lista heartbeats recentes.
+  /v1/read/triggers:
+    get:
+      summary: Lista triggers operacionais.
+  /v1/events/runs/start:
+    post:
+      summary: Regista início de run.
+  /v1/events/runs/{run_id}/finish:
+    post:
+      summary: Fecha run com estado final.
+  /v1/events/modules:
+    post:
+      summary: Regista estado runtime de um módulo/node.
+  /v1/events/logs:
+    post:
+      summary: Regista log ou evento livre.
+  /v1/events/heartbeat:
+    post:
+      summary: Regista heartbeat de runner, agente ou pipeline.
+  /v1/orchestrate/triggers:
+    post:
+      summary: Enfileira trigger operacional sem executar código local.
+  /v1/orchestrate/triggers/{trigger_id}/claim:
+    post:
+      summary: Reclama trigger operacional.
+  /v1/orchestrate/triggers/{trigger_id}/complete:
+    post:
+      summary: Marca trigger como concluído.

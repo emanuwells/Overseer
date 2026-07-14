@@ -1,0 +1,20 @@
+# Manifest de runner Overseer.
+# Vive fora do repo do pipeline (ex.: ~/overseer-runners/<pipeline_id>/manifest.yaml).
+# Cada passo é um script externo. O Overseer regista um módulo por passo,
+# com stdout/stderr e estado ok/failed, sem alterar o código do pipeline.
+
+pipeline_id: forms_to_lake
+pipeline_name: Forms to Lake
+owner: data
+criticality: medium
+schedule: "0 6 * * *"
+
+steps:
+  - module_id: extract
+    command: ["python3", "/home/overseer/Dev/Repos/your-organization/forms/extract.py"]
+    cwd: /home/overseer/Dev/Repos/your-organization/forms
+  - module_id: transform
+    command: ["python3", "/home/overseer/Dev/Repos/your-organization/forms/transform.py"]
+  - module_id: load
+    command: ["python3", "/home/overseer/Dev/Repos/your-organization/forms/load.py"]
+    # critical: false  # uma falha aqui marca o módulo, mas não interrompe a run

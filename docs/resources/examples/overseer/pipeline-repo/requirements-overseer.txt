@@ -1,0 +1,3 @@
+# Dependência padrão para todos os repos de pipelines.
+# Requer acesso SSH configurado ao GitHub.
+overseer-core @ git+ssh://git@github.com/your-organization/Overseer.git

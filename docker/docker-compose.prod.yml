@@ -1,0 +1,45 @@
+# Produção: apenas a API Overseer.
+# A base de dados é o schema Overseer já existente no host, acessível apenas em
+# 127.0.0.1:3306. Por isso o container usa a rede do host (network_mode: host) e
+# a API liga-se a 127.0.0.1. O uvicorn é forçado a escutar apenas em loopback,
+# pelo que o acesso externo continua a depender de SSH.
+#
+# Pré-requisitos no host:
+#   - schema Overseer acessível em 127.0.0.1:3306
+#   - `.env` na raiz do repo com OVERSEER_DB_URL (host 127.0.0.1) e OVERSEER_API_TOKEN
+#
+# Arranque (a partir da raiz do repo):
+#   docker compose --project-directory . -f docker/docker-compose.prod.yml up --build -d
+services:
+  overseer-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    network_mode: host
+    command:
+      - uvicorn
+      - overseer_api.main:app
+      - --host
+      - 127.0.0.1
+      - --port
+      - "8090"
+    environment:
+      OVERSEER_ROOT: /app
+      OVERSEER_API_PORT: 8090
+      OVERSEER_API_URL: http://127.0.0.1:8090
+      OVERSEER_DB_URL: ${OVERSEER_DB_URL:?defina OVERSEER_DB_URL no .env}
+      OVERSEER_API_TOKEN: ${OVERSEER_API_TOKEN:-}
+      OVERSEER_CORS_ORIGINS: ${OVERSEER_CORS_ORIGINS:-*}
+      OVERSEER_SLACK_CHANNEL: ${OVERSEER_SLACK_CHANNEL:-#overseer}
+      OVERSEER_SLACK_MENTION_CHANNEL: ${OVERSEER_SLACK_MENTION_CHANNEL:-true}
+      OVERSEER_SLACK_DIGEST_ENABLED: ${OVERSEER_SLACK_DIGEST_ENABLED:-true}
+      OVERSEER_SLACK_DIGEST_HOUR: ${OVERSEER_SLACK_DIGEST_HOUR:-8}
+      OVERSEER_SLACK_DIGEST_MINUTE: ${OVERSEER_SLACK_DIGEST_MINUTE:-30}
+      OVERSEER_RUN_URL: ${OVERSEER_RUN_URL:-}
+      OVERSEER_SLACK_WEBHOOK_URL: ${OVERSEER_SLACK_WEBHOOK_URL:-}
+      OVERSEER_SSH_SYNC_ENABLED: ${OVERSEER_SSH_SYNC_ENABLED:-1}
+    volumes:
+      - ${OVERSEER_RUNTIME_DIR:?defina OVERSEER_RUNTIME_DIR no .env}:/app/runtime
+      - ${OVERSEER_RUNNERS_DIR:?defina OVERSEER_RUNNERS_DIR no .env}:/app/deploy/runners:rw
+      - ./secrets:/app/secrets:ro
+    restart: unless-stopped

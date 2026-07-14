@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-PT">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Overseer - Ambiente</title><link rel="stylesheet" href="css/app.css"></head>
+<body data-view="deployments">
+  <div class="app-shell">
+    <aside class="sidebar"><a class="brand" href="dashboard.html"><div class="brand-mark">O</div><div><strong>Overseer</strong><span>ambiente API</span></div></a><nav class="nav" data-app-nav aria-label="Navegação principal"></nav><div class="side-status"><small data-db-label>Base de dados</small><div class="bar"><span data-db-bar style="width:0%"></span></div></div></aside>
+    <main class="main"><header class="topbar"><div class="crumb">Overseer / Ambiente</div><div class="actions" data-tabs><button class="btn primary" data-tab="#panel-db">DB</button><button class="btn" data-tab="#panel-heartbeats">Heartbeats</button><button class="btn" data-tab="#panel-triggers">Triggers</button><button class="btn" data-tab="#panel-task-scheduler">Task Scheduler</button><button class="btn" data-tab="#panel-hosts">Hosts</button><span class="pill db-mobile" data-db-mobile hidden></span><button class="btn primary" data-refresh>Atualizar</button></div></header>
+      <section class="content"><div class="hero-row"><div><h1>Ambiente Overseer</h1><p class="subhead">Estado da API, base de dados, hosts registados e actividade operacional (read-only).</p></div><span class="pill" data-sync-state aria-live="polite">A carregar</span></div>
+        <div data-alert aria-live="polite"></div>
+        <div class="token-banner" data-token-banner hidden><p>Para aceder à API em produção, configure o token em <code>js/overseer-config.js</code>.</p></div>
+        <section id="panel-db" data-panel><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Modo DB</span><span class="metric" data-db-mode>--</span></div><div class="card card-pad kpi"><span class="label">Pipelines</span><span class="metric" data-table-count="pipelines">--</span></div><div class="card card-pad kpi"><span class="label">Nodes</span><span class="metric" data-table-count="pipeline_nodes">--</span></div><div class="card card-pad kpi"><span class="label">Edges</span><span class="metric" data-table-count="pipeline_edges">--</span></div></div></section>
+        <section id="panel-heartbeats" data-panel hidden><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Heartbeats</span><span class="metric" data-count-kpi="heartbeats">--</span></div><div class="card card-pad kpi"><span class="label">OK</span><span class="metric" data-count-kpi="heartbeats_ok">--</span></div><div class="card card-pad kpi"><span class="label">Último</span><span class="metric" data-last-heartbeat>--</span></div><div class="card card-pad kpi"><span class="label">Fontes</span><span class="metric" data-count-kpi="sources">--</span></div></div></section>
+        <section id="panel-triggers" data-panel hidden><div class="kpis grid"><div class="card card-pad kpi"><span class="label">Triggers</span><span class="metric" data-count-kpi="triggers">--</span></div><div class="card card-pad kpi"><span class="label">Em fila</span><span class="metric" data-count-kpi="queued">--</span></div><div class="card card-pad kpi"><span class="label">Reclamados</span><span class="metric" data-count-kpi="claimed">--</span></div><div class="card card-pad kpi"><span class="label">Concluídos</span><span class="metric" data-count-kpi="completed">--</span></div></div></section>
+        <section id="panel-task-scheduler" data-panel hidden>
+          <div class="kpis grid"><div class="card card-pad kpi"><span class="label">Hosts observados</span><span class="metric" data-task-scheduler-kpi="hosts">--</span></div><div class="card card-pad kpi"><span class="label">Tasks observadas</span><span class="metric" data-task-scheduler-kpi="tasks">--</span></div><div class="card card-pad kpi"><span class="label">Erros / sem match</span><span class="metric" data-task-scheduler-kpi="issues">--</span></div><div class="card card-pad kpi"><span class="label">Última recolha</span><span class="metric" data-task-scheduler-latest>--</span></div></div>
+          <div class="two-col grid" style="margin-top:12px;">
+            <section class="card table-wrap">
+              <table><thead><tr><th>Host</th><th>Tasks</th><th>Erros</th><th>Recolha</th><th>Estado</th></tr></thead><tbody data-task-scheduler-hosts><tr><td colspan="5">A carregar inventário.</td></tr></tbody></table>
+            </section>
+            <section class="card table-wrap">
+              <table><thead><tr><th>Pipeline</th><th>Task</th><th>Estado</th><th>Próxima execução</th><th>Último resultado</th></tr></thead><tbody data-task-scheduler-pipelines><tr><td colspan="5">A carregar pipelines.</td></tr></tbody></table>
+            </section>
+          </div>
+        </section>
+        <section id="panel-hosts" data-panel hidden>
+          <div class="section-head card" style="border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;">
+            <div><h2>Hosts de runner</h2><p>Mapa em <code>deploy/runners/hosts.yaml</code>. Operações de catálogo e sync via CLI (COMMANDS.md).</p></div>
+            <div class="inspector-actions">
+              <span class="pill" data-ssh-sync-flag>—</span>
+            </div>
+          </div>
+          <div class="card table-wrap">
+            <table><thead><tr><th>Host</th><th>Plataforma</th><th>SSH</th><th>Repo</th></tr></thead><tbody data-runner-hosts><tr><td colspan="4">A carregar hosts.</td></tr></tbody></table>
+          </div>
+        </section>
+        <div class="two-col grid">
+          <section class="card"><div class="section-head"><div><h2>Estado da base de dados</h2><p data-db-url>URL mascarada a carregar.</p></div></div><div class="table-wrap"><table><thead><tr><th>Tabela</th><th>Registos</th><th>Estado</th></tr></thead><tbody data-db-tables><tr><td colspan="3">A carregar tabelas.</td></tr></tbody></table></div></section>
+          <aside class="card"><div class="section-head"><div><h2>Atividade</h2><p>Heartbeats e triggers recentes.</p></div></div><div class="deploy-list" data-activity><div class="deploy-item"><strong>A carregar atividade</strong><p class="mono">A aguardar resposta da API.</p></div></div></aside>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="js/overseer-config.js"></script>
+  <script src="js/app.js"></script>
+</body></html>

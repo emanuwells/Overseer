@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overseer - Runs</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-view="runs">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="dashboard.html">
+        <div class="brand-mark">O</div>
+        <div><strong>Overseer</strong><span data-current-run>histórico de runs</span></div>
+      </a>
+      <nav class="nav" data-app-nav aria-label="Navegação principal"></nav>
+      <div class="side-status">
+        <small data-db-label>Base de dados</small>
+        <div class="bar"><span data-db-bar style="width:0%"></span></div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb" data-run-crumb>Runs / a carregar</div>
+        <div class="actions">
+          <button class="btn" type="button" data-copy="">Copiar run id</button>
+          <span class="pill db-mobile" data-db-mobile hidden></span>
+          <button class="btn primary" type="button" data-refresh>Atualizar</button>
+        </div>
+      </header>
+      <section class="content">
+        <div class="hero-row">
+          <div>
+            <h1 data-run-title>Runs</h1>
+            <p class="subhead mono" data-run-summary>A carregar detalhe da run seleccionada.</p>
+          </div>
+          <span class="pill" data-sync-state>A carregar</span>
+        </div>
+        <div data-alert></div>
+        <div class="kpis grid">
+          <div class="card card-pad kpi"><span class="label">Início</span><span class="metric" data-run-started>--</span></div>
+          <div class="card card-pad kpi"><span class="label">Duração</span><span class="metric" data-run-duration>--</span></div>
+          <div class="card card-pad kpi"><span class="label">Módulos</span><span class="metric" data-run-module-count>--</span></div>
+          <div class="card card-pad kpi"><span class="label">Logs</span><span class="metric" data-run-log-count>--</span></div>
+        </div>
+        <div class="runs-layout grid">
+          <aside class="card runs-sidebar">
+            <div class="section-head">
+              <div>
+                <h2>Histórico</h2>
+                <p data-count="runs-list">A carregar runs.</p>
+              </div>
+            </div>
+            <label class="search runs-search"><input data-search="#runs-list" placeholder="Filtrar por pipeline ou host" autocomplete="off"></label>
+            <div class="runs-list" id="runs-list" data-runs-list>
+              <div class="empty-state">A carregar runs.</div>
+            </div>
+          </aside>
+          <div class="runs-detail grid">
+            <section class="card">
+              <div class="section-head">
+                <div>
+                  <h2>Timeline de módulos</h2>
+                  <p data-count="modules">A carregar módulos.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Módulo</th><th>Estado</th><th>Início</th><th>Duração</th><th>Pipeline</th><th>Erro</th></tr>
+                  </thead>
+                  <tbody data-run-modules>
+                    <tr><td colspan="6">A carregar módulos.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <aside class="card">
+              <div class="section-head">
+                <div>
+                  <h2>Logs</h2>
+                  <p>Filtrar por módulo, erro ou mensagem.</p>
+                </div>
+              </div>
+              <label class="search" style="margin:12px 14px"><input data-search="#logs" placeholder="Pesquisar logs" autocomplete="off"></label>
+              <div class="log-list" id="logs" data-run-logs>
+                <div class="log-line" data-search-row><span>--</span><span>INFO</span><span>A carregar logs.</span></div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="js/overseer-config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

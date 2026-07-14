@@ -1,0 +1,12 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+sqlalchemy==2.0.39
+pymysql==1.1.1
+httpx==0.28.1
+pytest==8.3.5
+psutil==7.0.0
+requests==2.32.3
+paramiko==3.4.0
+sshtunnel==0.4.0
+colorlog==6.8.0
+PyYAML==6.0.2

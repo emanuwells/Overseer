@@ -1,0 +1,7 @@
+# Exemplo público. Copiar para <OVERSEER_RUNNERS_DIR>/hosts.yaml.
+hosts:
+  host-a:
+    ssh: <ssh-user>@<server>
+    platform: linux
+    repo_path: /srv/overseer
+    catalog_path: /srv/overseer-config/runners/host-a.yaml

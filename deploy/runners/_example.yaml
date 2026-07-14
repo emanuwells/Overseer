@@ -1,0 +1,16 @@
+# Exemplo público. Copiar para <OVERSEER_RUNNERS_DIR>/<host-id>.yaml.
+pipelines:
+  - id: example_pipeline
+    name: Example Pipeline
+    owner: data-platform
+    criticality: medium
+    schedule: manual
+    log: /srv/pipelines/example/run.log
+    steps:
+      - module_id: extract
+        command: ["python", "-m", "pipeline.extract"]
+        cwd: /srv/pipelines/example
+      - module_id: load
+        command: ["python", "-m", "pipeline.load"]
+        cwd: /srv/pipelines/example
+        depends_on: extract
