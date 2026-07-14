@@ -16,13 +16,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FRONTEND_SRC="$REPO_ROOT/frontend"
+FRONTEND_SRC="$REPO_ROOT/frontend/dist"
 WEB_ROOT="${OVERSEER_WEB_ROOT:-/usr/share/nginx/html/Overseer}"
 LOCATIONS_SRC="$REPO_ROOT/deploy/nginx/overseer-locations.conf"
 LOCATIONS_DST="/etc/nginx/overseer-locations.conf"
 
 if [ ! -d "$FRONTEND_SRC" ]; then
-    echo "Frontend não encontrado em $FRONTEND_SRC" >&2
+    echo "Frontend dist não encontrado em $FRONTEND_SRC" >&2
+    echo "Execute primeiro: cd frontend && npm ci && npm run build" >&2
     exit 1
 fi
 
@@ -34,17 +35,17 @@ ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/.env}"
 if [ -f "$ENV_FILE" ]; then
     TOKEN="$(grep -E '^OVERSEER_API_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)"
     if [ -n "$TOKEN" ]; then
-        CONFIG_JS="$WEB_ROOT/js/overseer-config.js"
+        CONFIG_JS="$WEB_ROOT/overseer-config.js"
         printf '%s\n' "window.OVERSEER_CONFIG = { apiToken: $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$TOKEN") };" > "$CONFIG_JS"
         chmod 644 "$CONFIG_JS" 2>/dev/null || true
         echo "==> Token API injectado em $CONFIG_JS"
     else
         echo "AVISO: OVERSEER_API_TOKEN vazio em $ENV_FILE; UI pode devolver 401." >&2
-        cp "$FRONTEND_SRC/js/overseer-config.example.js" "$WEB_ROOT/js/overseer-config.js"
+        cp "$REPO_ROOT/frontend/public/overseer-config.example.js" "$WEB_ROOT/overseer-config.js"
     fi
 else
     echo "AVISO: $ENV_FILE não encontrado; a usar overseer-config.example.js." >&2
-    cp "$FRONTEND_SRC/js/overseer-config.example.js" "$WEB_ROOT/js/overseer-config.js"
+    cp "$REPO_ROOT/frontend/public/overseer-config.example.js" "$WEB_ROOT/overseer-config.js"
 fi
 
 echo "==> A instalar snippet de proxy em $LOCATIONS_DST"
@@ -61,4 +62,4 @@ fi
 echo "==> A validar configuração nginx"
 nginx -t
 
-echo "==> Concluído. UI: http://<host>/Overseer/dashboard.html"
+echo "==> Concluído. UI: http://<host>/Overseer/"

@@ -4,11 +4,25 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.27] - 2026-07-14
+
+### Added
+
+- Pasta `docs/resources/templates/` com `.env.example`, templates de documentação e `.gitignore.template`.
+- Frontend React (Vite, TypeScript, React Router, TanStack Query, Tailwind) com navegação SPA profissional.
+- Build multi-stage Node no Dockerfile para `frontend/dist/`.
+
 ### Changed
 
-- Aprofundados o README e o contexto do projeto com arquitetura, limites, configuração, integração, operação e critérios de qualidade.
-- Removidas do digest Slack as secções de heartbeats e triggers em fila.
-- Reservada a menção ao canal no digest para falhas abertas ou deployments fora de cadência.
+- `AGENTS.md` alinhado ao template Repo v3.2.4 com extensão Overseer para pastas de produto.
+- Reescritos `README.md` e `PROJECT_CONTEXT.md` ao novo contrato normativo.
+- `docs/ai/ops/RUNBOOK.md` actualizado para MariaDB e `/v1/health`.
+- Redirects da API e nginx actualizados para SPA em `/ui/` e `/Overseer/`.
+- `scripts/deploy-nginx-frontend.sh` publica `frontend/dist/`.
+
+### Removed
+
+- Páginas HTML estáticas e `frontend/js/app.js` substituídos pela SPA React.
 
 ## [5.8.26] - 2026-07-14
 

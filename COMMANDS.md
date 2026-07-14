@@ -8,6 +8,17 @@ pip install -e ./src
 python -m pytest -q
 ```
 
+## Frontend
+
+```bash
+cd frontend
+npm ci
+npm run dev
+npm run build
+```
+
+`npm run dev` arranca Vite com proxy de `/v1` para `http://127.0.0.1:8090`. O build gera `frontend/dist/`, servido pela API em `/ui/`.
+
 ## Docker
 
 ```bash

@@ -47,9 +47,11 @@ runtime/triggers/schedule/**/*.json
 !runtime/triggers/.gitkeep
 
 # Frontend generated payload
+frontend/node_modules/
+frontend/dist/
 frontend/pm_payload.json
 frontend/pm_details.json
-frontend/js/overseer-config.js
+frontend/public/overseer-config.js
 
 # Environment local
 .env

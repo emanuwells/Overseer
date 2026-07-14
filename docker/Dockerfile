@@ -1,3 +1,11 @@
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.11-slim AS runtime
 
 WORKDIR /app
@@ -13,7 +21,7 @@ COPY src/overseer_sdk ./src/overseer_sdk
 COPY src/overseer_monitor ./src/overseer_monitor
 RUN pip install -r src/requirements.txt && pip install --no-deps ./src
 
-COPY frontend ./frontend
+COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 COPY deploy/runners ./deploy/runners
 COPY scripts ./scripts
 COPY openapi ./openapi

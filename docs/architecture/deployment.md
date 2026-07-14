@@ -24,7 +24,7 @@ O fluxo oficial do Overseer é Docker-first. O Compose local/prod arranca API, f
 - `python -m pytest -q` valida comportamento técnico.
 - `docker compose --project-directory . -f docker/docker-compose.yml config` valida estrutura Compose sem subir serviços.
 - Health local esperado: `http://127.0.0.1:8090/v1/health`.
-- UI local esperada: `http://127.0.0.1:8090/ui/dashboard.html`.
+- UI local esperada: `http://127.0.0.1:8090/ui/`.
 
 ## Regras De Segurança
 

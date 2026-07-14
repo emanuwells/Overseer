@@ -94,13 +94,13 @@ def test_orchestrate_trigger(
 def test_root_redirects_to_dashboard():
     response = client().get("/", follow_redirects=False)
     assert response.status_code == 307
-    assert response.headers["location"] == "/ui/dashboard.html"
+    assert response.headers["location"] == "/ui/"
 
 
 def test_ui_root_redirects_to_dashboard():
     response = client().get("/ui", follow_redirects=False)
     assert response.status_code == 307
-    assert response.headers["location"] == "/ui/dashboard.html"
+    assert response.headers["location"] == "/ui/"
 
 
 def test_pipeline_catalog_registers_dag(tmp_path, monkeypatch):

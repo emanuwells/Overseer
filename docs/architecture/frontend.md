@@ -2,33 +2,60 @@
 
 ## Responsabilidade
 
-O frontend do Overseer é uma UI estática read-only para observar estado operacional. A interface não é a fonte de verdade para alterações de catálogo, execução ou sync remoto; essas operações são feitas por API, CLI ou scripts operacionais.
+O frontend do Overseer é uma SPA React read-only para observar estado operacional. A interface não é a fonte de verdade para alterações de catálogo, execução ou sync remoto; essas operações são feitas por API, CLI ou scripts operacionais.
+
+## Stack
+
+| Tecnologia | Finalidade |
+|---|---|
+| React 19 | componentes e estado de UI |
+| TypeScript | tipos e contratos internos |
+| Vite 6 | build e dev server |
+| React Router 7 | rotas client-side |
+| TanStack Query 5 | cache e fetching da API |
+| Tailwind CSS 4 | estilos utilitários e tema escuro |
 
 ## Estrutura
 
-| Área | Ficheiros | Responsabilidade |
+| Área | Localização | Responsabilidade |
 |---|---|---|
-| Páginas | `frontend/*.html` | Entrypoints estáticos para dashboard, deployments, lineage e detalhe de runs |
-| Lógica cliente | `frontend/js/app.js` | Chamadas à API, renderização de estados e navegação |
-| Configuração cliente | `frontend/js/overseer-config.example.js` | Exemplo seguro para URL/token local |
-| Estilos | `frontend/css/app.css` | Layout, componentes visuais e responsividade |
+| Entry | `frontend/index.html`, `frontend/src/main.tsx` | bootstrap da SPA |
+| Rotas | `frontend/src/App.tsx` | `/operations`, `/runs`, `/dag`, `/environment` |
+| Layout | `frontend/src/components/layout/` | sidebar, topbar, breadcrumbs |
+| Páginas | `frontend/src/pages/` | vistas operacionais |
+| API | `frontend/src/lib/api.ts`, `frontend/src/lib/utils.ts` | cliente HTTP e helpers |
+| Config | `frontend/public/overseer-config.example.js` | exemplo de token (produção via deploy) |
+| Build | `frontend/dist/` | artefacto estático servido pela API |
+
+## Rotas
+
+| Rota | Vista |
+|---|---|
+| `/ui/` | redireciona para operações |
+| `/ui/operations` | dashboard e KPIs |
+| `/ui/runs` | histórico e detalhe de runs |
+| `/ui/dag` | catálogo DAG e módulos |
+| `/ui/environment` | base de dados, hosts, heartbeats, triggers |
+
+Deep links: `/ui/runs?run=…&pipeline=…&host=…`, `/ui/dag?pipeline=…&host=…`.
 
 ## Integração API
 
 - A UI consome principalmente endpoints `/v1/read/*`.
-- Tokens devem ser configurados fora do Git quando necessários.
+- Tokens via `window.OVERSEER_CONFIG.apiToken` ou `sessionStorage`.
 - A UI não deve expor segredos reais nem incorporar credenciais versionadas.
-- Erros de API devem ser apresentados como estados de leitura, sem alterar dados.
+- Erros de API apresentados como estados de leitura, sem alterar dados.
 
-## Rotas E Entrega
+## Entrega
 
-- A API serve o frontend em `/ui/`.
-- `/` e `/ui` redirecionam para `/ui/dashboard.html`.
-- O Dockerfile não tem build Node/Vite porque o frontend é estático.
+- Desenvolvimento: `npm run dev` com proxy Vite para a API.
+- Produção: `npm run build` no stage Node do Dockerfile; FastAPI serve `frontend/dist` em `/ui/`.
+- Nginx opcional: `scripts/deploy-nginx-frontend.sh` publica `dist/` e proxy `/v1/`.
+- Fallback SPA: rotas desconhecidas sob `/ui/` devolvem `index.html`.
 
-## Regras De Evolução
+## Regras de evolução
 
 - Preservar o caráter read-only salvo decisão arquitetural explícita.
-- Não adicionar dependências frontend sem justificar benefício e custo operacional.
-- Validar alterações com browser ou teste manual quando houver impacto visual ou de integração.
-- Manter textos em português europeu quando forem documentação ou conteúdo controlado pelo projeto.
+- Justificar novas dependências npm (benefício vs custo de build e segurança).
+- Validar com `npm run build`, browser ou teste manual após alterações visuais.
+- Manter textos em português europeu quando forem conteúdo controlado pelo projeto.

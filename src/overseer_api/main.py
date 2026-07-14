@@ -6,13 +6,13 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import AsyncIterator
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
 
 from overseer_core.repo_paths import repo_root
 from overseer_core.slack_digest import DIGEST_TZ, digest_enabled, next_digest_at, send_daily_digest
@@ -22,7 +22,7 @@ ROOT = repo_root()
 
 from .routers import catalog, events, health, orchestrate, read
 
-FRONTEND_DIR = ROOT / "frontend"
+FRONTEND_DIST = ROOT / "frontend" / "dist"
 API_VERSION = "5.6.0"
 
 logger = logging.getLogger("overseer.api")
@@ -59,6 +59,23 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             await digest_task
 
 
+def _spa_index() -> FileResponse:
+    index = FRONTEND_DIST / "index.html"
+    if not index.is_file():
+        raise HTTPException(status_code=404, detail="Frontend não construído.")
+    return FileResponse(index)
+
+
+def _spa_file(relative: str) -> FileResponse:
+    candidate = (FRONTEND_DIST / relative).resolve()
+    dist_root = FRONTEND_DIST.resolve()
+    if not str(candidate).startswith(str(dist_root)):
+        raise HTTPException(status_code=404)
+    if candidate.is_file():
+        return FileResponse(candidate)
+    return _spa_index()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Overseer API",
@@ -84,14 +101,21 @@ def create_app() -> FastAPI:
 
     @app.get("/")
     def root() -> RedirectResponse:
-        return RedirectResponse(url="/ui/dashboard.html", status_code=307)
+        return RedirectResponse(url="/ui/", status_code=307)
 
     @app.get("/ui")
     def ui_root() -> RedirectResponse:
-        return RedirectResponse(url="/ui/dashboard.html", status_code=307)
+        return RedirectResponse(url="/ui/", status_code=307)
 
-    if FRONTEND_DIR.is_dir():
-        app.mount("/ui", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="ui")
+    if FRONTEND_DIST.is_dir():
+
+        @app.get("/ui/")
+        def ui_index() -> FileResponse:
+            return _spa_index()
+
+        @app.get("/ui/{rest:path}")
+        def ui_spa(rest: str) -> FileResponse:
+            return _spa_file(rest)
 
     return app
 
