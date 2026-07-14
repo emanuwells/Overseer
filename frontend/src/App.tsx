@@ -14,10 +14,12 @@ const queryClient = new QueryClient({
   },
 });
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/ui';
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/ui">
+      <BrowserRouter basename={routerBasename}>
         <Routes>
           <Route path="/" element={<Navigate to="/operations" replace />} />
           <Route path="/operations" element={<OperationsPage />} />

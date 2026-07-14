@@ -5,9 +5,9 @@
 - [x] Sincronizar `AGENTS.md` e lacunas do template (`docs/resources/templates/`).
 - [x] Reescrever README e PROJECT_CONTEXT ao novo contrato.
 - [x] Migrar frontend para Vite + React + TypeScript com navegação SPA.
-- [x] Integrar build no Docker, FastAPI SPA fallback e deploy nginx.
-- [x] Publicar commit e push (`ebf2ebc` em `origin/main`).
-- [ ] Deploy produção no servidor (SSH): `git pull`, `docker compose ... up --build -d`, `scripts/deploy-nginx-frontend.sh`.
+- [x] Corrigir base `/ui/` vs `/Overseer/` e scripts dev-ui / dev-frontend.
+- [x] Publicar commit e push.
+- [ ] Deploy produção: definir `OVERSEER_SSH_TARGET` e `OVERSEER_REPO_PATH`, depois `.\scripts\deploy-prod.ps1`.
 
 ## Documentação e digest Slack — 2026-07-14
 

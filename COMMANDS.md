@@ -10,14 +10,47 @@ python -m pytest -q
 
 ## Frontend
 
-```bash
-cd frontend
-npm ci
-npm run dev
-npm run build
+### UI com Docker (dados locais)
+
+```powershell
+# Windows — arranca API+MariaDB, build UI em /ui/, abre browser opcional
+.\scripts\dev-ui.ps1 -OpenBrowser
 ```
 
-`npm run dev` arranca Vite com proxy de `/v1` para `http://127.0.0.1:8090`. O build gera `frontend/dist/`, servido pela API em `/ui/`.
+```bash
+# Linux/macOS
+cp docs/resources/templates/.env.example .env   # se ainda não existir
+./scripts/overseer-up.sh
+# UI: http://127.0.0.1:8090/ui/operations
+```
+
+O contentor injecta `overseer-config.js` a partir de `OVERSEER_API_TOKEN` no arranque.
+
+### Vite dev (hot-reload)
+
+```powershell
+# API local (Docker)
+.\scripts\dev-frontend.ps1 -Mode local
+
+# API de produção via túnel SSH
+$env:OVERSEER_SSH_TARGET = "user@servidor"
+.\scripts\dev-frontend.ps1 -Mode prod
+```
+
+```bash
+cd frontend
+npm ci          # preferir fora de Google Drive; ver tasks/lessons.md
+npm run dev
+```
+
+`npm run dev` usa proxy `/v1` → `http://127.0.0.1:8090` (configurável em `.env.development`).
+
+### Builds
+
+| Comando | Base path | Destino |
+|---|---|---|
+| `npm run build` | `/ui/` | Docker / FastAPI |
+| `npm run build:nginx` | `/Overseer/` | nginx público |
 
 ## Docker
 
@@ -49,7 +82,23 @@ Utilize `--apply` apenas depois de rever o resultado do modo de simulação. Nã
 
 ## Git e deploy remoto
 
-Os destinos remotos são fornecidos pelo operador e nunca ficam hardcoded:
+Defina destino (nunca versionar credenciais):
+
+```powershell
+$env:OVERSEER_SSH_TARGET = "user@servidor"
+$env:OVERSEER_REPO_PATH = "/caminho/para/Overseer"
+.\scripts\deploy-prod.ps1
+```
+
+```bash
+export OVERSEER_SSH_TARGET=user@servidor
+export OVERSEER_REPO_PATH=/caminho/para/Overseer
+bash scripts/deploy-prod.sh
+```
+
+O deploy faz `git pull`, `docker compose ... prod up --build`, health check e `deploy-nginx-frontend.sh` (build `/Overseer/`).
+
+Comandos manuais:
 
 ```bash
 ssh <ssh-user>@<server> 'cd <repo-path> && git status --short --branch'

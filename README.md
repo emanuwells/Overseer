@@ -1,7 +1,7 @@
 # Overseer
 
 ![Estado](https://img.shields.io/badge/estado-estável-2ecc71)
-![Versão](https://img.shields.io/badge/versão-5.8.27-3498db)
+![Versão](https://img.shields.io/badge/versão-5.8.28-3498db)
 ![Licença](https://img.shields.io/badge/licença-proprietária-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)

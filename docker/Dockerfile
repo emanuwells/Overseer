@@ -22,10 +22,14 @@ COPY src/overseer_monitor ./src/overseer_monitor
 RUN pip install -r src/requirements.txt && pip install --no-deps ./src
 
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
+COPY --from=frontend-build /app/frontend/public ./frontend/public
 COPY deploy/runners ./deploy/runners
 COPY scripts ./scripts
 COPY openapi ./openapi
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8090
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "overseer_api.main:app", "--host", "0.0.0.0", "--port", "8090"]

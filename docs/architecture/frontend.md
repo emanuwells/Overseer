@@ -25,7 +25,7 @@ O frontend do Overseer é uma SPA React read-only para observar estado operacion
 | Páginas | `frontend/src/pages/` | vistas operacionais |
 | API | `frontend/src/lib/api.ts`, `frontend/src/lib/utils.ts` | cliente HTTP e helpers |
 | Config | `frontend/public/overseer-config.example.js` | exemplo de token (produção via deploy) |
-| Build | `frontend/dist/` | artefacto estático servido pela API |
+| Build | `frontend/dist/` (`/ui/`) ou `frontend/dist-nginx/` (`/Overseer/`) |
 
 ## Rotas
 
@@ -48,9 +48,8 @@ Deep links: `/ui/runs?run=…&pipeline=…&host=…`, `/ui/dag?pipeline=…&host
 
 ## Entrega
 
-- Desenvolvimento: `npm run dev` com proxy Vite para a API.
-- Produção: `npm run build` no stage Node do Dockerfile; FastAPI serve `frontend/dist` em `/ui/`.
-- Nginx opcional: `scripts/deploy-nginx-frontend.sh` publica `dist/` e proxy `/v1/`.
+- Desenvolvimento: `scripts/dev-ui.ps1` (Docker) ou `scripts/dev-frontend.ps1` (Vite).
+- Produção nginx: `npm run build:nginx` → `/Overseer/`; `scripts/deploy-nginx-frontend.sh`.
 - Fallback SPA: rotas desconhecidas sob `/ui/` devolvem `index.html`.
 
 ## Regras de evolução

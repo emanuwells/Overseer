@@ -49,6 +49,7 @@ runtime/triggers/schedule/**/*.json
 # Frontend generated payload
 frontend/node_modules/
 frontend/dist/
+frontend/dist-nginx/
 frontend/pm_payload.json
 frontend/pm_details.json
 frontend/public/overseer-config.js
