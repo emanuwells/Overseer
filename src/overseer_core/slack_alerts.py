@@ -10,6 +10,7 @@ from typing import Any
 from overseer_sdk.slack_notifier import SlackNotifier
 
 from . import deployment_health, store
+from .pipeline_names import resolve_display_name
 from .repo_paths import repo_root
 
 logger = logging.getLogger("overseer.slack")
@@ -70,7 +71,12 @@ def notify_failed_run(run: dict[str, Any]) -> bool:
         return False
 
     pipeline_id = str(run.get("pipeline_id") or "-")
-    pipeline_name = str(run.get("pipeline_name") or pipeline_id)
+    pipeline_name = resolve_display_name(
+        pipeline_id,
+        str(run.get("host_id") or ""),
+        str(run.get("pipeline_name") or pipeline_id),
+        store.catalog_name_index(),
+    )
     error = str(run.get("error_message") or "").strip()
     if len(error) > 220:
         error = error[:217] + "..."
@@ -107,7 +113,12 @@ def notify_resolved_run(run: dict[str, Any], failed_run: dict[str, Any] | None =
         return False
 
     pipeline_id = str(run.get("pipeline_id") or "-")
-    pipeline_name = str(run.get("pipeline_name") or pipeline_id)
+    pipeline_name = resolve_display_name(
+        pipeline_id,
+        str(run.get("host_id") or ""),
+        str(run.get("pipeline_name") or pipeline_id),
+        store.catalog_name_index(),
+    )
     lines = [
         ":white_check_mark: *Pipeline RESOLVIDO* — alerta imediato",
         f"*Pipeline:* `{pipeline_name}` (`{pipeline_id}`)",

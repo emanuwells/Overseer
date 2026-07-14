@@ -27,3 +27,11 @@
 - [x] Publicar a história limpa e validar o GitHub.
 - [x] Migrar produção e confirmar health.
 - [ ] Alterar a visibilidade para pública numa sessão GitHub autenticada.
+
+## Harmonização nomes, UX e deploy — 2026-07-14
+
+- [x] `pipeline_names.py` + normalização em store e Slack.
+- [x] Testes unitários e regressão Slack para nomes canónicos.
+- [x] Modal, Drawer, DeploymentPicker, refactor Operações/Runs/DAG.
+- [x] README (diagrama genérico), CHANGELOG 5.8.31, `.env.example`.
+- [ ] Validar pytest + build frontend + deploy baze2 + smoke URLs.

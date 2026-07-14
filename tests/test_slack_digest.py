@@ -96,6 +96,30 @@ def test_build_digest_includes_stale_deployments(sqlite_store) -> None:
     assert "Example" in text or "example" in text.lower() or "`nenhum`" in text
 
 
+def test_build_digest_normalizes_yunex_pipeline_name(sqlite_store) -> None:
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "traffic_flow",
+            "host_id": "linux-host",
+            "name": "Traffic Flow",
+            "nodes": [{"module_id": "a"}],
+            "edges": [],
+        }
+    )
+    run = store.start_run(
+        {
+            "pipeline_id": "traffic_flow",
+            "host_id": "linux-host",
+            "pipeline_name": "Yunex Traffic Flow",
+        }
+    )
+    store.finish_run(run["run_id"], {"status": "failed", "error_message": "x"})
+
+    text = slack_digest.build_digest_text()
+    assert "`Traffic Flow`" in text
+    assert "Yunex Traffic Flow" not in text
+
+
 def test_build_digest_lists_runs_per_pipeline(sqlite_store) -> None:
     store.register_pipeline_catalog(
         {

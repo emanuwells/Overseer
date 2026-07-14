@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { RunDetailPanel } from '../components/runs/RunDetailPanel';
 import { Alert, EmptyState } from '../components/ui/Alert';
+import { Modal } from '../components/ui/Modal';
 import { PipelineLabel } from '../components/ui/PipelineLabel';
 import { Pill } from '../components/ui/Pill';
 import { TokenBanner } from '../components/ui/TokenBanner';
@@ -11,7 +13,6 @@ import type { DatabaseInfo, Pipeline, Run, RunDetail } from '../lib/types';
 import {
   dedupePipelines,
   deploymentStaleFlag,
-  duration,
   formatDate,
   isStaleRun,
   pipelineLabel,
@@ -21,6 +22,7 @@ import {
 
 export function RunsPage() {
   const [params, setParams] = useSearchParams();
+  const [modalOpen, setModalOpen] = useState(false);
   const filterPipeline = params.get('pipeline') || '';
   const filterHost = params.get('host') || '';
   const requestedRun = params.get('run') || '';
@@ -60,16 +62,40 @@ export function RunsPage() {
 
   const filteredRuns = useMemo(() => runs, [runs]);
 
+  const deploymentLabel = useMemo(() => {
+    if (!filterPipeline) return undefined;
+    const dep = pipelines.find(
+      (p) => p.pipeline_id === filterPipeline && (p.host_id || '') === filterHost,
+    );
+    if (dep) return pipelineLabel(dep).title;
+    const first = runs.find((r) => r.pipeline_id === filterPipeline);
+    return first ? pipelineLabel(first, filterPipeline, filterHost, pipelines).title : filterPipeline;
+  }, [filterPipeline, filterHost, pipelines, runs]);
+
   const selectRun = (runId: string) => {
     const next = new URLSearchParams(params);
     next.set('run', runId);
     setParams(next);
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+      setModalOpen(true);
+    }
   };
 
   return (
     <AppShell
       title="Histórico de runs"
-      breadcrumb={run ? `Runs / ${pipelineLabel(run, '', '', pipelines).title}` : 'Runs'}
+      breadcrumb={
+        run
+          ? `Runs / ${pipelineLabel(run, '', '', pipelines).title}`
+          : deploymentLabel
+            ? `Runs / ${deploymentLabel}`
+            : 'Runs'
+      }
+      deploymentContext={
+        filterPipeline
+          ? { pipelineId: filterPipeline, hostId: filterHost, label: deploymentLabel }
+          : undefined
+      }
       database={listQuery.data?.database}
       syncLabel={
         listQuery.isFetching || detailQuery.isFetching
@@ -112,7 +138,7 @@ export function RunsPage() {
                     key={item.run_id}
                     type="button"
                     onClick={() => selectRun(item.run_id)}
-                    className={`w-full rounded-lg border px-3 py-2 text-left ${
+                    className={`w-full rounded-lg border px-3 py-2 text-left lg:pointer-events-auto ${
                       item.run_id === selectedRunId
                         ? 'border-blue-500/50 bg-blue-500/10'
                         : 'border-slate-800 hover:border-slate-600'
@@ -132,91 +158,27 @@ export function RunsPage() {
           )}
         </aside>
 
-        <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+        <section className="hidden rounded-xl border border-slate-800 bg-slate-900/40 p-4 lg:block">
           {run ? (
-            <>
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <PipelineLabel source={run} pipelines={pipelines} />
-                  <p className="mt-1 font-mono text-sm text-slate-400">
-                    {run.run_id} · {run.status}
-                  </p>
-                </div>
-                <Pill kind={statusClass(run.status)}>{run.status}</Pill>
-              </div>
-              <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-800 p-3">
-                  <span className="text-xs text-slate-500">Início</span>
-                  <p className="font-mono text-sm">{formatDate(run.started_at)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-800 p-3">
-                  <span className="text-xs text-slate-500">Duração</span>
-                  <p className="font-mono text-sm">{duration(run.duration_sec)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-800 p-3">
-                  <span className="text-xs text-slate-500">Módulos / Logs</span>
-                  <p className="font-mono text-sm">
-                    {modules.length} / {logs.length}
-                  </p>
-                </div>
-              </div>
-
-              <h3 className="mb-2 font-medium">Módulos</h3>
-              <div className="mb-6 overflow-x-auto">
-                <table className="w-full min-w-[600px] text-sm">
-                  <thead className="border-b border-slate-800 text-xs text-slate-500">
-                    <tr>
-                      {['Módulo', 'Estado', 'Início', 'Duração', 'Erro'].map((h) => (
-                        <th key={h} className="px-2 py-2 text-left">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modules.length ? (
-                      modules.map((item) => (
-                        <tr key={item.module_id} className="border-b border-slate-800/80">
-                          <td className="px-2 py-2">{item.module_id}</td>
-                          <td className="px-2 py-2">
-                            <Pill kind={statusClass(item.status)}>{statusLabel(item.status)}</Pill>
-                          </td>
-                          <td className="px-2 py-2 font-mono text-xs">{formatDate(item.started_at)}</td>
-                          <td className="px-2 py-2 font-mono text-xs">{duration(item.duration_sec)}</td>
-                          <td className="px-2 py-2 text-xs">{item.error_message || '--'}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="px-2 py-4 text-center text-slate-500">
-                          Sem módulos registados para esta run.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <h3 className="mb-2 font-medium">Logs</h3>
-              <div className="max-h-80 space-y-1 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/50 p-2 font-mono text-xs">
-                {logs.length ? (
-                  logs.slice(0, 50).map((item, index) => (
-                    <div key={index} className="grid grid-cols-[120px_60px_1fr] gap-2 border-b border-slate-800/50 py-1">
-                      <span className="text-slate-500">{formatDate(item.created_at)}</span>
-                      <span>{item.level}</span>
-                      <span>{item.message}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-slate-500">Sem logs registados.</div>
-                )}
-              </div>
-            </>
+            <RunDetailPanel run={run} modules={modules} logs={logs} pipelines={pipelines} />
           ) : (
             <EmptyState>Sem run selecionada.</EmptyState>
           )}
         </section>
       </div>
+
+      <Modal
+        open={modalOpen && Boolean(run)}
+        title="Detalhe da run"
+        wide
+        onClose={() => setModalOpen(false)}
+      >
+        {run ? (
+          <RunDetailPanel run={run} modules={modules} logs={logs} pipelines={pipelines} />
+        ) : detailQuery.isLoading ? (
+          <p className="text-sm text-slate-400">A carregar…</p>
+        ) : null}
+      </Modal>
     </AppShell>
   );
 }

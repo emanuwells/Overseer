@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { DeploymentPicker } from '../components/layout/DeploymentPicker';
 import { Alert, EmptyState } from '../components/ui/Alert';
+import { Drawer } from '../components/ui/Drawer';
 import { PipelineLabel } from '../components/ui/PipelineLabel';
 import { Pill } from '../components/ui/Pill';
 import { TokenBanner } from '../components/ui/TokenBanner';
@@ -12,7 +14,6 @@ import {
   computeBlockedDownstream,
   dedupePipelines,
   deploymentKey,
-  hostDisplay,
   isStaleRun,
   latestStatusByModule,
   orderNodesLinear,
@@ -30,6 +31,7 @@ export function DagPage() {
     () => sessionStorage.getItem('overseer_selected_deployment') || '',
   );
   const [selectedNodeId, setSelectedNodeId] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (urlPipeline) setDeploymentKeyState(`${urlPipeline}::${urlHost}`);
@@ -37,7 +39,7 @@ export function DagPage() {
 
   const query = useQuery({
     queryKey: ['dag', deploymentKeyState],
-  queryFn: async () => {
+    queryFn: async () => {
       const pipelinesResponse = await api<{ items: Pipeline[] }>('/v1/read/pipelines');
       const pipelines = dedupePipelines(pipelinesResponse.items || []);
       let key = deploymentKeyState;
@@ -82,59 +84,108 @@ export function DagPage() {
   const deployment = query.data?.deployment;
   const modules = query.data?.modules || [];
   const lastRun = query.data?.lastRun;
+  const pipelineId = query.data?.pipelineId || '';
+  const hostId = query.data?.hostId || '';
 
   const latest = useMemo(() => latestStatusByModule(modules), [modules]);
   const blocked = useMemo(() => computeBlockedDownstream(edges, latest), [edges, latest]);
   const ordered = useMemo(() => orderNodesLinear(nodes, edges), [nodes, edges]);
   const selected = ordered.find((node) => node.module_id === selectedNodeId) || ordered[0];
   const hostLabel = deployment?.host_id || pipeline?.host_id || '--';
+  const activeKey = deploymentKeyState || (pipelines[0] ? deploymentKey(pipelines[0]) : '');
 
   const onSelectDeployment = (key: string) => {
     setDeploymentKeyState(key);
     setSelectedNodeId('');
+    setDrawerOpen(false);
     sessionStorage.setItem('overseer_selected_deployment', key);
-    const { pipelineId, hostId } = parseDeploymentKey(key);
+    const { pipelineId: pid, hostId: hid } = parseDeploymentKey(key);
     const next = new URLSearchParams(params);
-    next.set('pipeline', pipelineId);
-    if (hostId) next.set('host', hostId);
+    next.set('pipeline', pid);
+    if (hid) next.set('host', hid);
     else next.delete('host');
     setParams(next);
   };
 
+  const openNode = (moduleId: string) => {
+    setSelectedNodeId(moduleId);
+    setDrawerOpen(true);
+  };
+
+  const nodeDetail = selected ? (
+    <div className="space-y-4 text-sm">
+      <div className="space-y-2">
+        <div className="flex justify-between gap-2 border-b border-slate-800 py-2">
+          <span className="text-slate-500">Módulo</span>
+          <strong>{selected.label || selected.module_id}</strong>
+        </div>
+        <div className="flex justify-between gap-2 border-b border-slate-800 py-2">
+          <span className="text-slate-500">Estado</span>
+          <strong>
+            {blocked.has(selected.module_id)
+              ? 'blocked'
+              : statusLabel(latest.get(selected.module_id)?.status || 'sem runtime')}
+          </strong>
+        </div>
+        <div className="flex justify-between gap-2 border-b border-slate-800 py-2">
+          <span className="text-slate-500">Comando</span>
+          <strong className="max-w-[200px] truncate font-mono text-xs">
+            {Array.isArray(selected.metadata?.command)
+              ? (selected.metadata.command as string[]).join(' ')
+              : String(selected.metadata?.command || '--')}
+          </strong>
+        </div>
+      </div>
+      {latest.get(selected.module_id)?.error_message && (
+        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200">
+          {latest.get(selected.module_id)?.error_message}
+        </p>
+      )}
+      {lastRun?.run_id && (
+        <Link
+          to={`/runs?run=${encodeURIComponent(lastRun.run_id)}&pipeline=${encodeURIComponent(pipelineId)}&host=${encodeURIComponent(hostId)}`}
+          className="inline-block rounded-lg border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-800"
+        >
+          Ver run {lastRun.run_id}
+        </Link>
+      )}
+    </div>
+  ) : null;
+
   return (
     <AppShell
-      title={pipeline?.name || pipeline?.pipeline_id || 'Catálogo DAG'}
+      title={pipeline ? pipelineLabel(pipeline).title : 'Catálogo DAG'}
       breadcrumb={
         pipeline
           ? `DAG / ${pipelineLabel(pipeline).title} @ ${hostLabel}`
           : 'DAG / sem catálogo'
       }
+      deploymentContext={
+        pipelineId
+          ? {
+              pipelineId,
+              hostId,
+              label: pipeline ? pipelineLabel(pipeline).title : pipelineId,
+            }
+          : undefined
+      }
       syncLabel={query.isFetching ? 'A carregar' : query.isError ? 'Erro' : pipeline ? 'Sincronizado' : 'Sem catálogo'}
       syncKind={query.isError ? 'danger' : pipeline ? 'ok' : 'warn'}
       onRefresh={() => query.refetch()}
       actions={
-        <select
-          value={deploymentKeyState || (pipelines[0] ? deploymentKey(pipelines[0]) : '')}
-          onChange={(e) => onSelectDeployment(e.target.value)}
-          className="max-w-xs rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm"
-        >
-          {pipelines.length ? (
-            pipelines.map((item) => (
-              <option key={deploymentKey(item)} value={deploymentKey(item)}>
-                {pipelineLabel(item).title} @ {hostDisplay(item)}
-              </option>
-            ))
-          ) : (
-            <option value="">Sem pipelines</option>
-          )}
-        </select>
+        <DeploymentPicker
+          pipelines={pipelines}
+          value={activeKey}
+          onChange={onSelectDeployment}
+          className="max-w-md"
+        />
       }
     >
       <TokenBanner />
       {query.isError && <Alert message={(query.error as Error).message} />}
       <p className="mb-4 text-sm text-slate-400">
         {nodes.length} node(s), {edges.length} dependência(s).
-        {lastRun ? ` Última run: ${lastRun.run_id}.` : ''}
+        {lastRun ? ` Última run: ${lastRun.run_id}.` : ''} Clique num nó para inspeccionar.
       </p>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -162,7 +213,7 @@ export function DagPage() {
                 return (
                   <article
                     key={node.module_id}
-                    onClick={() => setSelectedNodeId(node.module_id)}
+                    onClick={() => openNode(node.module_id)}
                     className={`absolute w-[180px] cursor-pointer rounded-xl border p-3 transition-colors ${
                       selected?.module_id === node.module_id
                         ? 'border-blue-500/50 bg-blue-500/10'
@@ -185,37 +236,9 @@ export function DagPage() {
           )}
         </section>
 
-        <aside className="space-y-4">
+        <aside className="hidden space-y-4 xl:block">
           {selected ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm">
-              <div className="space-y-2">
-                <div className="flex justify-between gap-2 border-b border-slate-800 py-2">
-                  <span className="text-slate-500">Módulo</span>
-                  <strong>{selected.label || selected.module_id}</strong>
-                </div>
-                <div className="flex justify-between gap-2 border-b border-slate-800 py-2">
-                  <span className="text-slate-500">Estado</span>
-                  <strong>
-                    {blocked.has(selected.module_id)
-                      ? 'blocked'
-                      : statusLabel(latest.get(selected.module_id)?.status || 'sem runtime')}
-                  </strong>
-                </div>
-                <div className="flex justify-between gap-2 border-b border-slate-800 py-2">
-                  <span className="text-slate-500">Comando</span>
-                  <strong className="max-w-[160px] truncate font-mono text-xs">
-                    {Array.isArray(selected.metadata?.command)
-                      ? (selected.metadata.command as string[]).join(' ')
-                      : String(selected.metadata?.command || '--')}
-                  </strong>
-                </div>
-              </div>
-              {latest.get(selected.module_id)?.error_message && (
-                <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200">
-                  {latest.get(selected.module_id)?.error_message}
-                </p>
-              )}
-            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">{nodeDetail}</div>
           ) : pipeline ? (
             <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm">
               <PipelineLabel source={pipeline} />
@@ -248,6 +271,14 @@ export function DagPage() {
           </div>
         </aside>
       </div>
+
+      <Drawer
+        open={drawerOpen}
+        title={selected?.label || selected?.module_id || 'Módulo'}
+        onClose={() => setDrawerOpen(false)}
+      >
+        {nodeDetail}
+      </Drawer>
     </AppShell>
   );
 }

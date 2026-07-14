@@ -39,18 +39,25 @@ Não é um motor de workflows, um gestor de segredos ou um substituto de uma pla
 
 ## Arquitetura técnica do pipeline
 
-O Overseer observa pipelines externos; não executa o seu código. Um pipeline típico segue um fluxo como:
+O Overseer **observa** pipelines externos; não executa o seu código. O pipeline vive fora deste repositório; cada passo emite telemetria para a API `/v1`:
 
 ```mermaid
 flowchart TD
-  A[Conectores .txt] --> B[connector_loader]
-  B --> C[orchestrator]
-  C --> D{anos completos em datasets?}
-  D -->|sim| E[processar anos fechados]
-  D -->|não| F[aguardar ou backfill parcial]
-  E --> G[telemetria Overseer /v1]
-  F --> G
+  subgraph external [Pipeline externo]
+    M[manifest.yaml ou código instrumentado]
+    S1[step / módulo 1]
+    S2[step / módulo 2]
+    Sn[step / módulo N]
+    M --> S1 --> S2 --> Sn
+  end
+  R[Runner / SDK / agente]
+  S1 --> R
+  S2 --> R
+  Sn --> R
+  R -->|catalog runs modules logs heartbeat| API[Overseer API /v1]
 ```
+
+Consulte [Integração de pipelines](docs/pipeline-integration.md) e o contrato em `src/overseer_sdk/manifest_runner.py`.
 
 O pipeline regista catálogo, runs, módulos e logs por API; o Overseer persiste o estado e expõe a interface em **`/Overseer/`** (nginx em produção) ou **`/ui/`** (Docker local).
 

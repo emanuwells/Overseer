@@ -50,6 +50,29 @@ export function logicalPipelineId(pipelineId?: string): string {
   return raw;
 }
 
+const DISPLAY_PREFIX_STRIP = ['Yunex '];
+
+export function stripDisplayPrefixes(name: string): string {
+  let text = String(name || '').trim();
+  if (!text) return text;
+  for (const prefix of DISPLAY_PREFIX_STRIP) {
+    if (text.toLowerCase().startsWith(prefix.toLowerCase())) {
+      text = text.slice(prefix.length).trimStart();
+    }
+  }
+  return text;
+}
+
+function catalogDisplayName(
+  pipelineId: string,
+  hostId: string,
+  pipelines: Pipeline[],
+): string {
+  const row = findPipelineRow(pipelines, pipelineId, hostId);
+  const fromCatalog = row?.name || row?.pipeline_name;
+  return fromCatalog ? stripDisplayPrefixes(String(fromCatalog)) : '';
+}
+
 export function effectiveHostId(item?: {
   host_id?: string;
   pipeline_id?: string;
@@ -135,13 +158,15 @@ export function pipelineLabel(
   const id = logicalPipelineId(
     (source as Pipeline)?.pipeline_id || pipelineId || row?.pipeline_id || '',
   );
-  const title =
+  const host = hostId || (source ? effectiveHostId(source as Pipeline) : '') || row?.host_id || '';
+  const catalogName = catalogDisplayName(id, host, pipelines);
+  const rawTitle =
     (source as Pipeline)?.pipeline_name ||
     (source as Pipeline)?.name ||
     row?.pipeline_name ||
     row?.name ||
-    id ||
-    '--';
+    '';
+  const title = catalogName || stripDisplayPrefixes(String(rawTitle)) || id || '--';
   const subtitle = id && id !== title ? id : '';
   return { title, subtitle, id };
 }

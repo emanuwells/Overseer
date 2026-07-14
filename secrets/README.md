@@ -22,3 +22,7 @@ cp docs/resources/templates/.env.example secrets/.env
 ```
 
 Os scripts `dev-ui.ps1`, `overseer-up.sh` e `ensure-env.*` criam ou migram automaticamente a partir da raiz legada.
+
+### Nomes de pipeline
+
+`OVERSEER_NAME_PREFIX_STRIP` (em `secrets/.env`) define prefixos removidos na API, Slack e frontend antes de mostrar nomes (default: `Yunex `). O nome canónico preferido vem do catálogo YAML (`name`).

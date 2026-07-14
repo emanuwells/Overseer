@@ -19,7 +19,11 @@ def sqlite_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 @patch("overseer_sdk.slack_notifier.requests.post")
-def test_notify_failed_run_mentions_channel(mock_post: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_notify_failed_run_mentions_channel(
+    mock_post: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    sqlite_store,
+) -> None:
     mock_post.return_value.status_code = 200
     mock_post.return_value.text = "ok"
     monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/test")
@@ -61,6 +65,39 @@ def test_finish_run_ok_after_failed_notifies_resolved(
     ok_run = store.start_run({"pipeline_id": "demo", "host_id": "linux-host"})
     store.finish_run(ok_run["run_id"], {"status": "ok"})
     mock_resolve.assert_called_once()
+
+
+@patch("overseer_sdk.slack_notifier.requests.post")
+def test_notify_failed_run_uses_canonical_pipeline_name(
+    mock_post: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    sqlite_store,
+) -> None:
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.text = "ok"
+    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/test")
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "traffic_flow",
+            "host_id": "linux-host",
+            "name": "Traffic Flow",
+            "nodes": [{"module_id": "a"}],
+            "edges": [],
+        }
+    )
+    run = store.start_run(
+        {
+            "pipeline_id": "traffic_flow",
+            "host_id": "linux-host",
+            "pipeline_name": "Yunex Traffic Flow",
+        }
+    )
+    store.finish_run(run["run_id"], {"status": "failed", "error_message": "boom"})
+    finished = store.get_run(run["run_id"]) or {}
+    assert slack_alerts.notify_failed_run(finished) is True
+    payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+    assert "`Traffic Flow`" in payload["text"]
+    assert "Yunex Traffic Flow" not in payload["text"]
 
 
 @patch("overseer_sdk.slack_notifier.requests.post")

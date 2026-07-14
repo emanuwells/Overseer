@@ -4,6 +4,23 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.31] - 2026-07-14
+
+### Added
+
+- Camada canónica de nomes de pipeline (`pipeline_names.py`): catálogo + remoção de prefixos (`OVERSEER_NAME_PREFIX_STRIP`, default `Yunex `).
+- Componentes UI: `Modal`, `Drawer`, `DeploymentPicker`, `PipelineInspector`, `RunDetailPanel`.
+- Testes de regressão Slack e unitários para nomes normalizados.
+
+### Changed
+
+- API (`store`), Slack (digest/alertas) e frontend (`pipelineLabel`) usam a mesma regra de nome canónico.
+- Operações: drawer com inspector; modal para detalhe de run; KPI «Falhas» filtra a tabela.
+- Runs: detalhe em painel (desktop) ou modal (mobile); breadcrumbs com deployment.
+- DAG: `DeploymentPicker` no header; drawer ao clicar num nó.
+- `AppShell`: breadcrumbs clicáveis e atalhos Operações/Runs/DAG por deployment.
+- README: diagrama genérico de integração pipeline externo → API (remove referências inexistentes).
+
 ## [5.8.30] - 2026-07-14
 
 ### Fixed

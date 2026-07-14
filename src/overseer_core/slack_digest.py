@@ -106,10 +106,17 @@ def aggregate_runs_by_deployment(runs: list[dict[str, Any]]) -> list[dict[str, A
         host = str(run.get("host_id") or run.get("hostname") or "-")
         key = _deployment_key(pid, host)
         if key not in buckets:
+            from .pipeline_names import resolve_display_name
+
             buckets[key] = {
                 "pipeline_id": pid,
                 "host_id": host,
-                "name": str(run.get("pipeline_name") or pid),
+                "name": resolve_display_name(
+                    pid,
+                    host,
+                    str(run.get("pipeline_name") or pid),
+                    store.catalog_name_index(),
+                ),
                 "total": 0,
                 "ok": 0,
                 "failed": 0,

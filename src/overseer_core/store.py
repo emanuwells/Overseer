@@ -1086,7 +1086,41 @@ def list_deployments() -> list[dict[str, Any]]:
         enriched.append(
             deployment_health.enrich_deployment(item, runs_by_deployment.get(key, []))
         )
-    return dedupe_pipelines(enriched)
+    from . import pipeline_names
+
+    result = dedupe_pipelines(enriched)
+    catalog_index = pipeline_names.build_catalog_name_index(result) or _build_catalog_name_index_light()
+    return [pipeline_names.normalize_pipeline_item(item, catalog_index) for item in result]
+
+
+def _build_catalog_name_index_light() -> dict[str, str]:
+    """Índice de nomes a partir de YAML + DB (sem depender de list_deployments)."""
+    from . import pipeline_names, runner_catalog
+
+    candidates: list[dict[str, Any]] = []
+    for catalog_host, entries in runner_catalog.load_all_runner_catalogs().items():
+        host_id = host_key(catalog_host)
+        for entry in entries:
+            candidates.append(
+                {
+                    "pipeline_id": str(entry["pipeline_id"]),
+                    "host_id": host_id,
+                    "name": entry.get("name"),
+                }
+            )
+    with get_engine().connect() as conn:
+        pipeline_rows = conn.execute(
+            select(pipelines_table).where(pipelines_table.c.active.is_(True))
+        ).mappings().all()
+    for row in pipeline_rows:
+        normalized = normalize_pipeline_row(row_to_dict(row))
+        if normalized:
+            candidates.append(normalized)
+    return pipeline_names.build_catalog_name_index(candidates)
+
+
+def catalog_name_index() -> dict[str, str]:
+    return _build_catalog_name_index_light()
 
 
 def list_pipelines() -> list[dict[str, Any]]:
@@ -1115,11 +1149,20 @@ def start_run(payload: dict[str, Any]) -> dict[str, Any]:
     pipeline_id, host_id = _resolve_pipeline_host(payload)
     purge_stuck_running_runs(pipeline_id=pipeline_id, host_id=host_id)
     pipeline = get_pipeline(pipeline_id, host_id) or get_pipeline(pipeline_id) or {}
+    from . import pipeline_names
+
+    catalog_index = _build_catalog_name_index_light()
+    pipeline_name = pipeline_names.resolve_display_name(
+        pipeline_id,
+        host_id,
+        str(pipeline.get("name") or payload.get("pipeline_name") or pipeline_id),
+        catalog_index,
+    )
     values = {
         "run_id": run_id,
         "pipeline_id": pipeline_id,
         "host_id": host_id,
-        "pipeline_name": payload.get("pipeline_name") or pipeline.get("name") or pipeline_id,
+        "pipeline_name": pipeline_name,
         "status": "running",
         "trigger_type": payload.get("trigger_type") or "manual",
         "requested_by": payload.get("requested_by"),
@@ -1544,7 +1587,11 @@ def get_pipeline_dag(
 def get_run(run_id: str) -> dict[str, Any] | None:
     with get_engine().connect() as conn:
         row = conn.execute(select(runs_table).where(runs_table.c.run_id == run_id)).mappings().first()
-    return row_to_dict(row) if row else None
+    if not row:
+        return None
+    from . import pipeline_names
+
+    return pipeline_names.normalize_run_item(row_to_dict(row), _build_catalog_name_index_light())
 
 
 def get_module(event_id: int) -> dict[str, Any] | None:
@@ -1585,7 +1632,10 @@ def list_runs(
         stmt = stmt.where(runs_table.c.host_id == host_key(host_id))
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
-    return [row_to_dict(row) for row in rows]
+    from . import pipeline_names
+
+    catalog_index = _build_catalog_name_index_light()
+    return [pipeline_names.normalize_run_item(row_to_dict(row), catalog_index) for row in rows]
 
 
 def list_runs_since(days: float = 7, limit: int = 5000) -> list[dict[str, Any]]:
@@ -1598,7 +1648,10 @@ def list_runs_since(days: float = 7, limit: int = 5000) -> list[dict[str, Any]]:
     )
     with get_engine().connect() as conn:
         rows = conn.execute(stmt).mappings().all()
-    return [row_to_dict(row) for row in rows]
+    from . import pipeline_names
+
+    catalog_index = _build_catalog_name_index_light()
+    return [pipeline_names.normalize_run_item(row_to_dict(row), catalog_index) for row in rows]
 
 
 def count_runs() -> int:

@@ -21,7 +21,9 @@ O frontend do Overseer é uma SPA React read-only para observar estado operacion
 |---|---|---|
 | Entry | `frontend/index.html`, `frontend/src/main.tsx` | bootstrap da SPA |
 | Rotas | `frontend/src/App.tsx` | `/operations`, `/runs`, `/dag`, `/environment` |
-| Layout | `frontend/src/components/layout/` | sidebar, topbar, breadcrumbs |
+| Layout | `frontend/src/components/layout/` | sidebar, topbar, breadcrumbs, `DeploymentPicker` |
+| UI | `frontend/src/components/ui/` | `Modal`, `Drawer`, pills, alertas |
+| Pipelines / Runs | `frontend/src/components/pipelines/`, `runs/` | inspector e detalhe reutilizável |
 | Páginas | `frontend/src/pages/` | vistas operacionais |
 | API | `frontend/src/lib/api.ts`, `frontend/src/lib/utils.ts` | cliente HTTP e helpers |
 | Config | `frontend/public/overseer-config.example.js` | exemplo de token (produção via deploy) |
@@ -38,6 +40,22 @@ O frontend do Overseer é uma SPA React read-only para observar estado operacion
 | `/ui/environment` | base de dados, hosts, heartbeats, triggers |
 
 Deep links: `/ui/runs?run=…&pipeline=…&host=…`, `/ui/dag?pipeline=…&host=…`.
+
+## Nomes canónicos
+
+A função `pipelineLabel()` em `utils.ts` segue a mesma regra que o backend (`pipeline_names.py`):
+
+1. `name` do catálogo (deployment);
+2. `pipeline_name` da run com prefixos removidos (`Yunex ` por defeito — sincronizar com `OVERSEER_NAME_PREFIX_STRIP`);
+3. `pipeline_id` como fallback.
+
+## Modais e drawers
+
+- **Operações**: clique na linha abre drawer com inspector; clique numa run abre modal com módulos e logs.
+- **Runs**: lista + painel em `lg+`; abaixo de `lg`, detalhe em modal.
+- **DAG**: `DeploymentPicker` no header; clique num nó abre drawer com estado e link para a última run.
+
+O `AppShell` mostra breadcrumbs clicáveis e atalhos Operações / Runs / DAG quando há contexto de deployment (`?pipeline=&host=`).
 
 ## Integração API
 

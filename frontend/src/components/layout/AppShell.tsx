@@ -19,6 +19,19 @@ const NAV_ITEMS = [
   { id: 'environment', to: '/environment', label: 'Ambiente', hint: 'DB, hosts e actividade', icon: Server },
 ] as const;
 
+export type DeploymentContext = {
+  pipelineId: string;
+  hostId?: string;
+  label?: string;
+};
+
+function deploymentQuery(ctx: DeploymentContext) {
+  const q = new URLSearchParams();
+  q.set('pipeline', ctx.pipelineId);
+  if (ctx.hostId) q.set('host', ctx.hostId);
+  return q.toString();
+}
+
 export function AppShell({
   title,
   breadcrumb,
@@ -26,6 +39,7 @@ export function AppShell({
   syncLabel,
   syncKind = '',
   database,
+  deploymentContext,
   onRefresh,
   children,
 }: {
@@ -35,10 +49,12 @@ export function AppShell({
   syncLabel?: string;
   syncKind?: string;
   database?: DatabaseInfo;
+  deploymentContext?: DeploymentContext;
   onRefresh?: () => void;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const depQs = deploymentContext ? deploymentQuery(deploymentContext) : '';
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-slate-100">
@@ -118,14 +134,44 @@ export function AppShell({
               <Menu size={18} />
             </button>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                 <Link to="/operations" className="hover:text-slate-300">
                   Overseer
                 </Link>
+                {deploymentContext ? (
+                  <>
+                    <span>/</span>
+                    <Link
+                      to={`/operations?${depQs}`}
+                      className="max-w-[200px] truncate hover:text-slate-300"
+                      title={deploymentContext.label || deploymentContext.pipelineId}
+                    >
+                      {deploymentContext.label || deploymentContext.pipelineId}
+                      {deploymentContext.hostId ? ` @ ${deploymentContext.hostId}` : ''}
+                    </Link>
+                  </>
+                ) : null}
                 <span>/</span>
                 <span className="text-slate-300">{breadcrumb || title}</span>
               </div>
               <h1 className="mt-1 text-lg font-semibold tracking-tight">{title}</h1>
+              {deploymentContext && depQs ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    { to: `/operations?${depQs}`, label: 'Operações' },
+                    { to: `/runs?${depQs}`, label: 'Runs' },
+                    { to: `/dag?${depQs}`, label: 'DAG' },
+                  ].map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className="rounded-full border border-slate-700 px-2.5 py-0.5 text-xs text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {actions}
