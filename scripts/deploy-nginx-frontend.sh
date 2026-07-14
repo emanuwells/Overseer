@@ -13,15 +13,27 @@ LOCATIONS_DST="/etc/nginx/overseer-locations.conf"
 BUILD_DIR="${OVERSEER_FRONTEND_BUILD_DIR:-}"
 
 echo "==> A construir frontend para nginx (base /Overseer/)"
-if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
-  cd "$BUILD_DIR/frontend"
-else
-  cd "$FRONTEND_DIR"
-fi
-if [ ! -d node_modules ]; then
-  npm ci
-fi
-npm run build:nginx
+build_nginx_frontend() {
+  if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
+    cd "$BUILD_DIR/frontend"
+  else
+    cd "$FRONTEND_DIR"
+  fi
+  local node_major=0
+  if command -v node >/dev/null 2>&1; then
+    node_major="$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 0)"
+  fi
+  if [ "$node_major" -ge 20 ] 2>/dev/null; then
+    if [ ! -d node_modules ]; then
+      npm ci
+    fi
+    npm run build:nginx
+  else
+    echo "Node local < 20; a usar Docker node:20-alpine para o build."
+    docker run --rm -v "$FRONTEND_DIR":/app -w /app node:20-alpine sh -c "npm ci && npm run build:nginx"
+  fi
+}
+build_nginx_frontend
 DIST_OUT="$FRONTEND_DIR/dist-nginx"
 rm -rf "$DIST_OUT"
 cp -r dist "$DIST_OUT"
@@ -34,6 +46,8 @@ fi
 echo "==> A publicar frontend em $WEB_ROOT"
 mkdir -p "$WEB_ROOT"
 cp -r "$FRONTEND_SRC"/. "$WEB_ROOT"/
+rm -f "$WEB_ROOT"/dashboard.html "$WEB_ROOT"/deployments.html "$WEB_ROOT"/lineage.html "$WEB_ROOT"/run-detail.html
+rm -rf "$WEB_ROOT"/css "$WEB_ROOT"/js
 
 ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
 if [ -f "$ENV_FILE" ]; then
@@ -53,17 +67,18 @@ else
 fi
 
 echo "==> A instalar snippet de proxy em $LOCATIONS_DST"
-cp "$LOCATIONS_SRC" "$LOCATIONS_DST"
-
-if nginx -T 2>/dev/null | grep -q "overseer-locations.conf"; then
+if cp "$LOCATIONS_SRC" "$LOCATIONS_DST" 2>/dev/null; then
+  if nginx -T 2>/dev/null | grep -q "overseer-locations.conf"; then
     echo "==> Include já presente na configuração nginx."
-else
+  else
     echo "AVISO: adicione manualmente, dentro do server block principal:"
     echo "         include $LOCATIONS_DST;"
     echo "       depois valide e recarregue: nginx -t && systemctl reload nginx"
+  fi
+  echo "==> A validar configuração nginx"
+  nginx -t
+else
+  echo "AVISO: sem permissão para $LOCATIONS_DST; frontend publicado, nginx locations inalterado."
 fi
-
-echo "==> A validar configuração nginx"
-nginx -t
 
 echo "==> Concluído. UI: http://<host>/Overseer/"

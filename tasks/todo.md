@@ -7,8 +7,7 @@
 - [x] Migrar frontend para Vite + React + TypeScript com navegação SPA.
 - [x] Corrigir base `/ui/` vs `/Overseer/` e scripts dev-ui / dev-frontend.
 - [x] Publicar commit e push.
-- [x] Mover config para `secrets/.env`; README com Mermaid do pipeline.
-- [ ] Deploy produção: definir `OVERSEER_SSH_TARGET` e `OVERSEER_REPO_PATH`, depois `.\scripts\deploy-prod.ps1`.
+- [x] Deploy produção baze2 (`875dc83`, UI em `/Overseer/`, `secrets/.env`).
 
 ## Documentação e digest Slack — 2026-07-14
 
