@@ -27,7 +27,6 @@ EXPECTED = {
 
 
 def main() -> int:
-    store.init_schema()
     engine = store.get_engine()
     tables = set(inspect(engine).get_table_names())
     extra = sorted(tables - EXPECTED)
