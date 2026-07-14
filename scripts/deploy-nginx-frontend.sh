@@ -11,6 +11,11 @@ WEB_ROOT="${OVERSEER_WEB_ROOT:-/usr/share/nginx/html/Overseer}"
 LOCATIONS_SRC="$REPO_ROOT/deploy/nginx/overseer-locations.conf"
 LOCATIONS_DST="/etc/nginx/overseer-locations.conf"
 BUILD_DIR="${OVERSEER_FRONTEND_BUILD_DIR:-}"
+ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
+case "$ENV_FILE" in
+  /*) ;;
+  *) ENV_FILE="$REPO_ROOT/$ENV_FILE" ;;
+esac
 
 echo "==> A construir frontend para nginx (base /Overseer/)"
 build_nginx_frontend() {
@@ -51,18 +56,10 @@ rm -rf "$WEB_ROOT"/css "$WEB_ROOT"/js
 # Remover fallbacks legados (causam 301 desnecessários quando nginx tem try_files SPA).
 rm -rf "$WEB_ROOT"/operations "$WEB_ROOT"/runs "$WEB_ROOT"/dag "$WEB_ROOT"/environment
 
-ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
 if [ -f "$ENV_FILE" ]; then
-    TOKEN="$(grep -E '^OVERSEER_API_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)"
-    if [ -n "$TOKEN" ]; then
-        CONFIG_JS="$WEB_ROOT/overseer-config.js"
-        printf '%s\n' "window.OVERSEER_CONFIG = { apiToken: $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$TOKEN") };" > "$CONFIG_JS"
-        chmod 644 "$CONFIG_JS" 2>/dev/null || true
-        echo "==> Token API injectado em $CONFIG_JS"
-    else
-        echo "AVISO: OVERSEER_API_TOKEN vazio em $ENV_FILE; UI pode devolver 401." >&2
-        cp "$FRONTEND_DIR/public/overseer-config.example.js" "$WEB_ROOT/overseer-config.js"
-    fi
+    bash "$REPO_ROOT/scripts/generate-frontend-config.sh" "$ENV_FILE" "$WEB_ROOT/overseer-config.js"
+    chmod 644 "$WEB_ROOT/overseer-config.js" 2>/dev/null || true
+    echo "==> Token API injectado em $WEB_ROOT/overseer-config.js"
 else
     echo "AVISO: $ENV_FILE não encontrado; a usar overseer-config.example.js." >&2
     cp "$FRONTEND_DIR/public/overseer-config.example.js" "$WEB_ROOT/overseer-config.js"
