@@ -6,8 +6,8 @@
 - [x] Reescrever README e PROJECT_CONTEXT ao novo contrato.
 - [x] Migrar frontend para Vite + React + TypeScript com navegação SPA.
 - [x] Integrar build no Docker, FastAPI SPA fallback e deploy nginx.
-- [ ] Publicar commit e push após validação local.
-- [ ] Deploy produção após confirmação explícita do operador.
+- [x] Publicar commit e push (`ebf2ebc` em `origin/main`).
+- [ ] Deploy produção no servidor (SSH): `git pull`, `docker compose ... up --build -d`, `scripts/deploy-nginx-frontend.sh`.
 
 ## Documentação e digest Slack — 2026-07-14
 
