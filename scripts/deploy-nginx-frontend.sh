@@ -35,7 +35,7 @@ echo "==> A publicar frontend em $WEB_ROOT"
 mkdir -p "$WEB_ROOT"
 cp -r "$FRONTEND_SRC"/. "$WEB_ROOT"/
 
-ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/.env}"
+ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
 if [ -f "$ENV_FILE" ]; then
     TOKEN="$(grep -E '^OVERSEER_API_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)"
     if [ -n "$TOKEN" ]; then

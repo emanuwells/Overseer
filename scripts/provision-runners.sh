@@ -12,7 +12,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUNNERS_ROOT="${OVERSEER_RUNNERS_ROOT:-$HOME/overseer-runners}"
 VENV="${OVERSEER_VENV:-$HOME/overseer-venv}"
-ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/.env}"
+ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
 if [ -f "$ENV_FILE" ]; then
     set -a
     # shellcheck disable=SC1090

@@ -19,7 +19,7 @@ python -m pytest -q
 
 ```bash
 # Linux/macOS
-cp docs/resources/templates/.env.example .env   # se ainda não existir
+cp docs/resources/templates/.env.example secrets/.env   # se ainda não existir
 ./scripts/overseer-up.sh
 # UI: http://127.0.0.1:8090/ui/operations
 ```
@@ -55,17 +55,17 @@ npm run dev
 ## Docker
 
 ```bash
-docker compose --project-directory . -f docker/docker-compose.yml config
-docker compose --project-directory . -f docker/docker-compose.yml up --build -d
-docker compose --project-directory . -f docker/docker-compose.yml logs -f overseer-api
-docker compose --project-directory . -f docker/docker-compose.yml down
+docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.yml config
+docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.yml up --build -d
+docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.yml logs -f overseer-api
+docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.yml down
 ```
 
-Produção requer `.env`, `OVERSEER_DB_URL`, `OVERSEER_RUNNERS_DIR`, `OVERSEER_RUNTIME_DIR` e diretórios privados persistentes:
+Produção requer `secrets/.env`, `OVERSEER_DB_URL`, `OVERSEER_RUNNERS_DIR`, `OVERSEER_RUNTIME_DIR` e diretórios privados persistentes:
 
 ```bash
-docker compose --project-directory . -f docker/docker-compose.prod.yml config
-docker compose --project-directory . -f docker/docker-compose.prod.yml up --build -d
+docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.prod.yml config
+docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.prod.yml up --build -d
 curl -sf http://127.0.0.1:8090/v1/health
 ```
 

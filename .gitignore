@@ -54,8 +54,9 @@ frontend/pm_payload.json
 frontend/pm_details.json
 frontend/public/overseer-config.js
 
-# Environment local
+# Environment local (secrets/.env; raiz legada ignorada)
 .env
+secrets/.env
 deploy/runners.local/
 
 # Secrets (keep only examples/tracked placeholders)

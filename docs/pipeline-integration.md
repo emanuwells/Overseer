@@ -240,7 +240,7 @@ docker compose exec overseer-api python scripts/overseer_emit_demo.py
 Depois abrir:
 
 ```text
-http://127.0.0.1:8090/ui/dashboard.html
+http://127.0.0.1:8090/ui/operations
 ```
 
 ## DB Oficial

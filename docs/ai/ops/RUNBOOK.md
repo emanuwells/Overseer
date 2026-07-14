@@ -20,7 +20,7 @@ Ver `COMMANDS.md` para lista completa.
 # Local
 docker compose --project-directory . -f docker/docker-compose.yml up --build -d
 
-# Produção (requer .env, OVERSEER_DB_URL, OVERSEER_RUNNERS_DIR, OVERSEER_RUNTIME_DIR)
+# Produção (requer secrets/.env, OVERSEER_DB_URL, OVERSEER_RUNNERS_DIR, OVERSEER_RUNTIME_DIR)
 docker compose --project-directory . -f docker/docker-compose.prod.yml up --build -d
 ```
 
@@ -68,7 +68,7 @@ docker compose --project-directory . -f docker/docker-compose.yml exec -T mysql 
 
 ### Rollback de Deployment
 
-Restaurar checkout, imagem e `.env` do snapshot pré-deploy. Não remover volumes.
+Restaurar checkout, imagem e `secrets/.env` do snapshot pré-deploy. Não remover volumes.
 
 ```bash
 docker compose --project-directory . -f docker/docker-compose.prod.yml up --build -d

@@ -4,6 +4,19 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.29] - 2026-07-14
+
+### Added
+
+- `scripts/ensure-env.ps1` / `ensure-env.sh` — cria ou migra configuração para `secrets/.env`.
+
+### Changed
+
+- Configuração local e produção passa de `.env` na raiz para **`secrets/.env`**; Compose usa `--env-file secrets/.env`.
+- README com diagrama Mermaid da **arquitetura técnica do pipeline** (separado da camada Overseer).
+- Deploy remoto actualizado para `secrets/.env` e publicação nginx em `/Overseer/`.
+- OpenAPI e documentação de integração apontam para `/ui/operations` em vez de HTML legado.
+
 ## [5.8.28] - 2026-07-14
 
 ### Added

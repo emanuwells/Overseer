@@ -15,4 +15,10 @@ Ajustar permissões em Linux: `chmod 600 secrets/*`.
 
 ## Variáveis de ambiente
 
-Preferir `.env` na raiz (template em `docs/resources/templates/.env.example`).
+Copiar o template para `secrets/.env` (nunca versionar o ficheiro real):
+
+```bash
+cp docs/resources/templates/.env.example secrets/.env
+```
+
+Os scripts `dev-ui.ps1`, `overseer-up.sh` e `ensure-env.*` criam ou migram automaticamente a partir da raiz legada.

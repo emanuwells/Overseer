@@ -6,7 +6,7 @@
 #
 # Pré-requisitos no host:
 #   - schema Overseer acessível em 127.0.0.1:3306
-#   - `.env` na raiz do repo com OVERSEER_DB_URL (host 127.0.0.1) e OVERSEER_API_TOKEN
+#   - `secrets/.env` com OVERSEER_DB_URL (host 127.0.0.1) e OVERSEER_API_TOKEN
 #
 # Arranque (a partir da raiz do repo):
 #   docker compose --project-directory . -f docker/docker-compose.prod.yml up --build -d
@@ -27,7 +27,7 @@ services:
       OVERSEER_ROOT: /app
       OVERSEER_API_PORT: 8090
       OVERSEER_API_URL: http://127.0.0.1:8090
-      OVERSEER_DB_URL: ${OVERSEER_DB_URL:?defina OVERSEER_DB_URL no .env}
+      OVERSEER_DB_URL: ${OVERSEER_DB_URL:?defina OVERSEER_DB_URL em secrets/.env}
       OVERSEER_API_TOKEN: ${OVERSEER_API_TOKEN:-}
       OVERSEER_CORS_ORIGINS: ${OVERSEER_CORS_ORIGINS:-*}
       OVERSEER_SLACK_CHANNEL: ${OVERSEER_SLACK_CHANNEL:-#overseer}
@@ -39,7 +39,7 @@ services:
       OVERSEER_SLACK_WEBHOOK_URL: ${OVERSEER_SLACK_WEBHOOK_URL:-}
       OVERSEER_SSH_SYNC_ENABLED: ${OVERSEER_SSH_SYNC_ENABLED:-1}
     volumes:
-      - ${OVERSEER_RUNTIME_DIR:?defina OVERSEER_RUNTIME_DIR no .env}:/app/runtime
-      - ${OVERSEER_RUNNERS_DIR:?defina OVERSEER_RUNNERS_DIR no .env}:/app/deploy/runners:rw
+      - ${OVERSEER_RUNTIME_DIR:?defina OVERSEER_RUNTIME_DIR em secrets/.env}:/app/runtime
+      - ${OVERSEER_RUNNERS_DIR:?defina OVERSEER_RUNNERS_DIR em secrets/.env}:/app/deploy/runners:rw
       - ./secrets:/app/secrets:ro
     restart: unless-stopped

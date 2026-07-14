@@ -59,7 +59,7 @@ if ($Mode -eq "local") {
     }
 }
 
-& (Join-Path $root "generate-frontend-config.ps1")
+& (Join-Path $root "generate-frontend-config.ps1") -EnvFile "secrets/.env"
 
 Sync-FrontendWorkdir
 Set-Location $WorkDir

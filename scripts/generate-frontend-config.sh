@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ENV_FILE="${1:-$REPO_ROOT/.env}"
+ENV_FILE="${1:-$REPO_ROOT/secrets/.env}"
 OUT_FILE="${2:-$REPO_ROOT/frontend/public/overseer-config.js}"
 
 TOKEN=""

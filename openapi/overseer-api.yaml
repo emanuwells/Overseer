@@ -6,10 +6,10 @@ info:
 paths:
   /:
     get:
-      summary: Redireciona para o dashboard em /ui/dashboard.html.
+      summary: Redireciona para a SPA em /ui/.
   /ui:
     get:
-      summary: Redireciona para o dashboard em /ui/dashboard.html.
+      summary: Redireciona para a SPA em /ui/.
   /v1/health:
     get:
       summary: Estado da API e conectividade à base de dados.

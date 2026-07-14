@@ -8,15 +8,14 @@ O fluxo oficial do Overseer é Docker-first. O Compose local/prod arranca API, f
 
 | Ambiente | Entrada Principal | Observações |
 |---|---|---|
-| Desenvolvimento local | `docker compose --project-directory . -f docker/docker-compose.yml up --build -d` | Caminho recomendado para API, UI e MariaDB local |
-| Produção | `docker compose --project-directory . -f docker/docker-compose.prod.yml up --build -d` | Requer confirmação explícita antes de ações operacionais reais |
+| Desenvolvimento local | `docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.yml up --build -d` | Caminho recomendado para API, UI e MariaDB local |
+| Produção | `docker compose --project-directory . --env-file secrets/.env -f docker/docker-compose.prod.yml up --build -d` | UI pública em `/Overseer/` via nginx |
 | Windows runners | `scripts/windows/*` | Provisionamento, Task Scheduler, heartbeat e túnel SSH |
 | Linux runners | `scripts/provision-runners.sh` e templates | Integração externa sem executar pipelines no núcleo |
 
 ## Configuração
 
-- Variáveis de ambiente ficam em `.env` local ou plataforma de deploy.
-- `.env.example` em `docs/resources/templates/` documenta formato seguro, sem credenciais reais.
+- Variáveis de ambiente ficam em `secrets/.env` (template em `docs/resources/templates/.env.example`).
 - Configuração de SSH, tokens, webhooks e DB real deve permanecer fora do Git.
 
 ## Validação Operacional

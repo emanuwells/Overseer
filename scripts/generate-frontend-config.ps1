@@ -1,5 +1,5 @@
 param(
-    [string]$EnvFile = ".env",
+    [string]$EnvFile = "secrets/.env",
     [string]$OutFile = "frontend/public/overseer-config.js"
 )
 

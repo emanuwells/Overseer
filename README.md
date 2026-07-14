@@ -1,7 +1,7 @@
 # Overseer
 
 ![Estado](https://img.shields.io/badge/estado-estável-2ecc71)
-![Versão](https://img.shields.io/badge/versão-5.8.28-3498db)
+![Versão](https://img.shields.io/badge/versão-5.8.29-3498db)
 ![Licença](https://img.shields.io/badge/licença-proprietária-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -37,17 +37,35 @@ Trabalho neste repositório segue [`AGENTS.md`](AGENTS.md): hierarquia de autori
 
 Não é um motor de workflows, um gestor de segredos ou um substituto de uma plataforma de logs. O pipeline continua responsável pela execução, pelos retries de negócio e pelo tratamento dos seus dados.
 
-## Arquitetura
+## Arquitetura técnica do pipeline
 
-    pipeline ou runner
-            | catálogo, runs, módulos, logs, heartbeat
-            v
-       Overseer API ------> MariaDB
-            |                  |
-            +------> interface web read-only (React SPA)
-            +------> Slack (opcional)
+O Overseer observa pipelines externos; não executa o seu código. Um pipeline típico segue um fluxo como:
 
-A API FastAPI é o ponto de entrada canónico. A camada de domínio e persistência vive em **src/overseer_core/**; o SDK e o agente reutilizam o mesmo contrato HTTP. O frontend é uma SPA React construída com Vite e servida em `/ui/`. Consulte [Arquitetura](docs/architecture/overview.md).
+```mermaid
+flowchart TD
+  A[Conectores .txt] --> B[connector_loader]
+  B --> C[orchestrator]
+  C --> D{anos completos em datasets?}
+  D -->|sim| E[processar anos fechados]
+  D -->|não| F[aguardar ou backfill parcial]
+  E --> G[telemetria Overseer /v1]
+  F --> G
+```
+
+O pipeline regista catálogo, runs, módulos e logs por API; o Overseer persiste o estado e expõe a interface em **`/Overseer/`** (nginx em produção) ou **`/ui/`** (Docker local).
+
+## Observabilidade Overseer
+
+```mermaid
+flowchart TD
+  P[Pipeline / runner] -->|HTTPS + token| API[Overseer API /v1]
+  API --> DB[(MariaDB)]
+  DB --> R[Consulta /v1/read]
+  R --> UI[Interface React SPA]
+  API --> S[Slack opcional]
+```
+
+A API FastAPI é o ponto de entrada canónico. Domínio e persistência em **src/overseer_core/**; SDK e agente partilham o mesmo contrato HTTP. Produção: `http://<host>/Overseer/` via `scripts/deploy-nginx-frontend.sh`. Consulte [Arquitetura](docs/architecture/overview.md).
 
 ## Arranque local
 
@@ -60,13 +78,13 @@ A API FastAPI é o ponto de entrada canónico. A camada de domínio e persistên
 
 Em Linux ou macOS:
 
-    cp docs/resources/templates/.env.example .env
-    docker compose --project-directory . -f docker/docker-compose.yml up --build -d
+    cp docs/resources/templates/.env.example secrets/.env
+    ./scripts/overseer-up.sh
 
 No PowerShell:
 
-    Copy-Item docs/resources/templates/.env.example .env
-    docker compose --project-directory . -f docker/docker-compose.yml up --build -d
+    Copy-Item docs/resources/templates/.env.example secrets/.env
+    .\scripts\dev-ui.ps1
 
 Confirme o arranque:
 
@@ -75,7 +93,8 @@ Confirme o arranque:
 Serviços disponíveis por defeito:
 
 - API e health: **http://127.0.0.1:8090/v1/health**;
-- interface: **http://127.0.0.1:8090/ui/**;
+- interface local: **http://127.0.0.1:8090/ui/**;
+- interface produção (nginx): **`/Overseer/`** no host público;
 - contrato OpenAPI: **openapi/overseer-api.yaml**;
 - MariaDB local: porta **3307** do host.
 
@@ -117,7 +136,7 @@ O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartb
 
 **OVERSEER_RUNTIME_DIR** também deve apontar para armazenamento persistente fora do checkout. Assim, uma atualização ou reversão de código não move nem elimina estado operacional.
 
-Nunca versione `.env`, tokens, webhooks, chaves SSH, catálogos reais ou cópias da base de dados.
+Nunca versione `secrets/.env`, tokens, webhooks, chaves SSH, catálogos reais ou cópias da base de dados.
 
 ## Integrar um pipeline
 
@@ -162,7 +181,7 @@ O backend usa FastAPI e SQLAlchemy. O frontend usa React, TypeScript, Vite, Reac
 
 ## Operação e produção
 
-Uma atualização de produção deve preservar `.env`, catálogos privados, runtime, volumes e referência da imagem ativa. Valide primeiro a configuração Compose e o build num checkout paralelo. Depois da troca, confirme health, base de dados, interface, catálogos e estabilidade dos contentores.
+Uma atualização de produção deve preservar `secrets/.env`, catálogos privados, runtime, volumes e referência da imagem ativa. Valide primeiro a configuração Compose e o build num checkout paralelo. Depois da troca, confirme health, base de dados, interface, catálogos e estabilidade dos contentores.
 
 O rollback restaura o checkout e a imagem anteriores, mantendo configuração e volumes. Não use `docker compose down -v` num procedimento normal de atualização. Consulte o [runbook](docs/ai/ops/RUNBOOK.md).
 
