@@ -70,6 +70,14 @@ docker compose --project-directory . -f docker/docker-compose.yml exec -T mysql 
 2. Atualizar `secrets/slack.json` ou `OVERSEER_SLACK_WEBHOOK_URL` em `secrets/.env` (nunca versionar).
 3. Confirmar que não há URLs reais no Git: `python scripts/scan_git_secrets.py`
 
+### Tabelas legado na base de dados
+
+1. Auditar: `python scripts/audit_db_schema.py`
+2. Simular drop: `python scripts/drop_legacy_tables.py --dry-run`
+3. Aplicar (irreversível): `python scripts/drop_legacy_tables.py --apply`
+
+Mantém tabelas de governação (`overseer_identity_*`, `overseer_permission_*`). Remove `pipeline_*`, `orchestrator_*_local`, medidata e alertas antigos.
+
 ## Procedimentos de Emergência
 
 ### Rollback de Deployment

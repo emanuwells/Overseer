@@ -14,16 +14,7 @@ from sqlalchemy import inspect, text  # noqa: E402
 
 from overseer_core import store  # noqa: E402
 
-EXPECTED = {
-    "overseer_pipelines",
-    "overseer_pipeline_nodes",
-    "overseer_pipeline_edges",
-    "overseer_runs",
-    "overseer_modules",
-    "overseer_logs",
-    "overseer_heartbeats",
-    "overseer_triggers",
-}
+EXPECTED = store.CANONICAL_TABLES | store.GOVERNANCE_TABLES
 
 
 def main() -> int:
@@ -130,6 +121,12 @@ def main() -> int:
         int(item.get("runs", 0) or 0) for item in (legacy.get("pipelines") or {}).values()
     )
     print(f"legacy_pipeline_runs_dry={legacy_runs}")
+
+    drop = store.drop_legacy_tables(dry_run=True)
+    print("=== LEGACY TABLE DROP DRY-RUN ===")
+    print(f"would_drop={drop.get('would_drop') or 'none'}")
+    for table, count in sorted((drop.get("row_counts") or {}).items()):
+        print(f"{table}={count}")
 
     return 0
 

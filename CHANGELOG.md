@@ -4,6 +4,18 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.33] - 2026-07-14
+
+### Added
+
+- `scripts/drop_legacy_tables.py` — remove tabelas pré-`overseer_*` (orchestrator local, `pipeline_*`, medidata, alertas antigos).
+- Constantes `LEGACY_DROP_TABLES`, `GOVERNANCE_TABLES` e `CANONICAL_TABLES` em `store.py`.
+
+### Changed
+
+- `audit_db_schema.py` reporta dry-run de drop de tabelas legado.
+- Tabelas de governação SSO/RBAC (`overseer_identity_*`, `overseer_permission_*`) mantêm-se.
+
 ## [5.8.32] - 2026-07-14
 
 ### Security

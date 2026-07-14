@@ -75,6 +75,8 @@ curl -sf http://127.0.0.1:8090/v1/health
 overseer-agent trigger <pipeline-id> --host-id <host-id> --by ops
 python scripts/overseer_retention.py --dry-run
 python scripts/overseer_retention.py --apply
+python scripts/drop_legacy_tables.py --dry-run
+python scripts/drop_legacy_tables.py --apply
 python scripts/maintenance/overseer_db_maintenance.py --pipeline-id <pipeline-id>
 ```
 

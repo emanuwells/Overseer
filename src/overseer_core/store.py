@@ -1460,6 +1460,80 @@ def purge_legacy_pipelines(*, dry_run: bool = False) -> dict[str, Any]:
     return summary
 
 
+LEGACY_DROP_TABLES = frozenset(
+    {
+        "logs_archive",
+        "medidata_indicator_records_raw",
+        "medidata_scrape_runs",
+        "orchestrator_events_local",
+        "orchestrator_runs_local",
+        "orchestrator_steps_local",
+        "orchestrator_triggers_local",
+        "overseer_alert_events",
+        "overseer_alert_state",
+        "overseer_runners",
+        "pipeline_catalog",
+        "pipeline_module_events",
+        "pipeline_runs",
+        "pipeline_script_logs",
+    }
+)
+
+GOVERNANCE_TABLES = frozenset(
+    {
+        "overseer_identity_mappings",
+        "overseer_identity_mapping_requests",
+        "overseer_permission_requests",
+        "overseer_pipeline_permissions",
+    }
+)
+
+CANONICAL_TABLES = frozenset(
+    {
+        "overseer_pipelines",
+        "overseer_pipeline_nodes",
+        "overseer_pipeline_edges",
+        "overseer_runs",
+        "overseer_modules",
+        "overseer_logs",
+        "overseer_heartbeats",
+        "overseer_triggers",
+    }
+)
+
+
+def _quote_table(name: str) -> str:
+    safe = str(name).replace("`", "")
+    return f"`{safe}`"
+
+
+def drop_legacy_tables(*, dry_run: bool = True) -> dict[str, Any]:
+    """Drop pre-Overseer schema tables that are no longer read by the API."""
+    engine = get_engine()
+    existing = set(inspect(engine).get_table_names())
+    to_drop = sorted(LEGACY_DROP_TABLES & existing)
+    result: dict[str, Any] = {
+        "dry_run": dry_run,
+        "would_drop": to_drop,
+        "dropped": [],
+        "absent": sorted(LEGACY_DROP_TABLES - existing),
+        "row_counts": {},
+    }
+    with engine.connect() as conn:
+        for table in to_drop:
+            result["row_counts"][table] = int(
+                conn.execute(text(f"SELECT COUNT(*) FROM {_quote_table(table)}")).scalar_one()
+            )
+    if dry_run:
+        return result
+    with engine.begin() as conn:
+        for table in to_drop:
+            conn.execute(text(f"DROP TABLE {_quote_table(table)}"))
+            result["dropped"].append(table)
+    result["would_drop"] = []
+    return result
+
+
 def record_module(payload: dict[str, Any]) -> dict[str, Any]:
     now = utcnow()
     started = parse_dt(payload.get("started_at"))
