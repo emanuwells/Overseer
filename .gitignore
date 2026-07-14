@@ -26,8 +26,8 @@ Thumbs.db
 
 # Runtime artifacts
 logs/
-# Pipelines externos vivem fora do repo; ignorar mounts locais acidentais
-pipelines/
+# Pipelines externos vivem fora do repo; ignorar mounts locais acidentais na raiz
+/pipelines/
 _pipelines_removed/
 pipelines/**/logs/
 *.tgz
