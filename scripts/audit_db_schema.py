@@ -34,6 +34,15 @@ def main() -> int:
 
     print("=== SCHEMA ===")
     print(f"tables={len(tables)} extra={extra or 'none'} missing={missing or 'none'}")
+    if extra:
+        print("=== LEGACY / EXTRA TABLE ROWS ===")
+        with engine.connect() as conn:
+            for table in extra:
+                try:
+                    count = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one()
+                    print(f"{table}={count}")
+                except Exception as exc:
+                    print(f"{table}=error:{exc.__class__.__name__}")
 
     status = store.database_status()
     print("=== COUNTS ===")
