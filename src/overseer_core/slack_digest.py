@@ -14,7 +14,6 @@ from .slack_alerts import get_slack_notifier, with_channel_mention
 logger = logging.getLogger("overseer.slack_digest")
 
 DIGEST_TZ = ZoneInfo("Europe/Lisbon")
-RUNNER_STALE_HOURS = 24
 
 
 def digest_enabled() -> bool:
@@ -151,30 +150,6 @@ def _failure_error_message(last_run_id: str | None) -> str:
     return err
 
 
-def aggregate_runners() -> list[dict[str, Any]]:
-    """Último heartbeat por runner (source/host)."""
-    latest: dict[str, dict[str, Any]] = {}
-    for hb in store.list_heartbeats(limit=200):
-        source = str(hb.get("source_id") or hb.get("hostname") or "").strip().lower()
-        host = str(hb.get("host_id") or hb.get("hostname") or "").strip().lower()
-        key = f"{source}::{host}" if source and host else source or host or "unknown"
-        seen = store.parse_dt(hb.get("seen_at"))
-        prev = latest.get(key)
-        prev_seen = store.parse_dt(prev.get("seen_at")) if prev else None
-        if prev is None or (seen and (prev_seen is None or seen > prev_seen)):
-            latest[key] = {**hb, "runner_key": key, "label": host or source or key}
-    rows = list(latest.values())
-    rows.sort(key=lambda row: str(row.get("seen_at") or ""), reverse=True)
-    return rows
-
-
-def _runner_stale_hours(seen_at: Any) -> float | None:
-    seen = store.parse_dt(seen_at)
-    if not seen:
-        return None
-    return (datetime.now(timezone.utc).replace(tzinfo=None) - seen).total_seconds() / 3600.0
-
-
 def _digest_status_icon(unresolved: list[dict[str, Any]], stale: list[dict[str, Any]], failed_24h: int) -> tuple[str, str]:
     if unresolved:
         return ":rotating_light:", f"{len(unresolved)} falha(s) em aberto"
@@ -209,11 +184,6 @@ def build_digest_text() -> str:
         for row in active
         if _deployment_key(str(row.get("pipeline_id") or ""), str(row.get("host_id") or "")) not in ran_keys
     ]
-
-    runners = aggregate_runners()
-    runners_online = sum(
-        1 for row in runners if (_runner_stale_hours(row.get("seen_at")) or 999) <= RUNNER_STALE_HOURS
-    )
 
     lines = [
         f"{status_icon} *Overseer Daily Digest*",
@@ -285,37 +255,10 @@ def build_digest_text() -> str:
     else:
         lines.append("- `nenhum`")
 
-    lines.extend(["", ":satellite: *Runners (heartbeats)*"])
-    if runners:
-        lines.append(f"- Online: `{runners_online}` / `{len(runners)}` (janela {RUNNER_STALE_HOURS}h)")
-        for row in runners[:8]:
-            label = str(row.get("label") or row.get("runner_key") or "?")
-            seen = row.get("seen_at") or "?"
-            stale_h = _runner_stale_hours(row.get("seen_at"))
-            if stale_h is None:
-                state = "desconhecido"
-            elif stale_h <= RUNNER_STALE_HOURS:
-                state = "online"
-            else:
-                state = f"stale {_fmt_num(stale_h, 0)}h"
-            lines.append(f"- `{label}` — visto `{seen}` · `{state}`")
-    else:
-        lines.append("- `nenhum heartbeat registado`")
-
-    queued_triggers = [
-        row
-        for row in store.list_triggers(limit=50)
-        if str(row.get("status") or "").lower() in {"queued", "pending"}
-    ]
-    if queued_triggers:
-        lines.extend(["", ":inbox_tray: *Triggers em fila*"])
-        for row in queued_triggers[:5]:
-            pid = row.get("pipeline_id") or "-"
-            host = row.get("host_id") or "-"
-            requested = row.get("created_at") or row.get("requested_at") or "?"
-            lines.append(f"- `{pid}` @ `{host}` — desde `{requested}`")
-
-    return with_channel_mention("\n".join(lines))
+    text = "\n".join(lines)
+    # Um digest saudável é informativo e não deve notificar todo o canal.
+    # Falhas abertas e deployments fora de cadência continuam acionáveis.
+    return with_channel_mention(text) if unresolved or stale else text
 
 
 def send_daily_digest() -> bool:

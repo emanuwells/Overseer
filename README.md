@@ -5,70 +5,137 @@
 ![Licença](https://img.shields.io/badge/licença-proprietária-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 
-O Overseer é um serviço Docker-first de observabilidade para pipelines e DAGs externos. Recebe catálogos, runs, eventos e heartbeats por API, persiste o estado operacional e disponibiliza uma interface web de leitura. O núcleo não incorpora nem executa o código dos pipelines observados.
+O Overseer é um serviço Docker-first de observabilidade para pipelines e DAGs externos. Centraliza catálogos, execuções, módulos, logs e sinais operacionais numa API, persiste o estado e apresenta-o numa interface web de consulta.
 
-## Funcionalidades
+O serviço observa pipelines; não incorpora o respetivo código nem substitui o orquestrador que os executa. Esta separação permite integrar processos Python, tarefas agendadas, jobs de CI ou outros runners sem acoplar o seu ciclo de vida ao Overseer.
 
-- catálogo de pipelines, nós e dependências;
-- ingestão de runs, módulos, logs e heartbeats;
-- deteção de deployments inativos ou em risco;
-- interface web read-only para consulta operacional;
-- SDK e agente Python para integração externa;
-- triggers opcionais para runners Linux e Windows;
-- alertas e resumos operacionais por Slack.
+## O que resolve
 
-## Arranque rápido
+- oferece uma visão comum de pipelines distribuídos por vários hosts;
+- regista o início, progresso e resultado de cada execução;
+- representa módulos e dependências de um DAG;
+- identifica falhas abertas e pipelines fora da cadência esperada;
+- mantém uma interface web read-only para consulta operacional;
+- disponibiliza SDK, agente e exemplos para integração externa;
+- suporta triggers opcionais, consumidos pelos runners autorizados;
+- envia alertas de falha e um digest diário para Slack.
 
-Requer Docker com Compose.
+Não é um motor de workflows, um gestor de segredos ou um substituto de uma plataforma de logs. O pipeline continua responsável pela execução, pelos retries de negócio e pelo tratamento dos seus dados.
 
-```bash
-cp docs/resources/templates/.env.example .env
-docker compose --project-directory . -f docker/docker-compose.yml up --build -d
-```
+## Arquitetura
 
-Depois do arranque:
+    pipeline ou runner
+            | catálogo, runs, módulos, logs, heartbeat
+            v
+       Overseer API ------> MariaDB
+            |                  |
+            +------> interface web read-only
+            +------> Slack (opcional)
 
-- API: `http://127.0.0.1:8090/v1/health`
-- interface: `http://127.0.0.1:8090/ui/dashboard.html`
-- OpenAPI: `openapi/overseer-api.yaml`
+A API FastAPI é o ponto de entrada canónico. A camada de domínio e persistência vive em **src/overseer_core/**; o SDK e o agente reutilizam o mesmo contrato HTTP. O frontend é estático e servido pela aplicação. Consulte [Arquitetura](docs/architecture/overview.md).
+
+## Arranque local
+
+### Pré-requisitos
+
+- Docker Engine ou Docker Desktop com Compose;
+- Git;
+- Python 3.11 ou superior apenas para desenvolvimento e testes.
+
+Em Linux ou macOS:
+
+    cp docs/resources/templates/.env.example .env
+    docker compose --project-directory . -f docker/docker-compose.yml up --build -d
+
+No PowerShell:
+
+    Copy-Item docs/resources/templates/.env.example .env
+    docker compose --project-directory . -f docker/docker-compose.yml up --build -d
+
+Confirme o arranque:
+
+    curl http://127.0.0.1:8090/v1/health
+
+Serviços disponíveis por defeito:
+
+- API e health: **http://127.0.0.1:8090/v1/health**;
+- interface: **http://127.0.0.1:8090/ui/dashboard.html**;
+- contrato OpenAPI: **openapi/overseer-api.yaml**;
+- MariaDB local: porta **3307** do host.
+
+Os valores do exemplo destinam-se exclusivamente a desenvolvimento. Antes de usar outro ambiente, substitua tokens e passwords e restrinja as origens CORS.
 
 ## Configuração
 
-As opções públicas estão documentadas em `docs/resources/templates/.env.example`. Segredos e configuração operacional devem permanecer fora do Git.
+| Variável | Finalidade | Desenvolvimento |
+|---|---|---|
+| OVERSEER_API_PORT | Porta HTTP publicada pelo Compose | 8090 |
+| OVERSEER_API_TOKEN | Token exigido nos endpoints protegidos | valor local do exemplo |
+| OVERSEER_CORS_ORIGINS | Origens autorizadas, separadas por vírgulas | * |
+| OVERSEER_DB_URL | Ligação SQLAlchemy à base de dados | MariaDB do Compose |
+| OVERSEER_RUNNERS_DIR | Diretório privado com hosts e catálogos | ./deploy/runners |
+| OVERSEER_RUNTIME_DIR | Estado persistente fora da imagem | ./runtime |
+| OVERSEER_SSH_SYNC_ENABLED | Ativa sincronização remota por SSH | 0 |
+| OVERSEER_SLACK_WEBHOOK_URL | Webhook de Slack, opcional | não definido |
+| OVERSEER_SLACK_DIGEST_ENABLED | Ativa o resumo diário | herda a presença do webhook |
+| OVERSEER_SLACK_DIGEST_HOUR | Hora do digest em Europe/Lisbon | 8 |
+| OVERSEER_SLACK_DIGEST_MINUTE | Minuto do digest | 30 |
 
-Os catálogos reais de runners são lidos do diretório indicado por `OVERSEER_RUNNERS_DIR`. Em desenvolvimento, a omissão desta variável usa `deploy/runners/`, que contém apenas um exemplo genérico. Em produção, a variável é obrigatória.
+O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartbeats e triggers em fila permanecem consultáveis pela API e pela interface, mas não são enviados no resumo. Um digest saudável não menciona @channel; a menção fica reservada a situações acionáveis.
 
-Em produção, `OVERSEER_RUNTIME_DIR` deve apontar para armazenamento persistente fora do checkout.
+### Configuração privada
 
-```env
-OVERSEER_RUNNERS_DIR=/srv/overseer/runners
-```
+**OVERSEER_RUNNERS_DIR** deve apontar para um diretório fora do checkout em produção. Esse diretório contém **hosts.yaml** e um catálogo **host-id.yaml** por host e é montado no contentor em **/app/deploy/runners**. O repositório inclui apenas exemplos genéricos.
 
-Consulte [Integração de pipelines](docs/pipeline-integration.md) e [Comandos](COMMANDS.md) para configuração detalhada.
+**OVERSEER_RUNTIME_DIR** também deve apontar para armazenamento persistente fora do checkout. Assim, uma atualização ou reversão de código não move nem elimina estado operacional.
 
-## Desenvolvimento
+Nunca versione .env, tokens, webhooks, chaves SSH, catálogos reais ou cópias da base de dados.
 
-```bash
-pip install -r src/requirements.txt
-pip install -e ./src
-python -m pytest -q
-docker compose --project-directory . -f docker/docker-compose.yml config
-```
+## Integrar um pipeline
 
-O backend usa FastAPI e SQLAlchemy. A interface é HTML, CSS e JavaScript estático; não requer Node.js.
+Uma integração típica:
 
-## Estrutura
+1. regista o catálogo e a topologia do pipeline;
+2. abre uma run antes da execução;
+3. comunica módulos e logs relevantes;
+4. fecha a run com ok, warning ou failed;
+5. opcionalmente envia heartbeats e consome triggers.
 
-```text
-src/        API, domínio, SDK, agente e monitorização
-frontend/   interface web estática
-docker/     imagem e ficheiros Compose
-deploy/     exemplos de configuração operacional
-scripts/    arranque, manutenção e provisionamento
-tests/      testes automatizados
-docs/       arquitetura e integração
-```
+O SDK Python reduz o código necessário, mas qualquer cliente HTTP pode usar a API /v1. Consulte [Integração de pipelines](docs/pipeline-integration.md), os [exemplos](docs/resources/examples/overseer/) e o contrato [OpenAPI](openapi/overseer-api.yaml).
 
-## Segurança e licença
+## Desenvolvimento e qualidade
 
-Consulte [.github/SECURITY.md](.github/SECURITY.md) para comunicar vulnerabilidades. O código é disponibilizado sob licença proprietária; a publicação do repositório não concede direitos adicionais de utilização, modificação ou redistribuição. Consulte [LICENSE](LICENSE).
+    python -m pip install -r src/requirements.txt
+    python -m pip install -e ./src
+    python -m pytest -q
+    docker compose --project-directory . -f docker/docker-compose.yml config
+    docker compose --project-directory . -f docker/docker-compose.yml build
+
+O backend usa FastAPI e SQLAlchemy. A interface usa HTML, CSS e JavaScript sem build Node.js. Os restantes comandos suportados estão em [COMMANDS.md](COMMANDS.md).
+
+## Estrutura do repositório
+
+| Diretório | Conteúdo |
+|---|---|
+| src/ | API, domínio, persistência, SDK, agente e monitorização |
+| frontend/ | interface web estática e read-only |
+| openapi/ | contrato público da API |
+| docker/ | imagem e ficheiros Compose |
+| deploy/ | exemplos públicos de configuração operacional |
+| runtime/ | estado local ignorado pelo Git |
+| scripts/ | arranque, manutenção, integração e provisionamento |
+| tests/ | testes automatizados |
+| docs/ | arquitetura, operação, governação e exemplos |
+| tasks/ | estado de trabalho e aprendizagens reutilizáveis |
+
+## Operação e produção
+
+Uma atualização de produção deve preservar .env, catálogos privados, runtime, volumes e referência da imagem ativa. Valide primeiro a configuração Compose e o build num checkout paralelo. Depois da troca, confirme health, base de dados, interface, catálogos e estabilidade dos contentores.
+
+O rollback restaura o checkout e a imagem anteriores, mantendo configuração e volumes. Não use **docker compose down -v** num procedimento normal de atualização. Consulte o [runbook](docs/ai/ops/RUNBOOK.md).
+
+## Segurança, contribuição e licença
+
+Consulte [.github/SECURITY.md](.github/SECURITY.md) para comunicar vulnerabilidades sem expor detalhes publicamente. As regras de contribuição estão em [docs/governance/CONTRIBUTING.md](docs/governance/CONTRIBUTING.md).
+
+O código é publicado sob licença proprietária. A visibilidade do repositório não concede direitos de utilização, modificação ou redistribuição além dos expressamente indicados em [LICENSE](LICENSE).

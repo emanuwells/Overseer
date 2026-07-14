@@ -2,6 +2,14 @@
 
 As alterações relevantes ao Overseer são registadas neste ficheiro.
 
+## [Unreleased]
+
+### Changed
+
+- Aprofundados o README e o contexto do projeto com arquitetura, limites, configuração, integração, operação e critérios de qualidade.
+- Removidas do digest Slack as secções de heartbeats e triggers em fila.
+- Reservada a menção ao canal no digest para falhas abertas ou deployments fora de cadência.
+
 ## [5.8.26] - 2026-07-14
 
 ### Changed

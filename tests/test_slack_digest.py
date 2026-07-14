@@ -41,7 +41,7 @@ def test_build_digest_text_operations_style(sqlite_store) -> None:
     assert "<!channel>" in text
 
 
-def test_build_digest_always_mentions_channel_without_failures(sqlite_store) -> None:
+def test_build_digest_does_not_mention_channel_without_actionable_issues(sqlite_store) -> None:
     store.register_pipeline_catalog(
         {
             "pipeline_id": "demo",
@@ -55,9 +55,20 @@ def test_build_digest_always_mentions_channel_without_failures(sqlite_store) -> 
     store.finish_run(run["run_id"], {"status": "ok"})
 
     text = slack_digest.build_digest_text()
-    assert "<!channel>" in text
+    assert "<!channel>" not in text
     assert ":gear: *Pipelines*" in text
     assert "`nenhuma`" in text or ":warning:" in text or ":white_check_mark:" in text
+
+
+def test_build_digest_omits_heartbeats_and_queued_triggers(sqlite_store) -> None:
+    store.record_heartbeat({"source_id": "runner-a", "host_id": "host-a", "api_reachable": True})
+    store.enqueue_trigger({"pipeline_id": "demo", "host_id": "host-a", "requested_by": "test"})
+
+    text = slack_digest.build_digest_text()
+
+    assert "heartbeats" not in text.lower()
+    assert "triggers em fila" not in text.lower()
+    assert "runner-a" not in text
 
 
 def test_build_digest_includes_stale_deployments(sqlite_store) -> None:

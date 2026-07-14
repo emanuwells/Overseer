@@ -1,5 +1,9 @@
 # Aprendizagens
 
+## Digests informativos não devem funcionar como alarmes
+
+Um resumo periódico deve separar informação operacional de sinais acionáveis. Heartbeats e filas continuam disponíveis para diagnóstico na API e na interface, mas não precisam de ocupar o digest. Menções globais devem ficar reservadas a falhas abertas ou quebras de cadência, evitando alarmes em ciclos normais de manutenção e deploy.
+
 ## Configuração operacional fora do checkout
 
 Catálogos de runners podem conter infraestrutura identificável e comandos privados. Devem residir num diretório externo selecionado por `OVERSEER_RUNNERS_DIR`, com apenas exemplos genéricos no Git.
