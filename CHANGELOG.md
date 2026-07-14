@@ -4,6 +4,22 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.32] - 2026-07-14
+
+### Security
+
+- Exemplos e testes deixam de usar URLs `hooks.slack.com` (evita alertas GitGuardian em placeholders).
+
+### Added
+
+- Retenção automática de telemetria (30 dias por defeito, `OVERSEER_RETENTION_AUTO`, `OVERSEER_RETENTION_DAYS`).
+- `telemetry_since` / `first_run_label` no summary calculados a partir do `MIN(started_at)` na base de dados.
+
+### Changed
+
+- API aplica purge de retenção no arranque (throttle diário via marcador em `runtime/`).
+- Ops Center (MAIATRON-HUB) passa a receber contagens e data «desde» coerentes com a API.
+
 ## [5.8.31] - 2026-07-14
 
 ### Added

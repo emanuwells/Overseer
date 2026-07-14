@@ -60,9 +60,15 @@ docker compose --project-directory . -f docker/docker-compose.yml exec -T mysql 
 
 ### Base de dados cheia
 
-1. Executar retenção: `python scripts/overseer_retention.py --dry-run`
-2. Aplicar após revisão: `python scripts/overseer_retention.py --apply`
-3. Considerar archive de runs antigos
+1. A retenção automática (30 dias) corre no arranque da API (`OVERSEER_RETENTION_AUTO=true` por defeito).
+2. Rever manualmente: `python scripts/overseer_retention.py --dry-run`
+3. Forçar purge imediato: `python scripts/overseer_retention.py --apply --force`
+
+### Webhook Slack exposto
+
+1. **Rodar** o webhook em Slack (Apps → Incoming Webhooks → revogar e criar novo).
+2. Atualizar `secrets/slack.json` ou `OVERSEER_SLACK_WEBHOOK_URL` em `secrets/.env` (nunca versionar).
+3. Confirmar que não há URLs reais no Git: `python scripts/scan_git_secrets.py`
 
 ## Procedimentos de Emergência
 

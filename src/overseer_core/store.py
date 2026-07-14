@@ -6,6 +6,7 @@ import secrets
 import socket
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -32,6 +33,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.url import make_url
+
+from overseer_core.repo_paths import repo_root
 
 metadata = MetaData()
 _engine: Engine | None = None
@@ -294,6 +297,55 @@ def init_schema() -> None:
     purge_stuck_running_runs()
     repair_deployment_data()
     deactivate_excluded_pipelines()
+
+
+def retention_days() -> int:
+    raw = os.getenv("OVERSEER_RETENTION_DAYS", "30")
+    try:
+        value = int(raw)
+    except ValueError:
+        return 30
+    return max(1, value)
+
+
+def retention_auto_enabled() -> bool:
+    return os.getenv("OVERSEER_RETENTION_AUTO", "true").strip().lower() not in {"0", "false", "no", "off"}
+
+
+def retention_interval_hours() -> float:
+    raw = os.getenv("OVERSEER_RETENTION_INTERVAL_HOURS", "24")
+    try:
+        value = float(raw)
+    except ValueError:
+        return 24.0
+    return max(1.0, value)
+
+
+def _retention_marker_path() -> Path:
+    return repo_root() / "runtime" / ".retention_last_purge"
+
+
+def auto_purge_retention_if_due(*, force: bool = False) -> dict[str, Any] | None:
+    """Purge telemetry older than the retention window (throttled, default daily)."""
+    if not retention_auto_enabled() and not force:
+        return None
+
+    days = retention_days()
+    marker = _retention_marker_path()
+    now = utcnow()
+    if not force and marker.is_file():
+        try:
+            last = datetime.fromisoformat(marker.read_text(encoding="utf-8").strip())
+            if (now - last).total_seconds() < retention_interval_hours() * 3600:
+                return None
+        except Exception:
+            pass
+
+    result = purge_retention(days, dry_run=False)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(now.isoformat(), encoding="utf-8")
+    result["auto"] = True
+    return result
 
 
 def deactivate_excluded_pipelines() -> None:
@@ -1660,6 +1712,21 @@ def count_runs() -> int:
     return int(total or 0)
 
 
+def oldest_run_started_at() -> datetime | None:
+    with get_engine().connect() as conn:
+        value = conn.execute(select(func.min(runs_table.c.started_at))).scalar()
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return parse_dt(value)
+
+
+def telemetry_since_label() -> str | None:
+    oldest = oldest_run_started_at()
+    return oldest.strftime("%Y-%m-%d") if oldest else None
+
+
 def count_runs_since(days: float = 7, *, failed_only: bool = False) -> int:
     cutoff = utcnow() - timedelta(days=max(0.0, days))
     stmt = select(func.count()).select_from(runs_table).where(runs_table.c.started_at >= cutoff)
@@ -1718,6 +1785,8 @@ def overview() -> dict[str, Any]:
         total_runs=count_runs(),
         runs_7d=runs_7d,
         failed_7d=count_runs_since(7, failed_only=True),
+        since_label=telemetry_since_label(),
+        retention_days=retention_days(),
     )
     return {
         "generated_at": utcnow().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),

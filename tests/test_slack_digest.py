@@ -174,7 +174,7 @@ def test_next_digest_at_0830(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_send_daily_digest(mock_post: MagicMock, monkeypatch: pytest.MonkeyPatch, sqlite_store) -> None:
     mock_post.return_value.status_code = 200
     mock_post.return_value.text = "ok"
-    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/test")
+    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://example.invalid/slack/webhook/test")
     monkeypatch.setenv("OVERSEER_SLACK_DIGEST_ENABLED", "true")
     assert slack_digest.send_daily_digest() is True
     mock_post.assert_called_once()

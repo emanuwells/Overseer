@@ -26,3 +26,9 @@ Os scripts `dev-ui.ps1`, `overseer-up.sh` e `ensure-env.*` criam ou migram autom
 ### Nomes de pipeline
 
 `OVERSEER_NAME_PREFIX_STRIP` (em `secrets/.env`) define prefixos removidos na API, Slack e frontend antes de mostrar nomes (default: `Yunex `). O nome canónico preferido vem do catálogo YAML (`name`).
+
+### Retenção de telemetria
+
+- `OVERSEER_RETENTION_DAYS=30` — janela de retenção (runs, logs, módulos, triggers, heartbeats).
+- `OVERSEER_RETENTION_AUTO=true` — purge automático no arranque da API (throttle ~24h).
+- `OVERSEER_RETENTION_INTERVAL_HOURS=24` — intervalo mínimo entre purges automáticos.

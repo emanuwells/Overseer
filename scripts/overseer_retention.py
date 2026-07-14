@@ -25,11 +25,18 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="Report counts without deleting")
     parser.add_argument("--apply", action="store_true", help="Execute purge (default is dry-run)")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypass auto-retention throttle and update last-purge marker",
+    )
     args = parser.parse_args()
 
-    dry_run = not args.apply
     store.init_schema()
-    result = store.purge_retention(args.days, dry_run=dry_run)
+    if args.apply:
+        result = store.auto_purge_retention_if_due(force=True) if args.force else store.purge_retention(args.days, dry_run=False)
+    else:
+        result = store.purge_retention(args.days, dry_run=True)
     print(result)
     return 0
 

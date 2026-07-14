@@ -314,6 +314,8 @@ def build_operational_summary(
     total_runs: int | None = None,
     runs_7d: list[dict[str, Any]] | None = None,
     failed_7d: int | None = None,
+    since_label: str | None = None,
+    retention_days: int | None = None,
 ) -> dict[str, Any]:
     grouped = group_runs_by_deployment(runs)
     at_risk = stale = regressions = 0
@@ -343,10 +345,13 @@ def build_operational_summary(
     )
     avg_exec, p95_exec, avg_cpu, avg_mem = run_resource_metrics(window_runs)
     volume = compute_volume(runs)
+    telemetry_since = since_label if since_label is not None else first_run_label(runs)
+    retention = int(retention_days) if retention_days is not None else None
     return {
         "pipelines": len(deployments),
         "runs": total,
         "total_runs": total,
+        "retention_days": retention,
         "running": sum(1 for row in runs if _status_bucket(row.get("status")) == "running"),
         "ok": ok,
         "failed": failed,
@@ -363,6 +368,7 @@ def build_operational_summary(
         "at_risk": at_risk,
         "stale": stale,
         "regressions": regressions,
-        "first_run_label": first_run_label(runs),
+        "first_run_label": telemetry_since,
+        "telemetry_since": telemetry_since,
         "volume": volume,
     }

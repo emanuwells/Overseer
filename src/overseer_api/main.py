@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 from overseer_core.repo_paths import repo_root
 from overseer_core.slack_digest import DIGEST_TZ, digest_enabled, next_digest_at, send_daily_digest
-from overseer_core.store import init_schema
+from overseer_core.store import auto_purge_retention_if_due, init_schema
 
 ROOT = repo_root()
 
@@ -50,6 +50,12 @@ async def _slack_digest_loop() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     init_schema()
+    try:
+        retention = await asyncio.to_thread(auto_purge_retention_if_due)
+        if retention:
+            logger.info("Retenção automática aplicada: %s", retention)
+    except Exception:
+        logger.exception("Falha na retenção automática")
     digest_task = asyncio.create_task(_slack_digest_loop())
     try:
         yield

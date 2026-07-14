@@ -88,3 +88,25 @@ def test_overview_summary_telemetry(sqlite_store) -> None:
     assert "p95_exec_time" in summary
     assert "at_risk" in summary
     assert "volume" in summary
+    assert summary["retention_days"] == 30
+    assert summary["first_run_label"] == summary["telemetry_since"]
+    assert summary["total_runs"] == store.count_runs()
+
+
+def test_telemetry_since_uses_oldest_run(sqlite_store) -> None:
+    older = store.utcnow() - timedelta(days=10)
+    newer = store.utcnow() - timedelta(days=1)
+    run_old = store.start_run({"pipeline_id": "p1", "host_id": "h1"})
+    run_new = store.start_run({"pipeline_id": "p2", "host_id": "h1"})
+    with store.get_engine().begin() as conn:
+        conn.execute(
+            store.runs_table.update()
+            .where(store.runs_table.c.run_id == run_old["run_id"])
+            .values(started_at=older)
+        )
+        conn.execute(
+            store.runs_table.update()
+            .where(store.runs_table.c.run_id == run_new["run_id"])
+            .values(started_at=newer)
+        )
+    assert store.telemetry_since_label() == older.strftime("%Y-%m-%d")

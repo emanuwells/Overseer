@@ -26,7 +26,7 @@ def test_notify_failed_run_mentions_channel(
 ) -> None:
     mock_post.return_value.status_code = 200
     mock_post.return_value.text = "ok"
-    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/test")
+    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://example.invalid/slack/webhook/test")
     monkeypatch.setenv("OVERSEER_SLACK_CHANNEL", "#overseer")
     monkeypatch.setenv("OVERSEER_SLACK_MENTION_CHANNEL", "true")
 
@@ -75,7 +75,7 @@ def test_notify_failed_run_uses_canonical_pipeline_name(
 ) -> None:
     mock_post.return_value.status_code = 200
     mock_post.return_value.text = "ok"
-    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/test")
+    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://example.invalid/slack/webhook/test")
     store.register_pipeline_catalog(
         {
             "pipeline_id": "traffic_flow",
