@@ -16,6 +16,8 @@ Antes de substituir a história Git, criar e verificar um bundle completo fora d
 
 Para remover `Co-authored-by: Cursor` sem alterar árvores de ficheiros, usar `git filter-repo` com callback de mensagem (`scripts/run_strip_coauthor_filter.py` como referência one-shot). O `git filter-repo` remove o remote `origin`; readicionar antes do push. Após force push, todos os clones precisam de `git fetch` + `reset --hard origin/main`.
 
+Commits feitos pelo Agent no terminal do Cursor podem voltar a injectar o trailer mesmo com `git commit -m` ou `-F`; repetir `filter-repo` no último commit ou fazer commit manualmente fora do Agent (com co-autor desactivado nos settings).
+
 ## Slack em produção depende de `secrets/slack.json`
 
 O digest agendado (08:30 Europe/Lisbon) e os alertas imediatos só enviam quando `get_slack_notifier().is_enabled` é verdadeiro. Em baze2, a ausência de `secrets/slack.json` (ou `OVERSEER_SLACK_WEBHOOK_URL` válido) deixava `webhook_configured=False` sem erro visível na UI. Validar com diagnóstico read-only no contentor antes de assumir falha de cron.

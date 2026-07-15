@@ -49,6 +49,6 @@
 - [x] Diagnosticar Slack em baze2: `secrets/slack.json` ausente; copiado e `webhook_configured=True`.
 - [x] Enviar digest + alertas `[TEST]` (falha e resolução) em produção.
 - [x] `scripts/slack_ops_test.py` + documentação (`COMMANDS.md`, `scripts/README.md`, `AGENTS.md`).
-- [ ] Commit/push e alinhar SHA local/GitHub/baze2 após rebuild.
+- [x] Commit/push e alinhar SHA local/GitHub/baze2 (`96585b2`).
 
 ## Publicação agnóstica — 2026-07-14
