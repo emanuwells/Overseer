@@ -43,4 +43,12 @@
 - [x] Alinhar README, arquitetura, ADR, SECURITY e `scripts/README.md`.
 - [x] Deploy produção e alinhar git.
 
+## Contributors, Slack e Git — 2026-07-15
+
+- [x] Backup + `git filter-repo` para remover `Co-authored-by: Cursor` + force push `main`.
+- [x] Diagnosticar Slack em baze2: `secrets/slack.json` ausente; copiado e `webhook_configured=True`.
+- [x] Enviar digest + alertas `[TEST]` (falha e resolução) em produção.
+- [x] `scripts/slack_ops_test.py` + documentação (`COMMANDS.md`, `scripts/README.md`, `AGENTS.md`).
+- [ ] Commit/push e alinhar SHA local/GitHub/baze2 após rebuild.
+
 ## Publicação agnóstica — 2026-07-14

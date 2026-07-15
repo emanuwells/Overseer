@@ -38,6 +38,7 @@ Scripts suportados pelo repositório Overseer. Preferir os comandos documentados
 |---|---|
 | `overseer_emit_demo.py` | Emite telemetria de exemplo para a API |
 | `slack_daily_digest.py` | Digest Slack manual (cron opcional) |
+| `slack_ops_test.py` | Smoke test Slack: `--digest`, `--failed`, `--resolved` |
 | `provision-runners.sh` / `provision_runners.py` | Provisionamento de runners |
 | `update-crontab-overseer.py` | Migra entradas crontab legadas |
 

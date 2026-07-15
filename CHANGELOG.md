@@ -4,6 +4,15 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/slack_ops_test.py` — smoke test operacional para digest e alertas Slack (`--digest`, `--failed`, `--resolved`).
+
+### Changed
+
+- Histórico Git de `main` reescrito para remover trailers `Co-authored-by: Cursor` (contributors GitHub).
+- Documentação: nota em `AGENTS.md` sobre co-autor Cursor em repos públicos.
+
 ## [5.8.34] - 2026-07-14
 
 ### Added
