@@ -13,7 +13,7 @@
 
 - [x] Reestruturar README e PROJECT_CONTEXT segundo o contrato do repositório.
 - [x] Remover heartbeats e triggers em fila do digest Slack.
-- [x] Evitar menções ao canal em digests sem situações acionáveis.
+- [x] Evitar menções ao canal em digests sem situações acionáveis. _(Revertido 2026-07-17: `@channel` em todos os digests.)_
 - [x] Acrescentar testes de regressão específicos.
 - [x] Publicar e promover a alteração depois de autorização explícita.
 
@@ -56,6 +56,6 @@
 - [x] Digest diário (08:30) menciona `@channel` em todos os envios.
 - [x] Alertas imediatos (falha/resolução) confirmados com `@channel`.
 - [x] Testes e documentação actualizados.
-- [ ] Commit, push, deploy baze2 e digest de validação.
+- [x] Commit, push, deploy baze2 e digest de validação (`2ad9a3f`).
 
 ## Publicação agnóstica — 2026-07-14
