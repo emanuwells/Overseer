@@ -134,7 +134,7 @@ O servidor Vite faz proxy de `/v1` para a API. Para produção ou Docker, `npm r
 | OVERSEER_RETENTION_DAYS       | Janela de retenção de telemetria             | 30                           |
 | OVERSEER_RETENTION_AUTO       | Purge automático no arranque da API          | true                         |
 
-O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartbeats e triggers em fila permanecem consultáveis pela API e pela interface, mas não são enviados no resumo. Um digest saudável não menciona @channel; a menção fica reservada a situações acionáveis.
+O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartbeats e triggers em fila permanecem consultáveis pela API e pela interface, mas não são enviados no resumo. O digest diário (08:30) e os alertas imediatos de falha/resolução mencionam `@channel` quando `OVERSEER_SLACK_MENTION_CHANNEL=true` (defeito).
 
 ### Configuração privada
 

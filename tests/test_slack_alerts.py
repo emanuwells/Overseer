@@ -101,6 +101,25 @@ def test_notify_failed_run_uses_canonical_pipeline_name(
 
 
 @patch("overseer_sdk.slack_notifier.requests.post")
+def test_notify_resolved_run_mentions_channel(
+    mock_post: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    sqlite_store,
+) -> None:
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.text = "ok"
+    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://example.invalid/slack/webhook/test")
+    monkeypatch.setenv("OVERSEER_SLACK_MENTION_CHANNEL", "true")
+
+    ok_run = {"run_id": "run-ok", "pipeline_id": "demo", "host_id": "linux-host"}
+    failed_run = {"run_id": "run-fail", "pipeline_id": "demo", "host_id": "linux-host"}
+    assert slack_alerts.notify_resolved_run(ok_run, failed_run) is True
+    payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+    assert "<!channel>" in payload["text"]
+    assert "RESOLVIDO" in payload["text"]
+
+
+@patch("overseer_sdk.slack_notifier.requests.post")
 def test_notify_failed_run_disabled_without_webhook(mock_post: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OVERSEER_SLACK_WEBHOOK_URL", raising=False)
     monkeypatch.setenv("OVERSEER_SLACK_CONFIG", "/nonexistent/slack.json")

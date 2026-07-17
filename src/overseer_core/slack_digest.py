@@ -263,9 +263,7 @@ def build_digest_text() -> str:
         lines.append("- `nenhum`")
 
     text = "\n".join(lines)
-    # Um digest saudável é informativo e não deve notificar todo o canal.
-    # Falhas abertas e deployments fora de cadência continuam acionáveis.
-    return with_channel_mention(text) if unresolved or stale else text
+    return with_channel_mention(text)
 
 
 def send_daily_digest() -> bool:

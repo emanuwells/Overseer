@@ -51,4 +51,11 @@
 - [x] `scripts/slack_ops_test.py` + documentação (`COMMANDS.md`, `scripts/README.md`, `AGENTS.md`).
 - [x] Commit/push e alinhar SHA local/GitHub/baze2 (`96585b2`).
 
+## Slack @channel no digest e alertas — 2026-07-17
+
+- [x] Digest diário (08:30) menciona `@channel` em todos os envios.
+- [x] Alertas imediatos (falha/resolução) confirmados com `@channel`.
+- [x] Testes e documentação actualizados.
+- [ ] Commit, push, deploy baze2 e digest de validação.
+
 ## Publicação agnóstica — 2026-07-14

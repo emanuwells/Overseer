@@ -41,7 +41,7 @@ def test_build_digest_text_operations_style(sqlite_store) -> None:
     assert "<!channel>" in text
 
 
-def test_build_digest_does_not_mention_channel_without_actionable_issues(sqlite_store) -> None:
+def test_build_digest_mentions_channel_even_when_stable(sqlite_store) -> None:
     store.register_pipeline_catalog(
         {
             "pipeline_id": "demo",
@@ -55,7 +55,7 @@ def test_build_digest_does_not_mention_channel_without_actionable_issues(sqlite_
     store.finish_run(run["run_id"], {"status": "ok"})
 
     text = slack_digest.build_digest_text()
-    assert "<!channel>" not in text
+    assert text.startswith("<!channel>")
     assert ":gear: *Pipelines*" in text
     assert "`nenhuma`" in text or ":warning:" in text or ":white_check_mark:" in text
 

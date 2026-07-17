@@ -10,6 +10,7 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ### Changed
 
+- Digest Slack diário (08:30) passa a mencionar `@channel` em todos os envios, alinhado com alertas imediatos.
 - Histórico Git de `main` reescrito para remover trailers `Co-authored-by: Cursor` (contributors GitHub).
 - Documentação: nota em `AGENTS.md` sobre co-autor Cursor em repos públicos.
 

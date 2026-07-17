@@ -2,7 +2,7 @@
 
 ## Digests informativos não devem funcionar como alarmes
 
-Um resumo periódico deve separar informação operacional de sinais acionáveis. Heartbeats e filas continuam disponíveis para diagnóstico na API e na interface, mas não precisam de ocupar o digest. Menções globais devem ficar reservadas a falhas abertas ou quebras de cadência, evitando alarmes em ciclos normais de manutenção e deploy.
+Um resumo periódico deve separar informação operacional de sinais acionáveis. Heartbeats e filas continuam disponíveis para diagnóstico na API e na interface, mas não precisam de ocupar o digest. O digest diário e os alertas imediatos usam `<!channel>` por defeito (`OVERSEER_SLACK_MENTION_CHANNEL`); desactivar só se o canal preferir notificações silenciosas em dias estáveis.
 
 ## Configuração operacional fora do checkout
 
