@@ -39,7 +39,7 @@ $env:OVERSEER_SSH_TARGET = "user@servidor"
 
 ```bash
 cd frontend
-npm ci          # preferir fora de Google Drive; ver tasks/lessons.md
+npm ci          # preferir fora de Google Drive (EPERM em sync Drive)
 npm run dev
 ```
 

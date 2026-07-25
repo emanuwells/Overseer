@@ -1,6 +1,6 @@
 # Contexto do projeto
 
-Contexto técnico vivo do Overseer. Mantém-se alinhado com [`AGENTS.md`](AGENTS.md), [`COMMANDS.md`](COMMANDS.md) e [`docs/architecture/`](docs/architecture/).
+Contexto técnico vivo do Overseer. Mantém-se alinhado com [`COMMANDS.md`](COMMANDS.md), [`docs/architecture/`](docs/architecture/) e, em ambiente local de desenvolvimento com IA, `.agents/AGENTS.md`.
 
 ## Identificação
 
@@ -67,9 +67,9 @@ docker compose --project-directory . -f docker/docker-compose.yml build
 
 ## Ferramentas IA
 
-- **Adaptador ativo:** opcional via `scripts/activate-ai-adapter.*`
-- **Motivo:** compatibilidade com IDE/agente sem duplicar o núcleo do repo
-- **Observações:** adaptadores vivem em `tools/ai-adapters/`; contrato canónico em `AGENTS.md`
+- **Runtime local:** pasta `.agents/` (ignorada pelo Git; toolkit WELLS)
+- **Motivo:** contrato, skills, workflows e estado de agentes ficam fora do núcleo público
+- **Observações:** entrada canónica em `.agents/AGENTS.md`; adaptadores por ferramenta em `.agents/adapters/`
 
 ## Riscos
 

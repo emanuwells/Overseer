@@ -15,5 +15,5 @@ docs/resources/
 - `templates/` contém ficheiros base para copiar e adaptar.
 - `examples/` contém exemplos fictícios e seguros.
 - Não colocar segredos reais nesta pasta.
-- Não duplicar documentação que já exista em `docs/ai/`, `docs/architecture/` ou `docs/governance/`.
+- Não duplicar documentação que já exista em `docs/architecture/`, `docs/governance/` ou `.agents/` (local).
 - Se um template for copiado para a raiz de um projeto real, deve ser preenchido e ajustado ao contexto desse projeto.

@@ -1,17 +1,18 @@
 # Estrutura da Raiz — Overseer
 
-A raiz segue o template em `docs/ai/policies/ROOT_CLEAN_POLICY.md`.
+A raiz segue a política de limpeza do toolkit WELLS (`.agents/policies/ROOT_CLEAN_POLICY.md` em ambiente local).
 
 ## Raiz esperada
 
 ```text
 .
-├── AGENTS.md
 ├── CHANGELOG.md
 ├── COMMANDS.md
+├── CONTRIBUTING.md
 ├── LICENSE
 ├── PROJECT_CONTEXT.md
 ├── README.md
+├── SECURITY.md
 ├── VERSION
 ├── .gitattributes
 ├── .gitignore
@@ -25,10 +26,10 @@ A raiz segue o template em `docs/ai/policies/ROOT_CLEAN_POLICY.md`.
 ├── scripts/
 ├── secrets/
 ├── src/                 # pacotes Python + pyproject.toml + requirements.txt
-├── tasks/
-├── tests/
-└── tools/
+└── tests/
 ```
+
+A pasta `.agents/` existe apenas em checkouts com toolkit WELLS instalado e está ignorada pelo Git.
 
 ## Docker
 

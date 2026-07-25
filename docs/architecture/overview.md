@@ -63,5 +63,5 @@ Pipeline externo / Agent
 
 ## Dívida Técnica Conhecida
 
-- Governação operacional mínima em `AGENTS.md` e `docs/ai/`.
+- Governação de agentes em `.agents/` (local; ignorada pelo Git).
 - A documentação de arquitetura é inicial e deve acompanhar alterações futuras de API, persistência, Docker ou frontend.

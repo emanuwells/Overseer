@@ -2,8 +2,8 @@
 
 Documentação de processo, contribuição e regras de colaboração.
 
-Esta pasta existe para manter a raiz limpa. Para uso solo com IA, a fonte operacional principal continua a ser `AGENTS.md`; regras detalhadas vivem em `docs/ai/` e documentação de processo vive aqui.
+Esta pasta existe para manter a raiz limpa. A contribuição pública começa em [`CONTRIBUTING.md`](../../CONTRIBUTING.md). Em checkouts com toolkit WELLS, o contrato de agentes vive em `.agents/AGENTS.md`.
 
 ## Ficheiros
 
-- `docs/governance/CONTRIBUTING.md` — fluxo de contribuição, commits, PRs e colaboração solo + IA.
+- `docs/governance/CONTRIBUTING.md` — notas de processo complementares à contribuição na raiz.

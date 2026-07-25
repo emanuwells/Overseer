@@ -1,7 +1,7 @@
 # Overseer
 
 ![Estado](https://img.shields.io/badge/estado-estável-2ecc71)
-![Versão](https://img.shields.io/badge/versão-5.8.34-3498db)
+![Versão](https://img.shields.io/badge/versão-5.8.35-3498db)
 ![Licença](https://img.shields.io/badge/licença-proprietária-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -12,13 +12,13 @@ O serviço observa pipelines; não incorpora o respetivo código nem substitui o
 
 ## Documentação normativa
 
-| Documento                                                             | Finalidade                                            |
-| --------------------------------------------------------------------- | ----------------------------------------------------- |
-| [`AGENTS.md`](AGENTS.md)                                             | Contrato operacional para agentes e ferramentas de IA |
-| [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md)                           | Contexto técnico vivo do produto                     |
-| [`COMMANDS.md`](COMMANDS.md)                                         | Comandos reais de desenvolvimento, testes e deploy    |
-| [`docs/architecture/`](docs/architecture/)                           | Arquitetura por camada                                |
-| [`docs/ai/DAILY_AGENT_WORKFLOW.md`](docs/ai/DAILY_AGENT_WORKFLOW.md) | Fluxo diário recomendado para agentes                |
+| Documento                                   | Finalidade                                         |
+| ------------------------------------------- | -------------------------------------------------- |
+| [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) | Contexto técnico vivo do produto                  |
+| [`COMMANDS.md`](COMMANDS.md)               | Comandos reais de desenvolvimento, testes e deploy |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)       | Fluxo de contribuição e commits                   |
+| [`SECURITY.md`](SECURITY.md)               | Regras de segurança e reporte                     |
+| [`docs/architecture/`](docs/architecture/) | Arquitetura por camada                             |
 
 ## O que resolve
 
@@ -182,17 +182,15 @@ O backend usa FastAPI e SQLAlchemy. O frontend usa React, TypeScript, Vite, Reac
 | scripts/   | arranque, deploy, manutenção e integração ([índice](scripts/README.md)) |
 | tests/     | testes automatizados                                        |
 | docs/      | arquitetura, operação, governação e exemplos            |
-| tasks/     | estado de trabalho e aprendizagens reutilizáveis           |
-| tools/     | adaptadores IA opcionais                                    |
 
 ## Operação e produção
 
 Uma atualização de produção deve preservar `secrets/.env`, catálogos privados, runtime, volumes e referência da imagem ativa. Valide primeiro a configuração Compose e o build num checkout paralelo. Depois da troca, confirme health, base de dados, interface, catálogos e estabilidade dos contentores.
 
-O rollback restaura o checkout e a imagem anteriores, mantendo configuração e volumes. Não use `docker compose down -v` num procedimento normal de atualização. Consulte o [runbook](docs/ai/ops/RUNBOOK.md).
+O rollback restaura o checkout e a imagem anteriores, mantendo configuração e volumes. Não use `docker compose down -v` num procedimento normal de atualização. Consulte [docs/architecture/deployment.md](docs/architecture/deployment.md).
 
 ## Segurança, contribuição e licença
 
-Consulte [.github/SECURITY.md](.github/SECURITY.md) para comunicar vulnerabilidades sem expor detalhes publicamente. As regras de contribuição estão em [docs/governance/CONTRIBUTING.md](docs/governance/CONTRIBUTING.md).
+Consulte [SECURITY.md](SECURITY.md) (e [.github/SECURITY.md](.github/SECURITY.md)) para comunicar vulnerabilidades sem expor detalhes publicamente. As regras de contribuição estão em [CONTRIBUTING.md](CONTRIBUTING.md).
 
 O repositório é público para consulta e avaliação. O código permanece sob [licença proprietária](LICENSE); a visibilidade pública não concede direitos de utilização, modificação ou redistribuição sem autorização escrita do titular.

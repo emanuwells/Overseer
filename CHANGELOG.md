@@ -4,15 +4,19 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.35] - 2026-07-25
+
 ### Added
 
-- `scripts/slack_ops_test.py` — smoke test operacional para digest e alertas Slack (`--digest`, `--failed`, `--resolved`).
+- `CONTRIBUTING.md` e `SECURITY.md` na raiz, alinhados à estrutura WELLS.
+
+### Removed
+
+- `AGENTS.md`, `docs/ai/` e `tasks/` do núcleo versionado (migrados para toolkit local `.agents/`, ignorado pelo Git).
 
 ### Changed
 
-- Digest Slack diário (08:30) passa a mencionar `@channel` em todos os envios, alinhado com alertas imediatos.
-- Histórico Git de `main` reescrito para remover trailers `Co-authored-by: Cursor` (contributors GitHub).
-- Documentação: nota em `AGENTS.md` sobre co-autor Cursor em repos públicos.
+- README, `PROJECT_CONTEXT.md`, `COMMANDS.md` e docs de governação/arquitetura sem referências quebradas a `docs/ai` ou `AGENTS.md` na raiz.
 
 ## [5.8.34] - 2026-07-14
 

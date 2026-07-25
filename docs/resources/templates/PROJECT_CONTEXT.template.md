@@ -45,12 +45,11 @@ Manter `COMMANDS.md` atualizado com instalação, execução, lint, testes, buil
 
 ## Ferramentas IA
 
-- Adaptador ativo:
+- Runtime local (`.agents/`):
 - Motivo:
-- Data de ativação:
 - Observações:
 
-Adaptadores opcionais vivem em `tools/ai-adapters/` e são ativados/desativados por scripts.
+O contrato de agentes vive em `.agents/AGENTS.md` quando o toolkit WELLS está instalado localmente.
 
 ## Riscos
 

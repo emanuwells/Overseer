@@ -11,8 +11,8 @@ Este ficheiro resume decisões arquiteturais vivas. ADRs detalhados continuam em
 | Persistência | Tabelas `overseer_*` são o contrato persistente ativo | `docs/adr/0001-overseer-core-api-refactor.md` |
 | Frontend | UI estática servida em `/ui/`, sem build Node/Vite | `docs/adr/0001-overseer-core-api-refactor.md` |
 | Operação | Docker Compose é o fluxo principal para API, UI e MariaDB local | `PROJECT_CONTEXT.md` |
-| Governação IA | `AGENTS.md` e o núcleo mínimo em `docs/ai/` definem o fluxo de trabalho | Aceite |
-| Conformidade IA | Procedimentos operacionais em `docs/ai/ops/` e políticas em `docs/ai/policies/` | `docs/ai/ops/DECISIONS.md` |
+| Governação IA | Toolkit WELLS em `.agents/` (local; ignorado pelo Git) define o fluxo de agentes | Aceite |
+| Conformidade IA | Procedimentos e políticas em `.agents/ops/` e `.agents/policies/` | `.agents/state/DECISIONS.md` |
 
 ## Regras Para Novas Decisões
 
