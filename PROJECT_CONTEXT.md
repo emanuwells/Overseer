@@ -89,7 +89,6 @@ docker compose --project-directory . -f docker/docker-compose.yml build
 
 ## Decisões em aberto
 
-- visibilidade pública do repositório GitHub (pendente sessão autenticada)
 - evolução de escrita na UI (fora de escopo actual)
 
 ## Critérios de qualidade

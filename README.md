@@ -1,7 +1,7 @@
 # Overseer
 
 ![Estado](https://img.shields.io/badge/estado-estável-2ecc71)
-![Versão](https://img.shields.io/badge/versão-5.8.35-3498db)
+![Versão](https://img.shields.io/badge/versão-5.8.36-3498db)
 ![Licença](https://img.shields.io/badge/licença-proprietária-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -32,6 +32,14 @@ O serviço observa pipelines; não incorpora o respetivo código nem substitui o
 - envia alertas de falha e um digest diário para Slack.
 
 Não é um motor de workflows, um gestor de segredos ou um substituto de uma plataforma de logs. O pipeline continua responsável pela execução, pelos retries de negócio e pelo tratamento dos seus dados.
+
+## Tecnologias
+
+- **Frontend:** React 19, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS
+- **Backend:** FastAPI, Uvicorn, Python 3.11+
+- **Base de dados:** MariaDB 10.11, SQLAlchemy
+- **Infraestrutura:** Docker Compose; nginx opcional para `/Overseer/`
+- **Testes:** pytest; build frontend com `npm run build`
 
 ## Arquitetura técnica do pipeline
 
@@ -189,8 +197,27 @@ Uma atualização de produção deve preservar `secrets/.env`, catálogos privad
 
 O rollback restaura o checkout e a imagem anteriores, mantendo configuração e volumes. Não use `docker compose down -v` num procedimento normal de atualização. Consulte [docs/architecture/deployment.md](docs/architecture/deployment.md).
 
-## Segurança, contribuição e licença
+## Troubleshooting
 
-Consulte [SECURITY.md](SECURITY.md) (e [.github/SECURITY.md](.github/SECURITY.md)) para comunicar vulnerabilidades sem expor detalhes publicamente. As regras de contribuição estão em [CONTRIBUTING.md](CONTRIBUTING.md).
+| Problema | Causa provável | Solução |
+| --- | --- | --- |
+| `/v1/health` falha | Compose parado, DB inacessível ou `secrets/.env` incompleto | Confirmar contentores, `OVERSEER_DB_URL` e logs da API |
+| UI local sem dados | API em falta ou token incorrecto em `overseer-config.js` | Arrancar com `scripts/dev-ui.ps1` / `overseer-up.sh` e rever `OVERSEER_API_TOKEN` |
+| `npm ci` / `npm install` falha no Drive | Sync Google Drive (EPERM/EBADF em `node_modules`) | Instalar/build num disco local ou validar no stage Docker |
+| Digest Slack não chega | Webhook ausente ou digest desactivado | Confirmar `secrets/slack.json` ou `OVERSEER_SLACK_WEBHOOK_URL` e `OVERSEER_SLACK_DIGEST_ENABLED` |
+
+## Segurança
+
+Consulte [SECURITY.md](SECURITY.md) (e [.github/SECURITY.md](.github/SECURITY.md)) para comunicar vulnerabilidades sem expor detalhes publicamente.
+
+## Contribuição
+
+As regras de contribuição estão em [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licença
 
 O repositório é público para consulta e avaliação. O código permanece sob [licença proprietária](LICENSE); a visibilidade pública não concede direitos de utilização, modificação ou redistribuição sem autorização escrita do titular.
+
+## Changelog
+
+Histórico versionado em [CHANGELOG.md](CHANGELOG.md). A versão actual está em [VERSION](VERSION).

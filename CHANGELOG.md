@@ -4,6 +4,13 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.36] - 2026-07-25
+
+### Changed
+
+- README alinhado ao template WELLS: Tecnologias, Troubleshooting, Segurança, Contribuição, Licença e Changelog.
+- `PROJECT_CONTEXT.md`: removida decisão obsoleta sobre visibilidade pública do GitHub.
+
 ## [5.8.35] - 2026-07-25
 
 ### Added
