@@ -133,7 +133,10 @@ def main() -> int:
                     replaced.add(marker)
                 continue
 
-            out.append(line)
+            # item existe e tem uma linha de cron válida: refresca sempre a partir
+            # do catálogo (run_sh pode ter mudado, ex. runners_root movido) em vez
+            # de preservar a linha antiga tal e qual.
+            out.append(_overseer_cron_line(item) or line)
             for item in pipelines:
                 pid = str(item.get("id") or "")
                 if pid and f"# overseer:{pid}" in line:

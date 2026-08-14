@@ -94,10 +94,12 @@ def resolve_platform(value: str) -> str:
     return value
 
 
-def default_venv(platform: str) -> str:
+def default_venv(platform: str, repo_root: pathlib.Path | None = None) -> str:
     if platform == "windows":
         base = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
         return os.path.join(base, "overseer-venv")
+    if repo_root is not None:
+        return str(repo_root / ".venv")
     return os.path.expanduser("~/overseer-venv")
 
 
@@ -161,7 +163,7 @@ def resolve_runner_catalog(
             raise FileNotFoundError(f"OVERSEER_RUNNERS_CATALOG inválido: {catalog_path}")
         return catalog_path
 
-    runners_root = runners_root or pathlib.Path(os.path.expanduser("~/overseer-runners"))
+    runners_root = runners_root or (root / "runtime" / "runners")
     runner_env = load_env_file(runners_root / ".env.overseer")
 
     candidates: list[str] = []
@@ -195,7 +197,11 @@ def main() -> int:
         help="Caminho para o catálogo YAML. Omitir para usar OVERSEER_RUNNERS_DIR/<host>.yaml",
     )
     parser.add_argument("--repo-root", default="", help="Raiz do repo Overseer (auto-detect por defeito).")
-    parser.add_argument("--runners-root", default=os.path.expanduser("~/overseer-runners"))
+    parser.add_argument(
+        "--runners-root",
+        default="",
+        help="Omitir para usar <repo-root>/runtime/runners.",
+    )
     parser.add_argument("--platform", choices=["linux", "windows", "auto"], default="auto")
     parser.add_argument("--venv", default="")
     parser.add_argument(
@@ -212,11 +218,13 @@ def main() -> int:
     args = parser.parse_args()
 
     platform = resolve_platform(args.platform)
-    venv = pathlib.Path(args.venv).expanduser() if args.venv else pathlib.Path(default_venv(platform))
+    repo_root = pathlib.Path(args.repo_root).expanduser() if args.repo_root else default_repo_root()
+    venv = pathlib.Path(args.venv).expanduser() if args.venv else pathlib.Path(default_venv(platform, repo_root))
     agent = venv / ("Scripts/overseer-agent.exe" if platform == "windows" else "bin/overseer-agent")
 
-    repo_root = pathlib.Path(args.repo_root).expanduser() if args.repo_root else default_repo_root()
-    runners_root = pathlib.Path(args.runners_root).expanduser()
+    runners_root = (
+        pathlib.Path(args.runners_root).expanduser() if args.runners_root else repo_root / "runtime" / "runners"
+    )
     runners_root.mkdir(parents=True, exist_ok=True)
 
     catalog_path = resolve_runner_catalog(

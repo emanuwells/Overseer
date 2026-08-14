@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Provisiona manifests e run.sh em ~/overseer-runners/ a partir do catálogo YAML.
+# Provisiona manifests e run.sh em runtime/runners/ (dentro do repo) a partir
+# do catálogo YAML.
 #
 # O catálogo resolve em OVERSEER_RUNNERS_DIR/<hostname>.yaml.
 #
@@ -10,8 +11,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-RUNNERS_ROOT="${OVERSEER_RUNNERS_ROOT:-$HOME/overseer-runners}"
-VENV="${OVERSEER_VENV:-$HOME/overseer-venv}"
+RUNNERS_ROOT="${OVERSEER_RUNNERS_ROOT:-$REPO_ROOT/runtime/runners}"
+VENV="${OVERSEER_VENV:-$REPO_ROOT/.venv}"
 ENV_FILE="${OVERSEER_ENV_FILE:-$REPO_ROOT/secrets/.env}"
 if [ -f "$ENV_FILE" ]; then
     set -a
