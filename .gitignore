@@ -42,9 +42,14 @@ runtime/*_status.json
 runtime/scheduler_state.json
 runtime/run_now_channel/**/*.json
 runtime/triggers/schedule/**/*.json
+runtime/.retention_last_purge
+runtime/overseer-py/**
+runtime/runners/**
 !runtime/.gitkeep
 !runtime/logs/.gitkeep
 !runtime/triggers/.gitkeep
+!runtime/overseer-py/.gitkeep
+!runtime/runners/.gitkeep
 
 # Frontend generated payload
 frontend/node_modules/
