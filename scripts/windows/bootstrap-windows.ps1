@@ -10,7 +10,8 @@
       4. arranca já a tarefa do túnel SSH
 
     Pré-requisito: SSH por chave (sem password) para o servidor de prod, e
-    ~/overseer-runners/.env.overseer já existente no servidor (contém o token).
+    ~/Dev/Repos/emanuwells/Overseer/runtime/runners/.env.overseer já existente
+    no servidor (contém o token).
 
 .EXAMPLE
     .\bootstrap-windows.ps1 -RepoPath "C:\Dev\Repos\your-organization\Overseer" -SshTarget operator@server.example.com

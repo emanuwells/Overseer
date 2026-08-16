@@ -6,7 +6,8 @@
     Gera %USERPROFILE%\overseer-runners\.env.overseer com:
       - OVERSEER_API_URL: http://127.0.0.1:<LocalPort> (porta do túnel SSH)
       - OVERSEER_HOST_ID: hostname local normalizado (estável e legível)
-      - OVERSEER_API_TOKEN: lido por SSH de ~/overseer-runners/.env.overseer no
+      - OVERSEER_API_TOKEN: lido por SSH de
+        ~/Dev/Repos/emanuwells/Overseer/runtime/runners/.env.overseer no
         servidor de prod (ou passado em -ApiToken)
 
     O ficheiro fica com ACL restrita ao utilizador atual. Idempotente: não
@@ -59,13 +60,13 @@ if (-not $token) {
         throw "Sem -ApiToken nem -SshTarget: não há como obter o OVERSEER_API_TOKEN."
     }
     Write-Host "A obter o token via SSH de $SshTarget ..."
-    $remoteCmd = "grep '^OVERSEER_API_TOKEN=' ~/overseer-runners/.env.overseer | cut -d= -f2-"
+    $remoteCmd = "grep '^OVERSEER_API_TOKEN=' ~/Dev/Repos/emanuwells/Overseer/runtime/runners/.env.overseer | cut -d= -f2-"
     $sshArgs = @("-o", "BatchMode=yes")
     if ($IdentityFile) { $sshArgs += @("-i", $IdentityFile) }
     $sshArgs += @($SshTarget, $remoteCmd)
     $token = (& ssh @sshArgs | Select-Object -First 1)
     if ($LASTEXITCODE -ne 0 -or -not $token) {
-        throw "Não foi possível ler o token via SSH. Confirma a chave SSH e ~/overseer-runners/.env.overseer no servidor."
+        throw "Não foi possível ler o token via SSH. Confirma a chave SSH e ~/Dev/Repos/emanuwells/Overseer/runtime/runners/.env.overseer no servidor."
     }
     $token = $token.Trim()
 }
