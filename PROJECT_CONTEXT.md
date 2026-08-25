@@ -67,7 +67,7 @@ docker compose --project-directory . -f docker/docker-compose.yml build
 
 ## Ferramentas IA
 
-- **Runtime local:** pasta `.agents/` (ignorada pelo Git; toolkit WELLS **0.5.0**)
+- **Runtime local:** pasta `.agents/` (ignorada pelo Git; toolkit WELLS **1.3.0**)
 - **Motivo:** contrato, skills, workflows e estado de agentes ficam fora do núcleo público
 - **Observações:** entrada canónica em `.agents/AGENTS.md`; routing em `.agents/INDEX.md`; adaptadores em `.agents/adapters/`
 

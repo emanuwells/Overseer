@@ -4,6 +4,10 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+### Changed
+
+- Toolkit WELLS local sincronizado com a versão **1.3.0** (`.agents/`, fora do Git); `PROJECT_CONTEXT.md` atualizado para refletir a versão efetiva do runtime.
+
 ## [5.8.37] - 2026-07-26
 
 ### Changed
