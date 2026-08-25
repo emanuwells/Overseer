@@ -41,6 +41,27 @@ def test_notify_failed_run_mentions_channel(
     payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
     assert "<!channel>" in payload["text"]
     assert "FAILED" in payload["text"]
+    assert "aviso imediato 1/3" in payload["text"]
+    assert "passará para o digest" not in payload["text"]
+
+
+@patch("overseer_sdk.slack_notifier.requests.post")
+def test_third_failed_alert_announces_digest(
+    mock_post: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    sqlite_store,
+) -> None:
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.text = "ok"
+    monkeypatch.setenv("OVERSEER_SLACK_WEBHOOK_URL", "https://example.invalid/slack/webhook/test")
+    run = {"run_id": "run-3", "pipeline_id": "demo", "host_id": "linux-host"}
+
+    assert slack_alerts.notify_failed_run(run, alert_number=3) is True
+
+    payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+    assert "aviso imediato 3/3" in payload["text"]
+    assert "último aviso imediato" in payload["text"]
+    assert "passará para o digest diário" in payload["text"]
 
 
 @patch("overseer_core.slack_alerts.notify_failed_run", return_value=True)
@@ -49,8 +70,62 @@ def test_finish_run_marks_slack_notified(mock_notify: MagicMock, sqlite_store) -
     finished = store.finish_run(run["run_id"], {"status": "failed", "error_message": "x"})
     assert finished["status"] == "failed"
     mock_notify.assert_called_once()
+    assert mock_notify.call_args.kwargs["alert_number"] == 1
     updated = store.get_run(run["run_id"]) or {}
     assert updated.get("metadata", {}).get("slack_notified") is True
+    assert updated.get("metadata", {}).get("slack_alert_number") == 1
+
+
+@patch("overseer_core.slack_alerts.notify_failed_run", return_value=True)
+def test_failure_episode_sends_only_three_alerts_and_resets(
+    mock_notify: MagicMock,
+    sqlite_store,
+) -> None:
+    def finish(status: str) -> dict:
+        run = store.start_run({"pipeline_id": "demo", "host_id": "linux-host"})
+        return store.finish_run(run["run_id"], {"status": status, "error_message": "x"})
+
+    failed_runs = [finish("failed") for _ in range(5)]
+
+    assert [call.kwargs["alert_number"] for call in mock_notify.call_args_list] == [1, 2, 3]
+    assert [run.get("metadata", {}).get("slack_notified") for run in failed_runs] == [
+        True,
+        True,
+        True,
+        None,
+        None,
+    ]
+
+    finish("ok")
+    finish("failed")
+    assert mock_notify.call_args.kwargs["alert_number"] == 1
+
+
+@patch("overseer_core.slack_alerts.notify_failed_run", return_value=True)
+def test_failure_alert_limit_is_isolated_by_host(
+    mock_notify: MagicMock,
+    sqlite_store,
+) -> None:
+    for _ in range(3):
+        run = store.start_run({"pipeline_id": "demo", "host_id": "host-a"})
+        store.finish_run(run["run_id"], {"status": "failed"})
+
+    other_host = store.start_run({"pipeline_id": "demo", "host_id": "host-b"})
+    store.finish_run(other_host["run_id"], {"status": "failed"})
+
+    assert [call.kwargs["alert_number"] for call in mock_notify.call_args_list] == [1, 2, 3, 1]
+
+
+@patch("overseer_core.slack_alerts.notify_failed_run", side_effect=[False, True, True, True])
+def test_failed_slack_delivery_does_not_consume_an_alert(
+    mock_notify: MagicMock,
+    sqlite_store,
+) -> None:
+    for _ in range(4):
+        run = store.start_run({"pipeline_id": "demo", "host_id": "linux-host"})
+        store.finish_run(run["run_id"], {"status": "failed"})
+
+    assert [call.kwargs["alert_number"] for call in mock_notify.call_args_list] == [1, 1, 2, 3]
 
 
 @patch("overseer_core.slack_alerts.notify_resolved_run", return_value=True)

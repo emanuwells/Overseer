@@ -19,6 +19,7 @@ Contexto técnico vivo do Overseer. Mantém-se alinhado com [`COMMANDS.md`](COMM
   - estados terminais normalizados: ok, warning, failed
   - interface read-only; alterações via API autenticada, runners ou CLI
   - digest Slack omite heartbeats e triggers em fila; digest e alertas imediatos mencionam `@channel` por defeito
+  - cada episódio de falha envia no máximo três avisos Slack imediatos por deployment; o terceiro anuncia a passagem para o digest até resolução
 - **Dados sensíveis:** tokens API, webhooks Slack, credenciais DB, chaves SSH, catálogos reais
 - **Integrações externas:** runners HTTP, agente Overseer, Slack, sincronização SSH opcional
 

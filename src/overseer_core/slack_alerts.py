@@ -15,6 +15,8 @@ from .repo_paths import repo_root
 
 logger = logging.getLogger("overseer.slack")
 
+FAILURE_ALERT_LIMIT = 3
+
 
 def mention_channel_enabled() -> bool:
     flag = os.getenv("OVERSEER_SLACK_MENTION_CHANNEL", "true").strip().lower()
@@ -63,8 +65,30 @@ def _host_label(run: dict[str, Any]) -> str:
     return str(run.get("hostname") or run.get("host_id") or "-")
 
 
-def notify_failed_run(run: dict[str, Any]) -> bool:
-    """Alerta imediato quando uma run falha. Inclui @channel."""
+def failure_alert_number(run: dict[str, Any]) -> int | None:
+    """Próximo aviso do episódio de falha, ou ``None`` após atingir o limite."""
+    pipeline_id = str(run.get("pipeline_id") or "")
+    host_id = str(run.get("host_id") or "")
+    current_run_id = str(run.get("run_id") or "")
+    sent_alerts = 0
+    for previous in store.list_runs(limit=1000, pipeline_id=pipeline_id, host_id=host_id):
+        if str(previous.get("run_id") or "") == current_run_id:
+            continue
+        status = str(previous.get("status") or "").lower()
+        if status in {"running", "queued"}:
+            continue
+        if status != "failed":
+            break
+        metadata = previous.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("slack_notified"):
+            sent_alerts += 1
+            if sent_alerts >= FAILURE_ALERT_LIMIT:
+                return None
+    return sent_alerts + 1
+
+
+def notify_failed_run(run: dict[str, Any], *, alert_number: int = 1) -> bool:
+    """Alerta imediato limitado por episódio de falha. Inclui @channel."""
     notifier = get_slack_notifier()
     if not notifier.is_enabled:
         logger.info("Slack disabled; skip failed-run alert for %s", run.get("run_id"))
@@ -82,14 +106,18 @@ def notify_failed_run(run: dict[str, Any]) -> bool:
         error = error[:217] + "..."
 
     lines = [
-        ":x: *Pipeline FAILED* — alerta imediato",
+        f":x: *Pipeline FAILED* — aviso imediato {alert_number}/{FAILURE_ALERT_LIMIT}",
         f"*Pipeline:* `{pipeline_name}` (`{pipeline_id}`)",
         f"*Host:* `{_host_label(run)}`",
         f"*Duração:* `{run.get('duration_sec') or '-'}s`",
     ]
     if error:
         lines.append(f"*Erro:* {error}")
-    lines.append("_Será relembrado no digest diário (08:30) até ficar resolvido._")
+    if alert_number >= FAILURE_ALERT_LIMIT:
+        lines.append(
+            "_Este é o último aviso imediato. O pipeline passará para o digest diário "
+            "(08:30) até ficar resolvido._"
+        )
 
     run_url = _run_url(run)
     if run_url:

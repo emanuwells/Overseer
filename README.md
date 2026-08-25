@@ -142,7 +142,7 @@ O servidor Vite faz proxy de `/v1` para a API. Para produção ou Docker, `npm r
 | OVERSEER_RETENTION_DAYS       | Janela de retenção de telemetria             | 30                           |
 | OVERSEER_RETENTION_AUTO       | Purge automático no arranque da API          | true                         |
 
-O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartbeats e triggers em fila permanecem consultáveis pela API e pela interface, mas não são enviados no resumo. O digest diário (08:30) e os alertas imediatos de falha/resolução mencionam `@channel` quando `OVERSEER_SLACK_MENTION_CHANNEL=true` (defeito).
+O digest inclui resultados, falhas abertas e pipelines fora de cadência. Heartbeats e triggers em fila permanecem consultáveis pela API e pela interface, mas não são enviados no resumo. Por cada episódio de falha e deployment (`pipeline_id` + `host_id`), o Overseer envia no máximo três avisos imediatos; o terceiro informa que os avisos seguintes passam para o digest até resolução. Uma execução não falhada reinicia este limite. O digest diário (08:30) e os alertas imediatos de falha/resolução mencionam `@channel` quando `OVERSEER_SLACK_MENTION_CHANNEL=true` (defeito).
 
 ### Configuração privada
 

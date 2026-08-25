@@ -1265,8 +1265,16 @@ def finish_run(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         from . import slack_alerts
 
         if final_status == "failed" and not existing_meta.get("slack_notified"):
-            if slack_alerts.notify_failed_run(finished):
-                patch_meta = {**merged_meta, "slack_notified": True}
+            alert_number = slack_alerts.failure_alert_number(finished)
+            if alert_number is not None and slack_alerts.notify_failed_run(
+                finished,
+                alert_number=alert_number,
+            ):
+                patch_meta = {
+                    **merged_meta,
+                    "slack_notified": True,
+                    "slack_alert_number": alert_number,
+                }
                 with get_engine().begin() as conn:
                     conn.execute(
                         update(runs_table)

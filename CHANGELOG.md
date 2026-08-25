@@ -7,6 +7,8 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 ### Changed
 
 - Toolkit WELLS local sincronizado com a versão **1.3.0** (`.agents/`, fora do Git); `PROJECT_CONTEXT.md` atualizado para refletir a versão efetiva do runtime.
+- Alertas Slack de falha limitados a três avisos imediatos por episódio e deployment; o terceiro anuncia a passagem para o digest diário até resolução.
+- Dependências frontend corrigidas para versões sem os avisos de segurança detetados: `react-router-dom`/`react-router` 7.18.2, `nanoid` 3.3.18 e `postcss` 8.5.26.
 
 ## [5.8.37] - 2026-07-26
 
