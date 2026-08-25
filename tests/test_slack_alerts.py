@@ -116,6 +116,28 @@ def test_failure_alert_limit_is_isolated_by_host(
     assert [call.kwargs["alert_number"] for call in mock_notify.call_args_list] == [1, 2, 3, 1]
 
 
+@patch("overseer_core.slack_alerts.notify_failed_run", return_value=True)
+def test_legacy_unnumbered_notifications_do_not_consume_new_alerts(
+    mock_notify: MagicMock,
+    sqlite_store,
+) -> None:
+    for _ in range(4):
+        run = store.start_run(
+            {
+                "pipeline_id": "legacy",
+                "host_id": "linux-host",
+                "metadata": {"slack_notified": True},
+            }
+        )
+        store.finish_run(run["run_id"], {"status": "failed"})
+
+    current = store.start_run({"pipeline_id": "legacy", "host_id": "linux-host"})
+    store.finish_run(current["run_id"], {"status": "failed"})
+
+    mock_notify.assert_called_once()
+    assert mock_notify.call_args.kwargs["alert_number"] == 1
+
+
 @patch("overseer_core.slack_alerts.notify_failed_run", side_effect=[False, True, True, True])
 def test_failed_slack_delivery_does_not_consume_an_alert(
     mock_notify: MagicMock,

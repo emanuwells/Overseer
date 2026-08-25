@@ -80,7 +80,12 @@ def failure_alert_number(run: dict[str, Any]) -> int | None:
         if status != "failed":
             break
         metadata = previous.get("metadata")
-        if isinstance(metadata, dict) and metadata.get("slack_notified"):
+        alert_number = metadata.get("slack_alert_number") if isinstance(metadata, dict) else None
+        if (
+            isinstance(alert_number, int)
+            and not isinstance(alert_number, bool)
+            and 1 <= alert_number <= FAILURE_ALERT_LIMIT
+        ):
             sent_alerts += 1
             if sent_alerts >= FAILURE_ALERT_LIMIT:
                 return None
