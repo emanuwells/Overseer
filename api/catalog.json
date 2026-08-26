@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "scope": "wells-api",
+  "owner": "Overseer",
+  "files": [
+    { "source": "api/_overseer_runtime.php", "target": "_overseer_runtime.php" },
+    { "source": "api/overseer.php", "target": "overseer.php", "route": "/api/overseer.php?help=1" }
+  ]
+}

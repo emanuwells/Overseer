@@ -1,5 +1,14 @@
 # Comandos
 
+## API agregada
+
+```bash
+php -l api/_overseer_runtime.php
+php -l api/overseer.php
+bash scripts/deploy-production-api.sh --dry-run
+bash scripts/deploy-production-api.sh
+```
+
 ## Desenvolvimento
 
 ```bash

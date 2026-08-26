@@ -10,6 +10,10 @@ O Overseer é um serviço Docker-first de observabilidade para pipelines e DAGs 
 
 O serviço observa pipelines; não incorpora o respetivo código nem substitui o orquestrador que os executa. Esta separação permite integrar processos Python, tarefas agendadas, jobs de CI ou outros runners sem acoplar o seu ciclo de vida ao Overseer.
 
+O repositório é também a fonte de verdade do proxy público
+`api/overseer.php`, publicado isoladamente em `/usr/share/nginx/html/api`.
+O WELLS_API conserva apenas uma cópia auditada e o Swagger agregado.
+
 ## Documentação normativa
 
 | Documento                                   | Finalidade                                         |

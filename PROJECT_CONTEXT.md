@@ -9,6 +9,8 @@ Contexto técnico vivo do Overseer. Mantém-se alinhado com [`COMMANDS.md`](COMM
 - **Responsável:** programador solo com apoio de equipa IA
 - **Versão atual:** ver [`VERSION`](VERSION)
 - **Estado:** produção / manutenção
+- **API agregada:** `api/overseer.php`, publicada por
+  `scripts/deploy-production-api.sh` em `/usr/share/nginx/html/api`.
 
 ## Domínio
 

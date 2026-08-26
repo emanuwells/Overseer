@@ -6,6 +6,8 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ### Changed
 
+- `overseer.php` e o respetivo runtime passam a ter este repositório como
+  fonte de verdade; manifesto allowlist e deploy seguro adicionados.
 - Automação GitHub alinhada com o WELLS 1.3.0: CI para backend, frontend e Docker, mais Dependabot para Actions, npm, pip e Docker.
 - A contagem dos três avisos Slack ignora notificações legadas sem número, permitindo regularizar episódios de falha já em curso.
 - Toolkit WELLS local sincronizado com a versão **1.3.0** (`.agents/`, fora do Git); `PROJECT_CONTEXT.md` atualizado para refletir a versão efetiva do runtime.
