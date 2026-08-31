@@ -6,6 +6,11 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ### Changed
 
+- O runner por manifesto aceita `warning_exit_codes` por passo: warnings ficam
+  distintos de falhas, não interrompem o DAG e não fazem o agente devolver erro.
+- Adicionada manutenção transacional para reclassificar como warning apenas as
+  runs Traffic Flow com evidência de uma câmara operacional, com dry-run,
+  backup e restauro.
 - `overseer.php` e o respetivo runtime passam a ter este repositório como
   fonte de verdade; manifesto allowlist e deploy seguro adicionados.
 - Automação GitHub alinhada com o WELLS 1.3.0: CI para backend, frontend e Docker, mais Dependabot para Actions, npm, pip e Docker.

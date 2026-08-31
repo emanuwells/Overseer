@@ -5,7 +5,8 @@ Cada manifest descreve um pipeline como uma sequência de passos (`steps`), em q
 cada passo é um comando externo (tipicamente um script). O runner executa os
 comandos por ordem, abrindo um módulo no Overseer por passo, registando stdout e
 stderr como logs e marcando o estado de cada módulo. A primeira falha interrompe
-a execução e a run termina com estado ``failed``.
+a execução e a run termina com estado ``failed``. Códigos declarados em
+``warning_exit_codes`` produzem ``warning`` e não interrompem a execução.
 
 Formato mínimo do manifest::
 
@@ -46,6 +47,7 @@ class ManifestStep:
     command: list[str]
     cwd: str | None = None
     critical: bool = True
+    warning_exit_codes: frozenset[int] = frozenset()
 
 
 @dataclass
@@ -99,12 +101,27 @@ def load_manifest(path: str | Path) -> PipelineManifest:
         if not isinstance(command, list) or not command:
             raise ValueError(f"Manifest inválido: passo '{module_id}' sem 'command'.")
 
+        warning_exit_codes = raw_step.get("warning_exit_codes", [])
+        if not isinstance(warning_exit_codes, list):
+            raise ValueError(
+                f"Manifest inválido: 'warning_exit_codes' do passo '{module_id}' deve ser uma lista."
+            )
+        parsed_warning_codes: set[int] = set()
+        for code in warning_exit_codes:
+            if isinstance(code, bool) or not isinstance(code, int) or code <= 0:
+                raise ValueError(
+                    f"Manifest inválido: warning exit code do passo '{module_id}' "
+                    "deve ser um inteiro positivo."
+                )
+            parsed_warning_codes.add(code)
+
         steps.append(
             ManifestStep(
                 module_id=module_id,
                 command=[str(part) for part in command],
                 cwd=str(raw_step["cwd"]) if raw_step.get("cwd") else None,
                 critical=bool(raw_step.get("critical", True)),
+                warning_exit_codes=frozenset(parsed_warning_codes),
             )
         )
 
@@ -125,7 +142,11 @@ def _catalog_nodes_edges(manifest: PipelineManifest) -> tuple[list[dict], list[d
         {
             "module_id": step.module_id,
             "label": step.module_id,
-            "metadata": {"command": step.command, "critical": step.critical},
+            "metadata": {
+                "command": step.command,
+                "critical": step.critical,
+                "warning_exit_codes": sorted(step.warning_exit_codes),
+            },
         }
         for step in manifest.steps
     ]
@@ -164,7 +185,7 @@ def run_manifest(
     Executa os passos do manifest, registando run, módulos e logs no Overseer.
 
     Devolve o código de saída do primeiro passo que falhar, ou 0 se todos os
-    passos críticos terminarem com sucesso.
+    passos críticos terminarem com sucesso ou warning.
     """
     host_id = str(manifest.metadata.get("host_id") or "")
     client = client or OverseerClient(host_id=host_id)
@@ -180,6 +201,8 @@ def run_manifest(
 
     overall_exit = 0
     failed = False
+    warned = False
+    warning_exit = 0
     for step in manifest.steps:
         step_started = time.monotonic()
         proc = run_subprocess_with_telemetry(
@@ -188,6 +211,13 @@ def run_manifest(
             tracker=tracker,
         )
         duration = round(time.monotonic() - step_started, 3)
+
+        if proc.returncode == 0:
+            step_status = "ok"
+        elif proc.returncode in step.warning_exit_codes:
+            step_status = "warning"
+        else:
+            step_status = "failed"
 
         if proc.stdout:
             client.log(
@@ -203,30 +233,35 @@ def run_manifest(
                 run_id=run_id,
                 pipeline_id=manifest.pipeline_id,
                 module_id=step.module_id,
-                level="error" if proc.returncode else "warning",
+                level="error" if step_status == "failed" else "warning",
             )
 
-        step_ok = proc.returncode == 0
         client.module(
             run_id=run_id,
             pipeline_id=manifest.pipeline_id,
             module_id=step.module_id,
-            status="ok" if step_ok else "failed",
+            status=step_status,
             duration_sec=duration,
-            error_message=None if step_ok else proc.stderr[-MAX_ERROR_CHARS:],
+            error_message=None if step_status == "ok" else proc.stderr[-MAX_ERROR_CHARS:] or None,
             metadata={"command": step.command, "exit_code": proc.returncode},
         )
 
-        if not step_ok and step.critical:
+        if step_status == "warning":
+            warned = True
+            if warning_exit == 0:
+                warning_exit = proc.returncode
+        elif step_status == "failed" and step.critical:
             overall_exit = proc.returncode
             failed = True
             break
 
+    final_status = "failed" if failed else "warning" if warned else "ok"
+    recorded_exit = overall_exit if failed else warning_exit if warned else 0
     client.finish_run(
         run_id,
-        status="failed" if failed else "ok",
-        exit_code=overall_exit,
+        status=final_status,
+        exit_code=recorded_exit,
         duration_sec=round(time.monotonic() - started, 3),
         telemetry_tracker=tracker,
     )
-    return int(overall_exit)
+    return int(overall_exit if failed else 0)

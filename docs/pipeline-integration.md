@@ -97,7 +97,8 @@ python -m overseer_agent exec --pipeline my_pipeline -- python src/main.py
 
 Quando não se quer instrumentar o código do pipeline, descreve-se o pipeline num
 manifest YAML fora do repo (por exemplo em `~/overseer-runners/<pipeline_id>/manifest.yaml`).
-Cada passo vira um módulo no Overseer, com stdout/stderr e estado `ok`/`failed`.
+Cada passo vira um módulo no Overseer, com stdout/stderr e estado
+`ok`/`warning`/`failed`.
 
 ```yaml
 pipeline_id: forms_to_lake
@@ -105,6 +106,7 @@ pipeline_name: Forms to Lake
 steps:
   - module_id: extract
     command: ["python3", "/caminho/extract.py"]
+    warning_exit_codes: [2]
   - module_id: load
     command: ["python3", "/caminho/load.py"]
 ```
@@ -118,7 +120,9 @@ overseer-agent manifest ~/overseer-runners/forms_to_lake/manifest.yaml --by cron
 
 O modelo completo está em `docs/resources/examples/overseer/runner/`. A primeira falha de um passo
 crítico interrompe a run; um passo com `critical: false` é marcado mas não
-interrompe.
+interrompe. Um código não-zero listado em `warning_exit_codes` marca o módulo e
+a run como `warning`, permite continuar e faz o agente terminar com código 0;
+o código bruto continua registado na run e no módulo.
 
 ## Windows, Task Scheduler E Multi-host
 

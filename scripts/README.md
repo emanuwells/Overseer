@@ -31,6 +31,7 @@ Scripts suportados pelo repositório Overseer. Preferir os comandos documentados
 | `audit_db_schema.py` | Auditoria read-only do schema |
 | `scan_git_secrets.py` | Procura webhooks Slack no histórico Git |
 | `maintenance/overseer_db_maintenance.py` | Runs presos, métricas CPU anómalas |
+| `maintenance/reclassify_traffic_flow_partial_runs.py` | Corrige e restaura estados parciais Traffic Flow |
 
 ## Integração e demonstração
 

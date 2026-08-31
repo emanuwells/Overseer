@@ -37,6 +37,7 @@ def test_load_manifest_parses_steps(tmp_path):
     assert manifest.name == "Forms to Lake"
     assert [step.module_id for step in manifest.steps] == ["extract", "load"]
     assert manifest.steps[0].command == ["python3", "extract.py"]
+    assert manifest.steps[0].warning_exit_codes == frozenset()
 
 
 def test_load_manifest_requires_pipeline_id(tmp_path):
@@ -59,6 +60,19 @@ steps:
     command: ["echo", "2"]
 """
     with pytest.raises(ValueError, match="duplicado"):
+        load_manifest(_write(tmp_path, content))
+
+
+@pytest.mark.parametrize("value", ["2", 0, [0], [-1], [True], ["2"]])
+def test_load_manifest_rejects_invalid_warning_exit_codes(tmp_path, value):
+    content = f"""
+pipeline_id: x
+steps:
+  - module_id: a
+    command: ["echo", "1"]
+    warning_exit_codes: {value!r}
+"""
+    with pytest.raises(ValueError, match="warning_exit_codes|warning exit code"):
         load_manifest(_write(tmp_path, content))
 
 
@@ -113,3 +127,71 @@ def test_run_manifest_stops_on_failure(tmp_path, monkeypatch):
     finish_kwargs = client.finish_run.call_args.kwargs
     assert finish_kwargs["status"] == "failed"
     assert finish_kwargs["exit_code"] == 2
+
+
+def test_run_manifest_records_warning_and_continues(tmp_path, monkeypatch):
+    content = """
+pipeline_id: warning_pipeline
+steps:
+  - module_id: partial
+    command: ["python3", "partial.py"]
+    warning_exit_codes: [2]
+  - module_id: next
+    command: ["python3", "next.py"]
+"""
+    manifest = load_manifest(_write(tmp_path, content))
+    client = MagicMock()
+    client.start_run.return_value = "run-warning"
+    results = iter(
+        [
+            subprocess.CompletedProcess([], 2, stdout="partial", stderr="camera unavailable"),
+            subprocess.CompletedProcess([], 0, stdout="ok", stderr=""),
+        ]
+    )
+
+    monkeypatch.setattr(
+        "overseer_sdk.manifest_runner.run_subprocess_with_telemetry",
+        lambda command, **kwargs: next(results),
+    )
+
+    exit_code = run_manifest(manifest, client=client)
+
+    assert exit_code == 0
+    assert [call.kwargs["status"] for call in client.module.call_args_list] == ["warning", "ok"]
+    finish_kwargs = client.finish_run.call_args.kwargs
+    assert finish_kwargs["status"] == "warning"
+    assert finish_kwargs["exit_code"] == 2
+    assert any(call.kwargs.get("level") == "warning" for call in client.log.call_args_list)
+
+
+def test_run_manifest_failure_overrides_previous_warning(tmp_path, monkeypatch):
+    content = """
+pipeline_id: warning_then_failure
+steps:
+  - module_id: partial
+    command: ["python3", "partial.py"]
+    warning_exit_codes: [2]
+  - module_id: failed
+    command: ["python3", "failed.py"]
+"""
+    manifest = load_manifest(_write(tmp_path, content))
+    client = MagicMock()
+    client.start_run.return_value = "run-failed"
+    results = iter(
+        [
+            subprocess.CompletedProcess([], 2, stdout="", stderr="partial"),
+            subprocess.CompletedProcess([], 3, stdout="", stderr="failed"),
+        ]
+    )
+
+    monkeypatch.setattr(
+        "overseer_sdk.manifest_runner.run_subprocess_with_telemetry",
+        lambda command, **kwargs: next(results),
+    )
+
+    exit_code = run_manifest(manifest, client=client)
+
+    assert exit_code == 3
+    finish_kwargs = client.finish_run.call_args.kwargs
+    assert finish_kwargs["status"] == "failed"
+    assert finish_kwargs["exit_code"] == 3

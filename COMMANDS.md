@@ -87,6 +87,9 @@ python scripts/overseer_retention.py --apply
 python scripts/drop_legacy_tables.py --dry-run
 python scripts/drop_legacy_tables.py --apply
 python scripts/maintenance/overseer_db_maintenance.py --pipeline-id <pipeline-id>
+python scripts/maintenance/reclassify_traffic_flow_partial_runs.py
+python scripts/maintenance/reclassify_traffic_flow_partial_runs.py --apply
+python scripts/maintenance/reclassify_traffic_flow_partial_runs.py --restore <backup.json>
 python scripts/audit_db_schema.py
 python scripts/scan_git_secrets.py
 python scripts/slack_daily_digest.py --dry-run
