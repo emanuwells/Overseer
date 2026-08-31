@@ -42,3 +42,10 @@ def test_purge_legacy_dry_run(sqlite_store) -> None:
 
 def test_excluded_does_not_include_regular_pipeline() -> None:
     assert "windows_pipeline" not in store.EXCLUDED_PIPELINE_IDS
+
+
+def test_retention_poll_seconds_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OVERSEER_RETENTION_POLL_SECONDS", "5")
+    assert store.retention_poll_seconds() == 60.0
+    monkeypatch.setenv("OVERSEER_RETENTION_POLL_SECONDS", "invalid")
+    assert store.retention_poll_seconds() == 3600.0

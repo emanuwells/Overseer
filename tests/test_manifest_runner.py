@@ -164,6 +164,27 @@ steps:
     assert any(call.kwargs.get("level") == "warning" for call in client.log.call_args_list)
 
 
+def test_run_manifest_exposes_parent_run_to_subprocess(tmp_path, monkeypatch):
+    manifest = load_manifest(_write(tmp_path, MANIFEST_YAML))
+    client = MagicMock()
+    client.start_run.return_value = "run-parent"
+    captured_envs = []
+
+    def fake_run(command, **kwargs):
+        captured_envs.append(kwargs["env"])
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(
+        "overseer_sdk.manifest_runner.run_subprocess_with_telemetry",
+        fake_run,
+    )
+
+    assert run_manifest(manifest, client=client) == 0
+    assert captured_envs
+    assert all(env["OVERSEER_RUN_ID"] == "run-parent" for env in captured_envs)
+    assert all(env["OVERSEER_PIPELINE_ID"] == "forms_to_lake" for env in captured_envs)
+
+
 def test_run_manifest_failure_overrides_previous_warning(tmp_path, monkeypatch):
     content = """
 pipeline_id: warning_then_failure

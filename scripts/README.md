@@ -32,6 +32,8 @@ Scripts suportados pelo repositório Overseer. Preferir os comandos documentados
 | `scan_git_secrets.py` | Procura webhooks Slack no histórico Git |
 | `maintenance/overseer_db_maintenance.py` | Runs presos, métricas CPU anómalas |
 | `maintenance/reclassify_traffic_flow_partial_runs.py` | Corrige e restaura estados parciais Traffic Flow |
+| `maintenance/purge_retention_telemetry.py` | Purga inicial de telemetria expirada com backup/restauro |
+| `maintenance/deduplicate_ine_runs.py` | Consolida e restaura runs INE com dupla instrumentação |
 
 ## Integração e demonstração
 

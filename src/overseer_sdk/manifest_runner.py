@@ -26,6 +26,7 @@ O código dos pipelines não é alterado: o manifest vive fora dos repos
 
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass, field
 
@@ -209,6 +210,11 @@ def run_manifest(
             step.command,
             cwd=step.cwd,
             tracker=tracker,
+            env={
+                **os.environ,
+                "OVERSEER_RUN_ID": run_id,
+                "OVERSEER_PIPELINE_ID": manifest.pipeline_id,
+            },
         )
         duration = round(time.monotonic() - step_started, 3)
 

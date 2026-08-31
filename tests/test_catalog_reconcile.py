@@ -103,9 +103,17 @@ def test_reconcile_updates_legacy_pipeline_row(sqlite_store, tmp_path: Path) -> 
     )
     result = store.reconcile_catalog_from_yaml()
     assert result["updated"]
-    row = store.get_pipeline("demo_pipe", "LINUX-HOST") or store.get_pipeline("demo_pipe", "")
+    row = store.get_pipeline("demo_pipe", "LINUX-HOST")
     assert row is not None
     assert row["owner"] == "old"
+    with store.get_engine().connect() as connection:
+        legacy = connection.execute(
+            store.pipelines_table.select().where(
+                (store.pipelines_table.c.pipeline_id == "demo_pipe")
+                & (store.pipelines_table.c.host_id == "")
+            )
+        ).first()
+    assert legacy is None
 
 
 def test_reconcile_preserves_patched_owner(sqlite_store, tmp_path: Path) -> None:

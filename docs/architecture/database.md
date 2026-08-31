@@ -19,6 +19,11 @@ A camada de dados guarda o estado operacional do Overseer: catálogo de pipeline
 - Runs, eventos e heartbeats são emitidos por SDK, agent ou integrações externas.
 - A UI lê dados através de `/v1/read/*`; não escreve diretamente na base de dados.
 - Triggers são registados como sinais operacionais e podem envolver dispatch externo configurado.
+- Métricas de contagem e janelas de 24 horas/7 dias são agregadas na base de
+  dados, sem depender dos limites de paginação da API. Na taxa operacional,
+  `warning` conta como execução concluída; o estado de saúde continua degradado.
+- Runs, módulos e logs são retidos por 30 dias por defeito. A API verifica de
+  hora a hora se a purga diária está em falta.
 
 ## Tabelas ativas
 

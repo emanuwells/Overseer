@@ -4,8 +4,21 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.38] - 2026-08-31
+
 ### Changed
 
+- Métricas globais e de 7 dias passam a ser agregadas diretamente na base de
+  dados; warnings contam como execução operacional bem-sucedida, sem deixarem
+  de marcar o deployment e a saúde global como warning.
+- A retenção de 30 dias é verificada de hora a hora, mantendo execução diária,
+  e passa a ter manutenção com backup/restauro para a aplicação inicial.
+- O runner propaga `OVERSEER_RUN_ID` aos subprocessos, evitando a dupla
+  instrumentação do INE; foi adicionada manutenção transacional para consolidar
+  o histórico duplicado.
+- A reconciliação de catálogo migra corretamente deployments legacy com
+  `host_id` vazio para o host canónico.
+- Versão da API, agente, SDK, pacote Python e frontend alinhada com `VERSION` em 5.8.38.
 - O runner por manifesto aceita `warning_exit_codes` por passo: warnings ficam
   distintos de falhas, não interrompem o DAG e não fazem o agente devolver erro.
 - Adicionada manutenção transacional para reclassificar como warning apenas as

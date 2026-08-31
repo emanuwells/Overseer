@@ -321,6 +321,16 @@ def retention_interval_hours() -> float:
     return max(1.0, value)
 
 
+def retention_poll_seconds() -> float:
+    """Intervalo de verificação da retenção; o marcador mantém a execução diária."""
+    raw = os.getenv("OVERSEER_RETENTION_POLL_SECONDS", "3600")
+    try:
+        value = float(raw)
+    except ValueError:
+        return 3600.0
+    return max(60.0, value)
+
+
 def _retention_marker_path() -> Path:
     return repo_root() / "runtime" / ".retention_last_purge"
 
@@ -741,9 +751,15 @@ def register_pipeline_catalog(payload: dict[str, Any]) -> dict[str, Any]:
                 existing = legacy
         update_host_id = host_id
         if existing:
-            legacy_host = str(getattr(existing, "host_id", None) or existing.get("host_id") if isinstance(existing, dict) else getattr(existing, "host_id", "") or "")
-            if legacy_host:
-                update_host_id = legacy_host
+            legacy_host = str(
+                existing.get("host_id", "")
+                if isinstance(existing, dict)
+                else getattr(existing, "host_id", "") or ""
+            )
+            # A condição do UPDATE tem de apontar para a linha realmente encontrada,
+            # mesmo quando o host legacy está vazio. Os values migram-na depois para
+            # o host canónico sem criar um segundo deployment.
+            update_host_id = legacy_host
             current = get_pipeline(pipeline_id, update_host_id) or get_pipeline(pipeline_id, host_id)
             if current:
                 for field in PATCHABLE_CATALOG_FIELDS:
@@ -1819,6 +1835,104 @@ def count_runs_since(days: float = 7, *, failed_only: bool = False) -> int:
     return int(total or 0)
 
 
+def _count_status_rows(rows: list[tuple[Any, Any]]) -> dict[str, int]:
+    counts = {"ok": 0, "warning": 0, "failed": 0, "running": 0, "queued": 0}
+    for raw_status, raw_count in rows:
+        status = str(raw_status or "").strip().lower()
+        count = int(raw_count or 0)
+        if status in {"ok", "success", "sucesso", "done", "completed"}:
+            counts["ok"] += count
+        elif status in {"warning", "warn", "parcial"}:
+            counts["warning"] += count
+        elif status in {"running", "started", "claimed"}:
+            counts["running"] += count
+        elif status == "queued":
+            counts["queued"] += count
+        else:
+            counts["failed"] += count
+    return counts
+
+
+def _status_counts_since(connection: Any, cutoff: datetime | None = None) -> dict[str, int]:
+    statement = select(runs_table.c.status, func.count()).group_by(runs_table.c.status)
+    if cutoff is not None:
+        statement = statement.where(runs_table.c.started_at >= cutoff)
+    return _count_status_rows(list(connection.execute(statement).all()))
+
+
+def operational_run_metrics(*, now: datetime | None = None) -> dict[str, Any]:
+    """Agregações autoritativas das runs, sem limites de amostragem da API."""
+    reference = now or utcnow()
+    cutoff_24h = reference - timedelta(hours=24)
+    cutoff_7d = reference - timedelta(days=7)
+    cutoff_8d = reference - timedelta(days=8)
+
+    with get_engine().connect() as connection:
+        all_counts = _status_counts_since(connection)
+        window_counts = _status_counts_since(connection, cutoff_7d)
+        total_runs = int(connection.execute(select(func.count()).select_from(runs_table)).scalar() or 0)
+        runs_24h = int(
+            connection.execute(
+                select(func.count())
+                .select_from(runs_table)
+                .where(runs_table.c.started_at >= cutoff_24h)
+            ).scalar()
+            or 0
+        )
+        previous_7d = int(
+            connection.execute(
+                select(func.count())
+                .select_from(runs_table)
+                .where(
+                    and_(
+                        runs_table.c.started_at >= cutoff_8d,
+                        runs_table.c.started_at < cutoff_24h,
+                    )
+                )
+            ).scalar()
+            or 0
+        )
+
+    terminal = all_counts["ok"] + all_counts["warning"] + all_counts["failed"]
+    terminal_7d = window_counts["ok"] + window_counts["warning"] + window_counts["failed"]
+    success_rate = (
+        (all_counts["ok"] + all_counts["warning"]) / terminal * 100 if terminal else 100.0
+    )
+    success_rate_7d = (
+        (window_counts["ok"] + window_counts["warning"]) / terminal_7d * 100
+        if terminal_7d
+        else 100.0
+    )
+    baseline = round(previous_7d / 7.0, 2) if previous_7d else 0.0
+    ratio = round(runs_24h / baseline, 3) if baseline else 1.0
+    volume_status = "good"
+    if ratio < 0.5 or ratio > 2.0:
+        volume_status = "critical"
+    elif ratio < 0.7 or ratio > 1.5:
+        volume_status = "warn"
+
+    return {
+        "total_runs": total_runs,
+        **all_counts,
+        "terminal": terminal,
+        "ok_7d": window_counts["ok"],
+        "warning_7d": window_counts["warning"],
+        "failed_7d": window_counts["failed"],
+        "running_7d": window_counts["running"],
+        "queued_7d": window_counts["queued"],
+        "terminal_7d": terminal_7d,
+        "success_rate": round(success_rate, 2),
+        "success_rate_7d": round(success_rate_7d, 2),
+        "runs_24h": runs_24h,
+        "volume": {
+            "status": volume_status,
+            "ratio": ratio,
+            "runs24h": runs_24h,
+            "baseline": baseline,
+        },
+    }
+
+
 def list_modules(run_id: str | None = None, pipeline_id: str | None = None) -> list[dict[str, Any]]:
     stmt = select(modules_table).order_by(modules_table.c.created_at.desc()).limit(1000)
     if run_id:
@@ -1864,9 +1978,8 @@ def overview() -> dict[str, Any]:
     summary = deployment_health.build_operational_summary(
         runs,
         pipelines,
-        total_runs=count_runs(),
         runs_7d=runs_7d,
-        failed_7d=count_runs_since(7, failed_only=True),
+        run_metrics=operational_run_metrics(),
         since_label=telemetry_since_label(),
         retention_days=retention_days(),
     )

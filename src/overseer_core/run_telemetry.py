@@ -125,6 +125,7 @@ def run_subprocess_with_telemetry(
     *,
     cwd: str | None,
     tracker: TelemetryTracker,
+    env: dict[str, str] | None = None,
     text: bool = True,
     capture_output: bool = True,
 ) -> subprocess.CompletedProcess[str]:
@@ -132,6 +133,7 @@ def run_subprocess_with_telemetry(
     proc = subprocess.Popen(
         command,
         cwd=cwd,
+        env=env,
         text=text,
         stdout=subprocess.PIPE if capture_output else None,
         stderr=subprocess.PIPE if capture_output else None,

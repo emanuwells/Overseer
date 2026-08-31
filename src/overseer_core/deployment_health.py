@@ -314,6 +314,7 @@ def build_operational_summary(
     total_runs: int | None = None,
     runs_7d: list[dict[str, Any]] | None = None,
     failed_7d: int | None = None,
+    run_metrics: dict[str, Any] | None = None,
     since_label: str | None = None,
     retention_days: int | None = None,
 ) -> dict[str, Any]:
@@ -323,6 +324,12 @@ def build_operational_summary(
         key = store.deployment_key_from_row(item)
         runs_for = grouped.get(key, [])
         is_stale, is_regression, is_at_risk = deployment_signal_counts(runs_for, item)
+        if "is_stale" in item:
+            is_stale = bool(item.get("is_stale"))
+        if "is_regression" in item:
+            is_regression = bool(item.get("is_regression"))
+        if "is_at_risk" in item:
+            is_at_risk = bool(item.get("is_at_risk"))
         if is_stale:
             stale += 1
         if is_regression:
@@ -331,34 +338,70 @@ def build_operational_summary(
             at_risk += 1
 
     window_runs = runs_7d if runs_7d is not None else runs
-    total = int(total_runs if total_runs is not None else len(runs))
-    sample_total = len(runs)
-    ok = sum(1 for row in runs if is_ok(row.get("status")))
-    failed = sum(1 for row in runs if is_failed(row.get("status")))
-    warning = sum(1 for row in runs if is_warning(row.get("status")))
-    window_ok = sum(1 for row in window_runs if is_ok(row.get("status")))
-    window_total = len(window_runs)
-    window_failed = (
-        int(failed_7d)
-        if failed_7d is not None
-        else sum(1 for row in window_runs if is_failed(row.get("status")))
+    metrics = run_metrics or {}
+    total = int(metrics.get("total_runs", total_runs if total_runs is not None else len(runs)))
+    ok = int(metrics.get("ok", sum(1 for row in runs if is_ok(row.get("status")))))
+    failed = int(metrics.get("failed", sum(1 for row in runs if is_failed(row.get("status")))))
+    warning = int(metrics.get("warning", sum(1 for row in runs if is_warning(row.get("status")))))
+    running = int(
+        metrics.get(
+            "running",
+            sum(1 for row in runs if _status_bucket(row.get("status")) == "running"),
+        )
     )
+    window_ok = int(
+        metrics.get("ok_7d", sum(1 for row in window_runs if is_ok(row.get("status"))))
+    )
+    window_warning = int(
+        metrics.get("warning_7d", sum(1 for row in window_runs if is_warning(row.get("status"))))
+    )
+    window_failed = int(
+        metrics.get(
+            "failed_7d",
+            failed_7d
+            if failed_7d is not None
+            else sum(1 for row in window_runs if is_failed(row.get("status"))),
+        )
+    )
+    terminal = int(metrics.get("terminal", ok + warning + failed))
+    window_total = int(metrics.get("terminal_7d", window_ok + window_warning + window_failed))
     avg_exec, p95_exec, avg_cpu, avg_mem = run_resource_metrics(window_runs)
-    volume = compute_volume(runs)
+    volume = metrics.get("volume") if isinstance(metrics.get("volume"), dict) else compute_volume(runs)
     telemetry_since = since_label if since_label is not None else first_run_label(runs)
     retention = int(retention_days) if retention_days is not None else None
+    warning_deployments = sum(
+        1 for item in deployments if is_warning(item.get("last_status") or item.get("status"))
+    )
+    failed_deployments = sum(
+        1 for item in deployments if is_failed(item.get("last_status") or item.get("status"))
+    )
     return {
         "pipelines": len(deployments),
         "runs": total,
         "total_runs": total,
         "retention_days": retention,
-        "running": sum(1 for row in runs if _status_bucket(row.get("status")) == "running"),
+        "running": running,
         "ok": ok,
+        "ok_7d": window_ok,
         "failed": failed,
         "failed_7d": window_failed,
         "warning": warning,
-        "success_rate": round((ok / sample_total) * 100, 2) if sample_total else 100.0,
-        "success_rate_7d": round((window_ok / window_total) * 100, 2) if window_total else 100.0,
+        "warning_7d": window_warning,
+        "terminal": terminal,
+        "terminal_7d": window_total,
+        "success_rate": round(
+            float(metrics.get("success_rate", ((ok + warning) / terminal) * 100 if terminal else 100.0)),
+            2,
+        ),
+        "success_rate_7d": round(
+            float(
+                metrics.get(
+                    "success_rate_7d",
+                    ((window_ok + window_warning) / window_total) * 100 if window_total else 100.0,
+                )
+            ),
+            2,
+        ),
         "metrics_period_label": "7d",
         "runs_24h": volume.get("runs24h", 0),
         "avg_exec_time": avg_exec,
@@ -368,6 +411,8 @@ def build_operational_summary(
         "at_risk": at_risk,
         "stale": stale,
         "regressions": regressions,
+        "warning_deployments": warning_deployments,
+        "failed_deployments": failed_deployments,
         "first_run_label": telemetry_since,
         "telemetry_since": telemetry_since,
         "volume": volume,

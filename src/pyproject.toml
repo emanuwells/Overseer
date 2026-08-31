@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overseer-core"
-version = "5.8.26"
+version = "5.8.38"
 description = "API, SDK e agente para telemetria e orquestração de pipelines Overseer."
 requires-python = ">=3.11"
 dependencies = [

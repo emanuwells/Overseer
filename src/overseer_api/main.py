@@ -16,14 +16,18 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 from overseer_core.repo_paths import repo_root
 from overseer_core.slack_digest import DIGEST_TZ, digest_enabled, next_digest_at, send_daily_digest
-from overseer_core.store import auto_purge_retention_if_due, init_schema
+from overseer_core.store import (
+    auto_purge_retention_if_due,
+    init_schema,
+    retention_poll_seconds,
+)
 
 ROOT = repo_root()
 
 from .routers import catalog, events, health, orchestrate, read
 
 FRONTEND_DIST = ROOT / "frontend" / "dist"
-API_VERSION = "5.6.0"
+API_VERSION = "5.8.38"
 
 logger = logging.getLogger("overseer.api")
 
@@ -47,20 +51,35 @@ async def _slack_digest_loop() -> None:
             logger.exception("Falha no digest Slack agendado")
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    init_schema()
+async def _apply_retention_if_due() -> None:
     try:
         retention = await asyncio.to_thread(auto_purge_retention_if_due)
         if retention:
             logger.info("Retenção automática aplicada: %s", retention)
     except Exception:
         logger.exception("Falha na retenção automática")
+
+
+async def _retention_loop() -> None:
+    """Verifica a retenção de hora a hora; o marcador limita a purga a uma vez por dia."""
+    while True:
+        await asyncio.sleep(retention_poll_seconds())
+        await _apply_retention_if_due()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    init_schema()
+    await _apply_retention_if_due()
+    retention_task = asyncio.create_task(_retention_loop())
     digest_task = asyncio.create_task(_slack_digest_loop())
     try:
         yield
     finally:
+        retention_task.cancel()
         digest_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await retention_task
         with contextlib.suppress(asyncio.CancelledError):
             await digest_task
 
