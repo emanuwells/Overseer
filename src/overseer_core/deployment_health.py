@@ -318,9 +318,10 @@ def build_operational_summary(
     since_label: str | None = None,
     retention_days: int | None = None,
 ) -> dict[str, Any]:
+    active_deployments = [item for item in deployments if item.get("active", True)]
     grouped = group_runs_by_deployment(runs)
     at_risk = stale = regressions = 0
-    for item in deployments:
+    for item in active_deployments:
         key = store.deployment_key_from_row(item)
         runs_for = grouped.get(key, [])
         is_stale, is_regression, is_at_risk = deployment_signal_counts(runs_for, item)
@@ -370,13 +371,16 @@ def build_operational_summary(
     telemetry_since = since_label if since_label is not None else first_run_label(runs)
     retention = int(retention_days) if retention_days is not None else None
     warning_deployments = sum(
-        1 for item in deployments if is_warning(item.get("last_status") or item.get("status"))
+        1 for item in active_deployments if is_warning(item.get("last_status") or item.get("status"))
     )
     failed_deployments = sum(
-        1 for item in deployments if is_failed(item.get("last_status") or item.get("status"))
+        1 for item in active_deployments if is_failed(item.get("last_status") or item.get("status"))
+    )
+    operational_status = (
+        "failed" if failed_deployments else "warning" if warning_deployments or stale else "ok"
     )
     return {
-        "pipelines": len(deployments),
+        "pipelines": len(active_deployments),
         "runs": total,
         "total_runs": total,
         "retention_days": retention,
@@ -413,6 +417,7 @@ def build_operational_summary(
         "regressions": regressions,
         "warning_deployments": warning_deployments,
         "failed_deployments": failed_deployments,
+        "operational_status": operational_status,
         "first_run_label": telemetry_since,
         "telemetry_since": telemetry_since,
         "volume": volume,

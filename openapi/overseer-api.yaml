@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Overseer API
-  version: 5.4.1
+  version: 5.8.39
   description: API canónica para observabilidade de pipelines e DAGs. Slack digest 08:30 Europe/Lisbon.
 paths:
   /:
@@ -77,7 +77,7 @@ paths:
                         type: object
   /v1/read/overview:
     get:
-      summary: Snapshot operacional para o dashboard.
+      summary: Snapshot operacional; summary.operational_status expõe ok, warning ou failed.
   /v1/read/database:
     get:
       summary: Estado seguro da ligação à base de dados, com URL mascarada e contagens por tabela.

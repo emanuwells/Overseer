@@ -18,6 +18,7 @@ O backend centraliza os contratos HTTP, autenticação opcional por bearer token
 
 - `/v1/health`: estado básico da API.
 - `/v1/read/*`: leitura operacional para UI e clientes.
+- `/v1/read/overview`: `summary.operational_status` é o estado global canónico dos deployments ativos (`failed > warning/stale > ok`).
 - `/v1/catalog/*`: registo e reconciliação de catálogo de pipelines.
 - `/v1/events/*`: ingestão de runs, eventos e heartbeats.
 - `/v1/orchestrate/*`: triggers operacionais e dispatch para runners configurados.
@@ -31,6 +32,7 @@ O backend centraliza os contratos HTTP, autenticação opcional por bearer token
 ## Regras De Evolução
 
 - Preservar compatibilidade dos endpoints versionados em `/v1`.
+- Tratar `operational_status` como campo aditivo; consumidores antigos podem continuar a usar `failed_deployments`, `warning_deployments` e `stale`.
 - Atualizar `openapi/overseer-api.yaml` quando o contrato API mudar.
 - Validar alterações backend com `python -m pytest -q`.
 - Não misturar refactor estrutural com mudança funcional sem plano próprio.

@@ -27,7 +27,7 @@ ROOT = repo_root()
 from .routers import catalog, events, health, orchestrate, read
 
 FRONTEND_DIST = ROOT / "frontend" / "dist"
-API_VERSION = "5.8.38"
+API_VERSION = "5.8.39"
 
 logger = logging.getLogger("overseer.api")
 

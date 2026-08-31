@@ -4,6 +4,16 @@ As alterações relevantes ao Overseer são registadas neste ficheiro.
 
 ## [Unreleased]
 
+## [5.8.39] - 2026-08-31
+
+### Changed
+
+- `/v1/read/overview` passa a expor `summary.operational_status` como fonte
+  canónica do estado global, com precedência `failed > warning/stale > ok`.
+- O cálculo considera dinamicamente apenas deployments ativos do catálogo,
+  cobrindo pipelines atuais e futuros sem configuração específica.
+- Versão da API, agente, SDK, pacote Python e frontend alinhada em `5.8.39`.
+
 ## [5.8.38] - 2026-08-31
 
 ### Changed

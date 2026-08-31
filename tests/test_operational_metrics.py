@@ -77,4 +77,44 @@ def test_summary_counts_current_warning_and_failure_deployments() -> None:
 
     assert summary["warning_deployments"] == 1
     assert summary["failed_deployments"] == 1
+    assert summary["operational_status"] == "failed"
     assert summary["success_rate_7d"] == 66.67
+
+
+@pytest.mark.parametrize(
+    ("deployments", "expected"),
+    [
+        ([{"pipeline_id": "ok", "last_status": "ok"}], "ok"),
+        ([{"pipeline_id": "warn", "last_status": "warning"}], "warning"),
+        ([{"pipeline_id": "fail", "last_status": "failed"}], "failed"),
+        (
+            [
+                {"pipeline_id": "warn", "last_status": "warning"},
+                {"pipeline_id": "fail", "last_status": "failed"},
+            ],
+            "failed",
+        ),
+        ([{"pipeline_id": "stale", "last_status": "ok", "is_stale": True}], "warning"),
+    ],
+)
+def test_operational_status_precedence(
+    deployments: list[dict[str, object]], expected: str
+) -> None:
+    summary = deployment_health.build_operational_summary([], deployments)
+
+    assert summary["operational_status"] == expected
+
+
+def test_operational_status_ignores_inactive_deployments_and_includes_future_catalog_rows() -> None:
+    summary = deployment_health.build_operational_summary(
+        [],
+        [
+            {"pipeline_id": "inactive_failure", "last_status": "failed", "active": False},
+            {"pipeline_id": "future_pipeline", "last_status": "warning", "active": True},
+        ],
+    )
+
+    assert summary["pipelines"] == 1
+    assert summary["failed_deployments"] == 0
+    assert summary["warning_deployments"] == 1
+    assert summary["operational_status"] == "warning"

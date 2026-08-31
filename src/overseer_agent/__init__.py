@@ -1,3 +1,3 @@
 """Overseer agent — heartbeat and trigger consumption on remote runners."""
 
-__version__ = "5.8.38"
+__version__ = "5.8.39"
