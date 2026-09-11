@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 import yaml
+from sqlalchemy import insert
 
 from overseer_core import store
 
@@ -143,6 +145,64 @@ def test_list_deployments_db_overrides_yaml_metadata(sqlite_store, tmp_path: Pat
     assert row["owner"] == "platform"
     assert row["catalog_source"] == "db"
     assert row["schedule"] == "*/15 * * * *"
+
+
+def test_list_deployments_slow_pipeline_not_starved_by_noise(sqlite_store, tmp_path: Path) -> None:
+    """Um pipeline semanal não pode ficar "invisível" só por outras apps
+    gerarem milhares de runs recentes (ver fix da leitura global top-1000)."""
+    store.register_pipeline_catalog(
+        {
+            "pipeline_id": "warden_system_info",
+            "host_id": "baze2",
+            "name": "Warden System Info",
+            "owner": "eferreira",
+            "schedule": "0 2 * * 1",
+            "criticality": "medium",
+            "nodes": [{"module_id": "warden_system_info"}],
+            "edges": [],
+        }
+    )
+    now = store.utcnow()
+    old_started = now - timedelta(days=4)
+    rows = [
+        {
+            "run_id": "run-old-warden-system-info",
+            "pipeline_id": "warden_system_info",
+            "host_id": "BAZE2",
+            "pipeline_name": "Warden System Info",
+            "status": "ok",
+            "trigger_type": "cron",
+            "started_at": old_started,
+            "ended_at": old_started + timedelta(minutes=2),
+            "duration_sec": 120.0,
+            "created_at": old_started,
+            "updated_at": old_started,
+            "run_local_id": 1,
+        }
+    ] + [
+        {
+            "run_id": f"run-noise-{i}",
+            "pipeline_id": "noisy_pipeline",
+            "host_id": "NOISY-HOST",
+            "pipeline_name": "Noisy Pipeline",
+            "status": "ok",
+            "trigger_type": "cron",
+            "started_at": now - timedelta(seconds=i),
+            "ended_at": now - timedelta(seconds=i) + timedelta(seconds=1),
+            "duration_sec": 1.0,
+            "created_at": now,
+            "updated_at": now,
+            "run_local_id": i + 2,
+        }
+        for i in range(1500)
+    ]
+    with store.get_engine().begin() as conn:
+        conn.execute(insert(store.runs_table), rows)
+
+    row = next(item for item in store.list_deployments() if item["pipeline_id"] == "warden_system_info")
+    assert row["stale_hours"] is not None
+    assert 90 <= row["stale_hours"] <= 100
+    assert row["is_stale"] is False
 
 
 def test_list_deployments_db_schedule_overrides_yaml_when_explicit(sqlite_store, tmp_path: Path) -> None:

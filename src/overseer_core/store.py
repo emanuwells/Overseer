@@ -900,9 +900,39 @@ def normalize_runner(value: Any) -> str:
     return raw
 
 
+def _latest_runs_per_raw_group(per_group_limit: int = 7) -> list[dict[str, Any]]:
+    """Últimas execuções por (pipeline_id, host_id) em bruto.
+
+    Ao contrário de list_runs(limit=N), o limite aqui é por pipeline, não
+    global: um pipeline de cadência lenta (ex.: semanal) não desaparece da
+    janela só porque a frota (todas as apps) gerou milhares de runs recentes
+    de outros pipelines.
+    """
+    rn = (
+        func.row_number()
+        .over(
+            partition_by=[runs_table.c.pipeline_id, runs_table.c.host_id],
+            order_by=[runs_table.c.started_at.desc(), runs_table.c.run_local_id.desc()],
+        )
+        .label("rn")
+    )
+    ranked = select(runs_table, rn).subquery()
+    stmt = (
+        select(ranked)
+        .where(ranked.c.rn <= per_group_limit)
+        .order_by(ranked.c.started_at.desc())
+    )
+    with get_engine().connect() as conn:
+        rows = conn.execute(stmt).mappings().all()
+    from . import pipeline_names
+
+    catalog_index = _build_catalog_name_index_light()
+    return [pipeline_names.normalize_run_item(row_to_dict(row), catalog_index) for row in rows]
+
+
 def _latest_runs_by_deployment() -> dict[str, dict[str, Any]]:
     latest_runs: dict[str, dict[str, Any]] = {}
-    for run in list_runs(limit=5000):
+    for run in _latest_runs_per_raw_group(per_group_limit=1):
         normalized = normalize_pipeline_row(run, from_run=True)
         if not normalized:
             continue
@@ -1122,7 +1152,7 @@ def list_deployments() -> list[dict[str, Any]]:
 
     from . import deployment_health, runner_ssh
 
-    runs_by_deployment = deployment_health.group_runs_by_deployment(list_runs(limit=5000))
+    runs_by_deployment = deployment_health.group_runs_by_deployment(_latest_runs_per_raw_group(per_group_limit=7))
     hosts_cfg = runner_ssh.load_hosts_config()
     enriched: list[dict[str, Any]] = []
     for key, item in merged.items():
@@ -1975,8 +2005,14 @@ def overview() -> dict[str, Any]:
     runs = list_runs(limit=1000)
     runs_7d = list_runs_since(days=7, limit=5000)
     pipelines = list_pipelines()
+    # Para sinais de stale/regressão por pipeline usa-se uma leitura por
+    # pipeline (não global) — ver _latest_runs_per_raw_group — para que
+    # pipelines de cadência lenta não desapareçam por volume de outras apps.
+    # Os totais/volume/success_rate desta função já vêm de metrics/since_label
+    # abaixo (agregações SQL autoritativas), pelo que este `runs` só afeta o
+    # agrupamento por deployment.
     summary = deployment_health.build_operational_summary(
-        runs,
+        _latest_runs_per_raw_group(per_group_limit=7),
         pipelines,
         runs_7d=runs_7d,
         run_metrics=operational_run_metrics(),
