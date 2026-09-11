@@ -27,6 +27,26 @@ def test_daily_schedule_stale_threshold_is_24h() -> None:
     assert deployment_health.schedule_stale_threshold_hours("30 7 * * *") == 24.0
 
 
+def test_weekly_schedule_stale_threshold_is_2_weeks() -> None:
+    assert deployment_health.schedule_stale_threshold_hours("0 2 * * 1") == 336.0
+
+
+def test_weekly_schedule_tolerates_one_missed_run() -> None:
+    started_at = store.utcnow() - timedelta(days=13)
+    assert not deployment_health.is_stale_deployment(
+        [{"started_at": started_at}],
+        {"schedule": "0 2 * * 1"},
+    )
+
+
+def test_weekly_schedule_becomes_stale_after_second_missed_run() -> None:
+    started_at = store.utcnow() - timedelta(days=15)
+    assert deployment_health.is_stale_deployment(
+        [{"started_at": started_at}],
+        {"schedule": "0 2 * * 1"},
+    )
+
+
 def test_daily_schedule_becomes_stale_after_24h() -> None:
     stale_started_at = store.utcnow() - timedelta(hours=25)
     fresh_started_at = store.utcnow() - timedelta(hours=23)

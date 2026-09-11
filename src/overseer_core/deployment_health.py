@@ -63,7 +63,9 @@ def schedule_stale_threshold_hours(schedule: str) -> float | None:
         return 24.0 * 4
 
     if dow != "*" and dom == "*":
-        return 24.0 * 8
+        # Cadência semanal (ex.: "0 2 * * 1"): tolera 1 execução perdida e só
+        # fica stale se também falhar na 2ª semana (2x o intervalo real de 7 dias).
+        return 24.0 * 14
 
     if dom != "*" and dow == "*":
         return 24.0 * 35
